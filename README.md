@@ -80,11 +80,11 @@ then download and expand the archive:
 
 Or, if you were given bitbucket access, clone the repository:
 
-    git clone git@bitbucket.org:sleutenegger/okvis.git
+    git clone git@github.com:ethz-asl/okvis.git
 
 or
 
-    git clone https://sleutenegger@bitbucket.org/sleutenegger/okvis.git
+    git clone https://github.com/ethz-asl/okvis.git
 
 ### Building the project ###
 
