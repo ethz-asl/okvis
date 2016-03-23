@@ -57,7 +57,6 @@
 #include <okvis/cameras/RadialTangentialDistortion8.hpp>
 
 // Kneip RANSAC
-#include <boost/shared_ptr.hpp>
 #include <opengv/sac/Ransac.hpp>
 #include <opengv/sac_problems/absolute_pose/FrameAbsolutePoseSacProblem.hpp>
 #include <opengv/sac_problems/relative_pose/FrameRelativePoseSacProblem.hpp>
@@ -599,7 +598,7 @@ int Frontend::runRansac3d2d(okvis::Estimator& estimator,
   // create a RelativePoseSac problem and RANSAC
   opengv::sac::Ransac<
       opengv::sac_problems::absolute_pose::FrameAbsolutePoseSacProblem> ransac;
-  boost::shared_ptr<
+  std::shared_ptr<
       opengv::sac_problems::absolute_pose::FrameAbsolutePoseSacProblem> absposeproblem_ptr(
       new opengv::sac_problems::absolute_pose::FrameAbsolutePoseSacProblem(
           adapter,
@@ -676,7 +675,7 @@ int Frontend::runRansac2d2d(okvis::Estimator& estimator,
     // create a RelativePoseSac problem and RANSAC
     typedef opengv::sac_problems::relative_pose::FrameRotationOnlySacProblem FrameRotationOnlySacProblem;
     opengv::sac::Ransac<FrameRotationOnlySacProblem> rotation_only_ransac;
-    boost::shared_ptr<FrameRotationOnlySacProblem> rotation_only_problem_ptr(
+    std::shared_ptr<FrameRotationOnlySacProblem> rotation_only_problem_ptr(
         new FrameRotationOnlySacProblem(adapter));
     rotation_only_ransac.sac_model_ = rotation_only_problem_ptr;
     rotation_only_ransac.threshold_ = 9;
@@ -693,7 +692,7 @@ int Frontend::runRansac2d2d(okvis::Estimator& estimator,
     // now the rel_pose one:
     typedef opengv::sac_problems::relative_pose::FrameRelativePoseSacProblem FrameRelativePoseSacProblem;
     opengv::sac::Ransac<FrameRelativePoseSacProblem> rel_pose_ransac;
-    boost::shared_ptr<FrameRelativePoseSacProblem> rel_pose_problem_ptr(
+    std::shared_ptr<FrameRelativePoseSacProblem> rel_pose_problem_ptr(
         new FrameRelativePoseSacProblem(
             adapter, FrameRelativePoseSacProblem::STEWENIUS));
     rel_pose_ransac.sac_model_ = rel_pose_problem_ptr;
