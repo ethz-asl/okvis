@@ -555,7 +555,6 @@ void ThreadedKFVio::imuConsumerLoop() {
                         imuMeasurements_.empty()
                         || imuMeasurements_.back().timeStamp < data.timeStamp,
                         "IMU measurement from the past received");
-      imuMeasurements_.push_back(data);
 
       if (parameters_.publishing.publishImuPropagatedState) {
         if (!repropagationNeeded_ && imuMeasurements_.size() > 0) {
@@ -570,6 +569,7 @@ void ThreadedKFVio::imuConsumerLoop() {
           start = okvis::Time(0, 0);
         end = &data.timeStamp;
       }
+      imuMeasurements_.push_back(data);
     }  // unlock _imuMeasurements_mutex
 
     // notify other threads that imu data with timeStamp is here.
