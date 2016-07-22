@@ -3,7 +3,7 @@ var searchData=
   ['fa_5f',['fA_',['../classokvis_1_1VioKeyframeWindowMatchingAlgorithm.html#aafc646c0e6e046b1932d279acee55b47',1,'okvis::VioKeyframeWindowMatchingAlgorithm']]],
   ['fb_5f',['fB_',['../classokvis_1_1VioKeyframeWindowMatchingAlgorithm.html#a126cd5ddbbbe5fcdfa416e9a62298ae5',1,'okvis::VioKeyframeWindowMatchingAlgorithm']]],
   ['featuredetectormutexes_5f',['featureDetectorMutexes_',['../classokvis_1_1Frontend.html#a628386acc4c9075dde9ec63e5c03e64e',1,'okvis::Frontend']]],
-  ['featuredetectors_5f',['featureDetectors_',['../classokvis_1_1Frontend.html#a831d53909283a85e46e798c068c47a27',1,'okvis::Frontend']]],
+  ['featuredetectors_5f',['featureDetectors_',['../classokvis_1_1Frontend.html#aee16faaa44a1785d6400d48a8fc28144',1,'okvis::Frontend']]],
   ['file',['file',['../classokvis_1_1source__file__pos.html#a2041bf2c7887cd015c5e736b2b880904',1,'okvis::source_file_pos']]],
   ['fileptrmap',['FilePtrMap',['../classokvis_1_1VioInterface.html#aa2d26ff7f79b21f209569eae924da5e1',1,'okvis::VioInterface']]],
   ['findframebyid',['findFrameById',['../classokvis_1_1FrameSynchronizer.html#a4d117c4173f49113ed8beffed15f9a38',1,'okvis::FrameSynchronizer']]],

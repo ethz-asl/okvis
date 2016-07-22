@@ -232,15 +232,14 @@ Private Member Functions</h2></td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pri-attribs"></a>
 Private Attributes</h2></td></tr>
-<tr class="memitem:a831d53909283a85e46e798c068c47a27"><td class="memItemLeft" align="right" valign="top">std::vector&lt; std::shared_ptr<br class="typebreak"/>
-&lt; const cv::FeatureDetector &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classokvis_1_1Frontend.html#a831d53909283a85e46e798c068c47a27">featureDetectors_</a></td></tr>
-<tr class="memdesc:a831d53909283a85e46e798c068c47a27"><td class="mdescLeft">&#160;</td><td class="mdescRight">feature detectors with the current settings. The vector contains one for each camera to ensure that there are no problems with parallel detection.  <a href="#a831d53909283a85e46e798c068c47a27">More...</a><br/></td></tr>
-<tr class="separator:a831d53909283a85e46e798c068c47a27"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a1b54e3d334ef82816f1a45b214db19d7"><td class="memItemLeft" align="right" valign="top">std::vector&lt; std::shared_ptr<br class="typebreak"/>
-&lt; const <br class="typebreak"/>
-cv::DescriptorExtractor &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classokvis_1_1Frontend.html#a1b54e3d334ef82816f1a45b214db19d7">descriptorExtractors_</a></td></tr>
-<tr class="memdesc:a1b54e3d334ef82816f1a45b214db19d7"><td class="mdescLeft">&#160;</td><td class="mdescRight">feature descriptors with the current settings. The vector contains one for each camera to ensure that there are no problems with parallel detection.  <a href="#a1b54e3d334ef82816f1a45b214db19d7">More...</a><br/></td></tr>
-<tr class="separator:a1b54e3d334ef82816f1a45b214db19d7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aee16faaa44a1785d6400d48a8fc28144"><td class="memItemLeft" align="right" valign="top">std::vector&lt; std::shared_ptr<br class="typebreak"/>
+&lt; cv::FeatureDetector &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classokvis_1_1Frontend.html#aee16faaa44a1785d6400d48a8fc28144">featureDetectors_</a></td></tr>
+<tr class="memdesc:aee16faaa44a1785d6400d48a8fc28144"><td class="mdescLeft">&#160;</td><td class="mdescRight">feature detectors with the current settings. The vector contains one for each camera to ensure that there are no problems with parallel detection.  <a href="#aee16faaa44a1785d6400d48a8fc28144">More...</a><br/></td></tr>
+<tr class="separator:aee16faaa44a1785d6400d48a8fc28144"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a00824d5b9902e27c0ff8cf1ae37f6382"><td class="memItemLeft" align="right" valign="top">std::vector&lt; std::shared_ptr<br class="typebreak"/>
+&lt; cv::DescriptorExtractor &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classokvis_1_1Frontend.html#a00824d5b9902e27c0ff8cf1ae37f6382">descriptorExtractors_</a></td></tr>
+<tr class="memdesc:a00824d5b9902e27c0ff8cf1ae37f6382"><td class="mdescLeft">&#160;</td><td class="mdescRight">feature descriptors with the current settings. The vector contains one for each camera to ensure that there are no problems with parallel detection.  <a href="#a00824d5b9902e27c0ff8cf1ae37f6382">More...</a><br/></td></tr>
+<tr class="separator:a00824d5b9902e27c0ff8cf1ae37f6382"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a628386acc4c9075dde9ec63e5c03e64e"><td class="memItemLeft" align="right" valign="top">std::vector&lt; std::unique_ptr<br class="typebreak"/>
 &lt; std::mutex &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classokvis_1_1Frontend.html#a628386acc4c9075dde9ec63e5c03e64e">featureDetectorMutexes_</a></td></tr>
 <tr class="memdesc:a628386acc4c9075dde9ec63e5c03e64e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Mutexes for feature detectors and descriptors.  <a href="#a628386acc4c9075dde9ec63e5c03e64e">More...</a><br/></td></tr>
@@ -1640,7 +1639,7 @@ template&lt;class MATCHING_ALGORITHM &gt; </div>
 
 </div>
 </div>
-<a class="anchor" id="a1b54e3d334ef82816f1a45b214db19d7"></a>
+<a class="anchor" id="a00824d5b9902e27c0ff8cf1ae37f6382"></a>
 <div class="memitem">
 <div class="memproto">
 <table class="mlabels">
@@ -1648,7 +1647,7 @@ template&lt;class MATCHING_ALGORITHM &gt; </div>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">std::vector&lt;std::shared_ptr&lt;const cv::DescriptorExtractor&gt; &gt; okvis::Frontend::descriptorExtractors_</td>
+          <td class="memname">std::vector&lt;std::shared_ptr&lt;cv::DescriptorExtractor&gt; &gt; okvis::Frontend::descriptorExtractors_</td>
         </tr>
       </table>
   </td>
@@ -1685,7 +1684,7 @@ template&lt;class MATCHING_ALGORITHM &gt; </div>
 
 </div>
 </div>
-<a class="anchor" id="a831d53909283a85e46e798c068c47a27"></a>
+<a class="anchor" id="aee16faaa44a1785d6400d48a8fc28144"></a>
 <div class="memitem">
 <div class="memproto">
 <table class="mlabels">
@@ -1693,7 +1692,7 @@ template&lt;class MATCHING_ALGORITHM &gt; </div>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">std::vector&lt;std::shared_ptr&lt;const cv::FeatureDetector&gt; &gt; okvis::Frontend::featureDetectors_</td>
+          <td class="memname">std::vector&lt;std::shared_ptr&lt;cv::FeatureDetector&gt; &gt; okvis::Frontend::featureDetectors_</td>
         </tr>
       </table>
   </td>
@@ -1827,7 +1826,7 @@ template&lt;class MATCHING_ALGORITHM &gt; </div>
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Wed Mar 23 2016 11:51:03 for OKVIS by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Fri Jul 22 2016 15:55:33 for OKVIS by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.6
 </small></address>
