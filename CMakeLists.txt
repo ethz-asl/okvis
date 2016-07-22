@@ -4,7 +4,7 @@ project(okvis)
 # The version number.
 set(OKVIS_MAJOR_VERSION 1)
 set(OKVIS_MINOR_VERSION 1)
-set(OKVIS_PATCH_VERSION 2)
+set(OKVIS_PATCH_VERSION 3)
 set(OKVIS_VERSION
   ${OKVIS_MAJOR_VERSION}.${OKVIS_MINOR_VERSION}.${OKVIS_PATCH_VERSION})
 
@@ -111,7 +111,7 @@ if(${USE_SYSTEM_BRISK})
   message(STATUS "Using system brisk. Found at ${BRISK_INCLUDE_DIRS}.")
 else()
   ExternalProject_Add(brisk_external
-    URL "https://www.doc.ic.ac.uk/~sleutene/software/brisk-2.0.2.zip"    
+    URL "https://www.doc.ic.ac.uk/~sleutene/software/brisk-2.0.3.zip"    
     INSTALL_DIR ${CMAKE_BINARY_DIR}
     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR> -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/brisk
@@ -179,8 +179,13 @@ else()
   # to find it from 3rd party software, since not added to registry:
   set(OKVIS_CERES_CONFIG "${CMAKE_BINARY_DIR}/share/Ceres/")
 
-  set_property(TARGET ceres PROPERTY IMPORTED_LOCATION
+  if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+    set_property(TARGET ceres PROPERTY IMPORTED_LOCATION
+               ${CMAKE_BINARY_DIR}/${CERES_LIB_PREFIX}/libceres-debug.a )
+  else () 
+    set_property(TARGET ceres PROPERTY IMPORTED_LOCATION
                ${CMAKE_BINARY_DIR}/${CERES_LIB_PREFIX}/libceres.a )
+  endif ()
    
   find_package(OpenMP QUIET)
   if (OPENMP_FOUND)
@@ -208,6 +213,7 @@ set(CMAKE_CXX_FLAGS_WSUPPRESS
 message(STATUS "NOTE: Suppressing some warnings when compiling OpenGV.")
 ExternalProject_Add(opengv_external
     GIT_REPOSITORY https://github.com/laurentkneip/opengv
+    GIT_TAG cc32b16281aa6eab67cb28a61cf87a2a5c2b0961
     UPDATE_COMMAND ""
     PATCH_COMMAND # forcing static libs
         COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_SOURCE_DIR}/cmake/opengv/CMakeLists.txt ${CMAKE_CURRENT_BINARY_DIR}/opengv/src/opengv/CMakeLists.txt

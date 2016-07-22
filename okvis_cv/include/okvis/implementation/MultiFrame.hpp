@@ -126,7 +126,7 @@ void MultiFrame::setGeometry(
 
 // Set the detector
 void MultiFrame::setDetector(size_t cameraIdx,
-                             std::shared_ptr<const cv::FeatureDetector> detector)
+                             std::shared_ptr<cv::FeatureDetector> detector)
 {
   OKVIS_ASSERT_TRUE_DBG(Exception, cameraIdx < frames_.size(), "Out of range");
   frames_[cameraIdx].setDetector(detector);
@@ -134,7 +134,7 @@ void MultiFrame::setDetector(size_t cameraIdx,
 
 // Set the extractor
 void MultiFrame::setExtractor(
-    size_t cameraIdx, std::shared_ptr<const cv::DescriptorExtractor> extractor)
+    size_t cameraIdx, std::shared_ptr<cv::DescriptorExtractor> extractor)
 {
   OKVIS_ASSERT_TRUE_DBG(Exception, cameraIdx < frames_.size(), "Out of range");
   frames_[cameraIdx].setExtractor(extractor);
