@@ -75,8 +75,8 @@ You will need to install the following dependencies,
 
 then download and expand the archive:
 
-    wget https://www.doc.ic.ac.uk/~sleutene/software/okvis-1.1.2.zip
-    unzip okvis-1.1.2.zip && rm okvis-1.1.2.zip
+    wget https://www.doc.ic.ac.uk/~sleutene/software/okvis-1.1.3.zip
+    unzip okvis-1.1.3.zip && rm okvis-1.1.3.zip
 
 Or, if you were given bitbucket access, clone the repository:
 
