@@ -67,13 +67,13 @@ void Frame::setGeometry(std::shared_ptr<const cameras::CameraBase> cameraGeometr
 }
 
 // set the detector
-void Frame::setDetector(std::shared_ptr<const cv::FeatureDetector> detector)
+void Frame::setDetector(std::shared_ptr<cv::FeatureDetector> detector)
 {
   detector_ = detector;
 }
 
 // set the extractor
-void Frame::setExtractor(std::shared_ptr<const cv::DescriptorExtractor> extractor)
+void Frame::setExtractor(std::shared_ptr<cv::DescriptorExtractor> extractor)
 {
   extractor_ = extractor;
 }

@@ -265,13 +265,13 @@ class Frontend : public VioFrontendInterface {
    *          The vector contains one for each camera to ensure that there are no problems with parallel detection.
    * @warning Lock with featureDetectorMutexes_[cameraIndex] when using the detector.
    */
-  std::vector<std::shared_ptr<const cv::FeatureDetector> > featureDetectors_;
+  std::vector<std::shared_ptr<cv::FeatureDetector> > featureDetectors_;
   /**
    * @brief   feature descriptors with the current settings.
    *          The vector contains one for each camera to ensure that there are no problems with parallel detection.
    * @warning Lock with featureDetectorMutexes_[cameraIndex] when using the descriptor.
    */
-  std::vector<std::shared_ptr<const cv::DescriptorExtractor> > descriptorExtractors_;
+  std::vector<std::shared_ptr<cv::DescriptorExtractor> > descriptorExtractors_;
   /// Mutexes for feature detectors and descriptors.
   std::vector<std::unique_ptr<std::mutex> > featureDetectorMutexes_;
 
