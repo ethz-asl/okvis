@@ -63,7 +63,10 @@ else()
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -Wall -std=c++11 -fPIC")
 endif()
 
-if(${CMAKE_HOST_SYSTEM_PROCESSOR} MATCHES "arm*")
+if(${CMAKE_HOST_SYSTEM_PROCESSOR} MATCHES "aarch64*")
+  message(STATUS "ARM 64 bit processor detected, will use NEON by default.")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D__ARM_NEON__")
+elseif(${CMAKE_HOST_SYSTEM_PROCESSOR} MATCHES "arm.*")
   message(STATUS "ARM processor detected, will attempt to use NEON.")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mfpu=neon")
 else()
@@ -111,7 +114,7 @@ if(${USE_SYSTEM_BRISK})
   message(STATUS "Using system brisk. Found at ${BRISK_INCLUDE_DIRS}.")
 else()
   ExternalProject_Add(brisk_external
-    URL "https://www.doc.ic.ac.uk/~sleutene/software/brisk-2.0.3.zip"    
+    URL "https://codeload.github.com/gwli/brisk/zip/aarch64"
     INSTALL_DIR ${CMAKE_BINARY_DIR}
     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR> -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/brisk
