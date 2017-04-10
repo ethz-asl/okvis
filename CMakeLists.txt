@@ -14,7 +14,7 @@ option (USE_SYSTEM_BRISK
 option (USE_SYSTEM_CERES
         "Use ceres via find_package rather than downloading it as part of okvis" OFF) 
 option (BUILD_APPS
-        "Builds a demo app (which requires boost)" ON) 
+        "Builds a demo app (which requires boost)" OFF)
 option (BUILD_TESTS
         "Builds all gtests" OFF) 
 SET(N_CORES 3 CACHE STRING "Using N number of cores for parallel build")
@@ -51,7 +51,7 @@ endif()
 if (NOT "${CMAKE_BUILD_TYPE}" STREQUAL "Release")
   message(WARNING "CMAKE_BUILD_TYPE not set to 'Release'. Performance may be terrible.")
 else()
-  message(STATUS "Building with build type '${CMAKE_BUILD_TYPE}'")
+  message(STATUS "Building okvis with build type '${CMAKE_BUILD_TYPE}'")
 endif()
 
 if(APPLE)
@@ -158,6 +158,7 @@ else()
       -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS} 
       -DBUILD_EXAMPLES:BOOL=OFF
       -DBUILD_TESTING:BOOL=OFF
+      -DEIGEN_INCLUDE_DIR:PATH=/usr/local/include/eigen3
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/ceres
     BUILD_IN_SOURCE 0
     BUILD_COMMAND make -j${N_CORES}
@@ -223,6 +224,7 @@ ExternalProject_Add(opengv_external
       -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR> 
       -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE} 
       -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS_WSUPPRESS} # suppress warnings...
+      -DEIGEN_INCLUDE_DIRS:PATH=/usr/local/include/eigen3
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/opengv
     SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/opengv/src/opengv
     INSTALL_DIR ${CMAKE_BINARY_DIR}
@@ -242,7 +244,7 @@ install(DIRECTORY ${CMAKE_BINARY_DIR}/include/opengv/
   DESTINATION ${CMAKE_INSTALL_PREFIX}/include/opengv/)
 install(DIRECTORY ${CMAKE_BINARY_DIR}/lib/CMake/opengv/
   DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/CMake/opengv/)
-
+message("okvis cmake install prefix " ${CMAKE_INSTALL_PREFIX})
 if(${BUILD_TESTS})
   # gmock
   # http://stackoverflow.com/questions/9689183/cmake-googletest
@@ -342,7 +344,7 @@ endif()
 
 # installation is invoked in the individual modules...
 export (TARGETS 
-    okvis_app_synchronous
+#    okvis_app_synchronous
     okvis_util
     okvis_kinematics
     okvis_time

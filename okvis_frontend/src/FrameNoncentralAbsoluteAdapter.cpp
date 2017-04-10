@@ -84,7 +84,7 @@ opengv::absolute_pose::FrameNoncentralAbsoluteAdapter::FrameNoncentralAbsoluteAd
         continue;
 
       // get it
-      const Eigen::Vector4d hp = landmark.point;
+      const Eigen::Vector4d hp = landmark.pointHomog;
 
       // check if not at infinity
       if (fabs(hp[3]) < 1.0e-8)

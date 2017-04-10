@@ -188,6 +188,7 @@ class Frame
   inline size_t numKeypoints() const;
 
  protected:
+ public:// Huai made public
   cv::Mat image_;  ///< the image as OpenCV's matrix
   std::shared_ptr<const cameras::CameraBase> cameraGeometry_;  ///< the camera geometry
   std::shared_ptr<cv::FeatureDetector> detector_;  ///< the detector

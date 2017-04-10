@@ -166,6 +166,7 @@ struct CameraData {
   cv::Mat image;  ///< Image.
   std::vector<cv::KeyPoint> keypoints; ///< Keypoints if available.
   bool deliversKeypoints; ///< Are the keypoints delivered too?
+  int idInSource; /// (0 based) id of the frame within the video or the image folder
 };
 /// \brief Keypoint measurement.
 struct KeypointData {

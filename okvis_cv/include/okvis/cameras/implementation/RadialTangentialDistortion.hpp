@@ -241,9 +241,9 @@ bool RadialTangentialDistortion::undistort(
   }
   *pointUndistorted = x_bar;
 
-  if(!success){
-    std::cout<<(E.transpose() * E)<<std::endl;
-  }
+//  if(!success){
+//    std::cout<<"failed to undistort "<<pointDistorted.transpose()<<std::endl; //<<(E.transpose() * E)<<std::endl;
+//  }
 
   return success;
 }

@@ -98,6 +98,11 @@ void ThreadedKFVio::init() {
   frontend_.setBriskDetectionThreshold(parameters_.optimization.detectionThreshold);
   frontend_.setBriskDetectionMaximumKeypoints(parameters_.optimization.maxNoKeypoints);
 
+  frontend_.setKeyframeInsertionOverlapThreshold(parameters_.optimization.keyframeInsertionOverlapThreshold);
+  frontend_.setKeyframeInsertionMatchingRatioThreshold(parameters_.optimization.keyframeInsertionMatchingRatioThreshold);
+  std::cout <<"Resetting overlap and matching ratio threshold "<< frontend_.getKeyframeInsertionOverlapThershold() <<" "<<
+              frontend_.getKeyframeInsertionMatchingRatioThreshold()<<std::endl;
+
   lastOptimizedStateTimestamp_ = okvis::Time(0.0) + temporal_imu_data_overlap;  // s.t. last_timestamp_ - overlap >= 0 (since okvis::time(-0.02) returns big number)
   lastAddedStateTimestamp_ = okvis::Time(0.0) + temporal_imu_data_overlap;  // s.t. last_timestamp_ - overlap >= 0 (since okvis::time(-0.02) returns big number)
 
@@ -192,6 +197,7 @@ ThreadedKFVio::~ThreadedKFVio() {
 bool ThreadedKFVio::addImage(const okvis::Time & stamp, size_t cameraIndex,
                              const cv::Mat & image,
                              const std::vector<cv::KeyPoint> * keypoints,
+                             int frameIdInSource,
                              bool* /*asKeyframe*/) {
   assert(cameraIndex<numCameras_);
 
@@ -207,6 +213,7 @@ bool ThreadedKFVio::addImage(const okvis::Time & stamp, size_t cameraIndex,
   std::shared_ptr<okvis::CameraMeasurement> frame = std::make_shared<
       okvis::CameraMeasurement>();
   frame->measurement.image = image;
+  frame->measurement.idInSource = frameIdInSource;
   frame->timeStamp = stamp;
   frame->sensorId = cameraIndex;
 
@@ -778,13 +785,17 @@ void ThreadedKFVio::optimizationLoop() {
         estimator_.getSpeedAndBias(frame_pairs->id(), 0,
                                    lastOptimizedSpeedAndBiases_);
         lastOptimizedStateTimestamp_ = frame_pairs->timestamp();
-
+        int frameIdInSource = -1;
+        bool isKF= false;
+        estimator_.getFrameId(frame_pairs->id(), frameIdInSource, isKF );
         // if we publish the state after each IMU propagation we do not need to publish it here.
         if (!parameters_.publishing.publishImuPropagatedState) {
           result.T_WS = lastOptimized_T_WS_;
           result.speedAndBiases = lastOptimizedSpeedAndBiases_;
           result.stamp = lastOptimizedStateTimestamp_;
           result.onlyPublishLandmarks = false;
+          result.frameIdInSource = frameIdInSource;
+          result.isKeyframe = isKF;
         }
         else
           result.onlyPublishLandmarks = true;
@@ -813,7 +824,7 @@ void ThreadedKFVio::optimizationLoop() {
             it->landmarkId = frame_pairs->landmarkId(camIndex, k);
             if (estimator_.isLandmarkAdded(it->landmarkId)) {
               estimator_.getLandmark(it->landmarkId, landmark);
-              it->landmark_W = landmark.point;
+              it->landmark_W = landmark.pointHomog;
               if (estimator_.isLandmarkInitialized(it->landmarkId))
                 it->isInitialized = true;
               else
@@ -837,9 +848,9 @@ void ThreadedKFVio::optimizationLoop() {
     if (!parameters_.publishing.publishImuPropagatedState) {
       // adding further elements to result that do not access estimator.
       for (size_t i = 0; i < parameters_.nCameraSystem.numCameras(); ++i) {
-        result.vector_of_T_SCi.push_back(
-            okvis::kinematics::Transformation(
-                *parameters_.nCameraSystem.T_SC(i)));
+        okvis::kinematics::Transformation T_SCA;
+        estimator_.getCameraSensorStates(frame_pairs->id(), i, T_SCA);
+        result.vector_of_T_SCi.push_back(T_SCA);
       }
     }
     optimizationResults_.Push(result);
@@ -864,12 +875,13 @@ void ThreadedKFVio::publisherLoop() {
     // call all user callbacks
     if (stateCallback_ && !result.onlyPublishLandmarks)
       stateCallback_(result.stamp, result.T_WS);
-    if (fullStateCallback_ && !result.onlyPublishLandmarks)
+    if (fullStateCallback_ && !result.onlyPublishLandmarks && result.isKeyframe)
       fullStateCallback_(result.stamp, result.T_WS, result.speedAndBiases,
-                         result.omega_S);
-    if (fullStateCallbackWithExtrinsics_ && !result.onlyPublishLandmarks)
+                         result.omega_S, result.frameIdInSource);
+    if (fullStateCallbackWithExtrinsics_ && !result.onlyPublishLandmarks && result.isKeyframe)
       fullStateCallbackWithExtrinsics_(result.stamp, result.T_WS,
                                        result.speedAndBiases, result.omega_S,
+                                       result.frameIdInSource,
                                        result.vector_of_T_SCi);
     if (landmarksCallback_ && !result.landmarksVector.empty())
       landmarksCallback_(result.stamp, result.landmarksVector,

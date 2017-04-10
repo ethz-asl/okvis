@@ -69,6 +69,7 @@ struct ExtrinsicsEstimationParameters
   {
   }
 
+private:
   /**
    * @brief Constructor.
    * @param sigma_absolute_translation Absolute translation stdev. [m]
@@ -87,6 +88,7 @@ struct ExtrinsicsEstimationParameters
   {
   }
 
+public:
   // absolute (prior) w.r.t frame S
   double sigma_absolute_translation; ///< Absolute translation stdev. [m]
   double sigma_absolute_orientation; ///< Absolute orientation stdev. [rad]
@@ -94,6 +96,14 @@ struct ExtrinsicsEstimationParameters
   // relative (temporal)
   double sigma_c_relative_translation; ///< Relative translation noise density. [m/sqrt(Hz)]
   double sigma_c_relative_orientation; ///< Relative orientation noise density. [rad/sqrt(Hz)]
+
+  double sigma_focal_length;
+  double sigma_principal_point;
+  Eigen::Matrix<double, 5, 1> sigma_distortion; ///k1, k2, p1, p2, [k3]
+  double sigma_td;
+  double sigma_tr;
+  double init_td;
+  double init_tr;
 };
 
 /*!
@@ -115,8 +125,16 @@ struct ImuParameters{
   double sigma_aw_c; ///< Accelerometer drift noise density.
   double tau;  ///< Reversion time constant of accerometer bias. [s]
   double g;  ///< Earth acceleration.
+  Eigen::Vector3d g0;  ///< Mean of the prior gyroscope bias.
   Eigen::Vector3d a0;  ///< Mean of the prior accelerometer bias.
   int rate;  ///< IMU rate in Hz.
+  double sigma_TGElement; /// std for every element in shape matrix T_g
+  double sigma_TSElement;
+  double sigma_TAElement;
+  Eigen::Matrix<double,9,1> Tg0; //initial Tg estimate
+  Eigen::Matrix<double,9,1> Ts0;
+  Eigen::Matrix<double,9,1> Ta0;
+  double td0; // initial image delay with respect to imu data after compensating imageDelay
 };
 
 /*!
@@ -243,6 +261,9 @@ struct Optimization{
   int maxNoKeypoints;       ///< Restrict to a maximum of this many keypoints per image (strongest ones).
   int numKeyframes; ///< Number of keyframes.
   int numImuFrames; ///< Number of IMU frames.
+
+  float keyframeInsertionOverlapThreshold; //added by huai
+  float keyframeInsertionMatchingRatioThreshold;
 };
 
 /**
@@ -253,6 +274,7 @@ struct SensorsInformation {
   double imageDelay;  ///< Camera image delay. [s]
   int imuIdx;         ///< IMU index. Anything other than 0 will probably not work.
   double frameTimestampTolerance; ///< Time tolerance between frames to accept them as stereo frames. [s]
+  double imageReadoutTime; /// time to read out one image, for rolling shutter cameras
 };
 
 /// @brief Some visualization settings.
@@ -274,6 +296,31 @@ struct PublishingParameters {
   okvis::kinematics::Transformation T_Wc_W = okvis::kinematics::Transformation::Identity(); ///< Provide custom World frame Wc
   FrameName trackedBodyFrame = FrameName::B; ///< B or S, the frame of reference that will be expressed relative to the selected worldFrame Wc
   FrameName velocitiesFrame = FrameName::B; ///< B or S,  the frames in which the velocities of the selected trackedBodyFrame will be expressed in
+  std::string outputPath; /// the folder to put output files
+};
+
+struct InputData
+{
+    std::string imageFolder;
+    std::string timeFile;
+    std::string videoFile;
+    std::string imuFile;
+    std::string voPosesFile;
+    std::string voFeatureTracksFile;
+    int startIndex;
+    int finishIndex;
+};
+
+struct InitialState
+{
+    bool bUseExternalInitState;
+    okvis::Time stateTime;
+//    Eigen::Vector3d p_WS; //should always be zeros
+    Eigen::Quaterniond q_WS;
+    Eigen::Vector3d v_WS; //velocity of the IMU sensor w.r.t the sensor frame at the start epoch expressed in that frame
+    Eigen::Vector3d std_v_WS;
+    Eigen::Vector3d std_q_WS;
+    Eigen::Vector3d std_p_WS; //std of the sensor position in the sensor frame at the start epoch expressed in that frame
 };
 
 /// @brief Struct to combine all parameters and settings.
@@ -294,6 +341,8 @@ struct VioParameters {
   DifferentialPressureSensorParameters differential; ///< Differential pressure sensor parameters.
   WindParameters wind;  ///< Wind parameters.
   PublishingParameters publishing; ///< Publishing parameters.
+  InputData input;
+  InitialState initialState;
 };
 
 } // namespace okvis

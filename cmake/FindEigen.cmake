@@ -14,7 +14,7 @@
 # Copyright (c) 2008, 2009 Gael Guennebaud, <g.gael@free.fr>
 # Copyright (c) 2009 Benoit Jacob <jacob.benoit.1@gmail.com>
 # Redistribution and use is allowed according to the terms of the 2-clause BSD license.
-
+set(EIGEN_INCLUDE_DIR ${EIGEN3_INCLUDE_DIR}) #Huai added
 if(NOT Eigen_FIND_VERSION)
   if(NOT Eigen_FIND_VERSION_MAJOR)
     set(Eigen_FIND_VERSION_MAJOR 2)
@@ -79,5 +79,4 @@ else ()
   SET(EIGEN_INCLUDE_DIRS ${EIGEN_INCLUDE_DIR} CACHE PATH "The Eigen include path.")
 
 endif()
-
 

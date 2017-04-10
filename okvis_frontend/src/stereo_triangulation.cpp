@@ -119,6 +119,7 @@ Eigen::Vector4d triangulateFast(const Eigen::Vector3d& p1,
     midpoint = (p1 + 0.5 * t12) - diff;
   }
 
+
   return Eigen::Vector4d(midpoint[0], midpoint[1], midpoint[2], 1.0).normalized();
 }
 

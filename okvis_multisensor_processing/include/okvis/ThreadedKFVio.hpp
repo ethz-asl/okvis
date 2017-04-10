@@ -130,6 +130,7 @@ class ThreadedKFVio : public VioInterface {
   virtual bool addImage(const okvis::Time & stamp, size_t cameraIndex,
                         const cv::Mat & image,
                         const std::vector<cv::KeyPoint> * keypoints = 0,
+                        int frameIdInSource = -1,
                         bool* asKeyframe = 0);
 
   /**
@@ -303,6 +304,8 @@ class ThreadedKFVio : public VioInterface {
     okvis::MapPointVector landmarksVector;      ///< Vector containing the current landmarks.
     okvis::MapPointVector transferredLandmarks; ///< Vector of the landmarks that have been marginalized out.
     bool onlyPublishLandmarks;                  ///< Boolean to signalise the publisherLoop() that only the landmarks should be published
+    int frameIdInSource;
+    bool isKeyframe;
   };
 
   /// @name State variables

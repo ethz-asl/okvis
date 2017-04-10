@@ -127,7 +127,7 @@ namespace timing {
 #endif
   }
   
-  void Timer::stop()
+  double Timer::stop(bool bSaveTime)
   {
     OKVIS_ASSERT_TRUE(TimerException, m_timing,"The timer " + Timing::getTag(m_handle) + " is not running");
     double dt;
@@ -140,8 +140,12 @@ namespace timing {
     boost::posix_time::time_duration t = now - m_time;
     dt = ((double)t.total_nanoseconds() * 1e-9);
 #endif
-    Timing::instance().addTime(m_handle,dt);
+    if(bSaveTime)
+        Timing::instance().addTime2(m_handle,dt);
+    else
+        Timing::instance().addTime(m_handle,dt);
     m_timing = false;
+    return dt;
   }
   
   bool Timer::isTiming()
@@ -159,6 +163,15 @@ namespace timing {
     m_timers[handle].m_acc(seconds);
   }
   
+  void Timing::addTime2(size_t handle, double seconds){
+      m_timers[handle].m_acc(seconds);
+      m_timers[handle].m_times.push_back(seconds);
+  }
+  std::vector<double> Timing::getAllElements(size_t handle){
+    OKVIS_ASSERT_TRUE(TimerException, handle < instance().m_timers.size(), "Handle is out of range: " << handle << ", number of timers: " << instance().m_timers.size());
+    return instance().m_timers[handle].m_times;
+  }
+
   double Timing::getTotalSeconds(size_t handle) {
     OKVIS_ASSERT_TRUE(TimerException, handle < instance().m_timers.size(), "Handle is out of range: " << handle << ", number of timers: " << instance().m_timers.size());
     return boost::accumulators::extract::sum(instance().m_timers[handle].m_acc);
@@ -226,8 +239,8 @@ namespace timing {
   std::string Timing::secondsToTimeString(double seconds) {
     
     double secs = fmod(seconds,60);
-    int minutes = (long)(seconds/60);
-    int hours = (long)(seconds/3600);
+    int minutes = (int)(seconds/60);
+    int hours = (int)(seconds/3600);
     minutes = minutes - (hours*60);
     
     char buffer[256];
@@ -243,7 +256,8 @@ namespace timing {
     map_t & tagMap = instance().m_tagMap;
     //list_t & timers = instance().m_timers;
     out << "SM Timing\n";
-    out << "-----------\n";
+    out << "each line is either: timer\t #samples\t totalSecs\t meanSecs\t (varSecs)\t [minSecs, maxSecs]\n";
+    out << "or: timer\t #samples\t sample1\t sample2\t ... samplen\n";
     std::map<std::string, size_t> orderedMap(tagMap.begin(),tagMap.end());
     auto t = orderedMap.begin();
     for( ; t != orderedMap.end(); t++) {
@@ -266,9 +280,25 @@ namespace timing {
        double maxsec = getMaxSeconds(i);
 
         // The min or max are out of bounds.
-        out << "[" << secondsToTimeString(minsec) << "," << secondsToTimeString(maxsec) << "]";
+       out << "[" << secondsToTimeString(minsec) << "," << secondsToTimeString(maxsec) << "]";
       }
       out << std::endl;
+      std::vector<double> allTimes = getAllElements(i);
+      if(allTimes.size()){
+          out.width((std::streamsize)instance().m_maxTagLength);
+          out.setf(std::ios::left,std::ios::adjustfield);
+          out << t->first << "\t";
+          out.width(7);
+
+          out.setf(std::ios::right,std::ios::adjustfield);
+          out << allTimes.size() << "\t";
+          std::vector<double>::const_iterator iter = allTimes.begin(),
+                  iterEnd= allTimes.end()-1;
+          for (; iter!=iterEnd; ++iter) {
+              out << *iter << "\t";
+          }
+          out << *iter << std::endl;
+      }
     }
   }
   std::string Timing::print()

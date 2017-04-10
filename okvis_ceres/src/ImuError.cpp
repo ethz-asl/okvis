@@ -210,6 +210,7 @@ int ImuError::redoPreintegration(const okvis::kinematics::Transformation& /*T_WS
     Eigen::Matrix<double, 15, 15> F_delta =
         Eigen::Matrix<double, 15, 15>::Identity();
     // transform
+#if 0
     F_delta.block<3, 3>(0, 3) = -okvis::kinematics::crossMx(
         acc_integral_ * dt + 0.25 * (C + C_1) * acc_S_true * dt * dt);
     F_delta.block<3, 3>(0, 6) = Eigen::Matrix3d::Identity() * dt;
@@ -222,6 +223,22 @@ int ImuError::redoPreintegration(const okvis::kinematics::Transformation& /*T_WS
         0.5 * (C + C_1) * acc_S_true * dt);
     F_delta.block<3, 3>(6, 9) = 0.5 * dt
         * (C * acc_S_x * cross_ + C_1 * acc_S_x * cross_1);
+
+#else
+    Eigen::Matrix3d deltaCross = cross_1- cross_;
+    F_delta.block<3, 3>(0, 3) = -okvis::kinematics::crossMx(
+        /*acc_integral_ * dt +*/ 0.25 * (C + C_1) * acc_S_true * dt * dt);
+    F_delta.block<3, 3>(0, 6) = Eigen::Matrix3d::Identity() * dt;
+    F_delta.block<3, 3>(0, 9) = /*dt * dv_db_g_ + 0.25 * dt * dt * (C * acc_S_x * cross_ + C_1 * acc_S_x * cross_1)*/
+                                0.25*dt*dt*(C_1*acc_S_x*deltaCross);
+    F_delta.block<3, 3>(0, 12) = /*-C_integral_ * dt +*/ 0.25 * (C + C_1) * dt * dt;
+    F_delta.block<3, 3>(3, 9) = -dt * C_1;
+    F_delta.block<3, 3>(6, 3) = -okvis::kinematics::crossMx(0.5 * (C + C_1) * acc_S_true * dt);
+    F_delta.block<3, 3>(6, 9) = /*0.5 * dt* (C * acc_S_x * cross_ + C_1 * acc_S_x * cross_1)*/
+                                0.5*dt*(C_1*acc_S_x*deltaCross);
+#endif
+
+
     F_delta.block<3, 3>(6, 12) = -0.5 * (C + C_1) * dt;
     P_delta_ = F_delta * P_delta_ * F_delta.transpose();
     // add noise. Note that transformations with rotation matrices can be ignored, since the noise is isotropic.
@@ -420,6 +437,7 @@ int ImuError::propagation(const okvis::ImuMeasurementDeque & imuMeasurements,
     if (covariance) {
       Eigen::Matrix<double,15,15> F_delta = Eigen::Matrix<double,15,15>::Identity();
       // transform
+#if 0
       F_delta.block<3,3>(0,3) = -okvis::kinematics::crossMx(acc_integral*dt + 0.25*(C + C_1)*acc_S_true*dt*dt);
       F_delta.block<3,3>(0,6) = Eigen::Matrix3d::Identity()*dt;
       F_delta.block<3,3>(0,9) = dt*dv_db_g + 0.25*dt*dt*(C*acc_S_x*cross + C_1*acc_S_x*cross_1);
@@ -427,6 +445,18 @@ int ImuError::propagation(const okvis::ImuMeasurementDeque & imuMeasurements,
       F_delta.block<3,3>(3,9) = -dt*C_1;
       F_delta.block<3,3>(6,3) = -okvis::kinematics::crossMx(0.5*(C + C_1)*acc_S_true*dt);
       F_delta.block<3,3>(6,9) = 0.5*dt*(C*acc_S_x*cross + C_1*acc_S_x*cross_1);
+#else
+        Eigen::Matrix3d deltaCross = cross_1- cross;
+        F_delta.block<3,3>(0,3) = -okvis::kinematics::crossMx(/*acc_integral*dt +*/ 0.25*(C + C_1)*acc_S_true*dt*dt);
+        F_delta.block<3,3>(0,6) = Eigen::Matrix3d::Identity()*dt;
+        F_delta.block<3,3>(0,9) = /*dt*dv_db_g + 0.25*dt*dt*(C*acc_S_x*cross + C_1*acc_S_x*cross_1)*/
+                0.25*dt*dt*(C_1*acc_S_x*deltaCross);
+        F_delta.block<3,3>(0,12) = /*-C_integral*dt +*/ 0.25*(C + C_1)*dt*dt;
+        F_delta.block<3,3>(3,9) = -dt*C_1;
+        F_delta.block<3,3>(6,3) = -okvis::kinematics::crossMx(0.5*(C + C_1)*acc_S_true*dt);
+        F_delta.block<3,3>(6,9) = /*0.5*dt*(C*acc_S_x*cross + C_1*acc_S_x*cross_1)*/
+                0.5*dt*(C_1*acc_S_x*deltaCross);
+#endif
       F_delta.block<3,3>(6,12) = -0.5*(C + C_1)*dt;
       P_delta = F_delta*P_delta*F_delta.transpose();
       // add noise. Note that transformations with rotation matrices can be ignored, since the noise is isotropic.

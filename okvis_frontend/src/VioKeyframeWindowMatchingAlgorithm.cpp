@@ -174,7 +174,7 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::doSetup() {
 
       okvis::MapPoint landmark;
       estimator_->getLandmark(lm_id, landmark);
-      Eigen::Vector4d hp_W = landmark.point;
+      Eigen::Vector4d hp_W = landmark.pointHomog;
 
       if (!estimator_->isLandmarkInitialized(lm_id)) {
         skipA_[k] = true;

@@ -144,7 +144,7 @@ struct MapPoint
   MapPoint()
       : id(0),
         quality(0.0),
-        distance(0.0)
+        distance(0.0), anchorStateId(0)
   {
   }
   /**
@@ -157,16 +157,23 @@ struct MapPoint
   MapPoint(uint64_t id, const Eigen::Vector4d & point,
            double quality, double distance)
       : id(id),
-        point(point),
+        pointHomog(point),
         quality(quality),
-        distance(distance)
+        distance(distance), anchorStateId(0)
   {
   }
   uint64_t id;            ///< ID of the point. E.g. landmark ID.
-  Eigen::Vector4d point;  ///< Homogeneous coordinate of the point.
+  Eigen::Vector4d pointHomog;  ///< Homogeneous coordinate of the point. In okvis, msckf2, it is always hp_W,
+  ///in hybridfilter, it is either hp_W or hp_A (anchor camera frame) depending on anchorStateId==0 or not
   double quality;         ///< Quality of the point. Usually between 0 and 1.
   double distance;        ///< Distance to origin of the frame the coordinates are given in.
   std::map<okvis::KeypointIdentifier, uint64_t> observations;   ///< Observations of this point.
+  uint64_t anchorStateId; ///< id of the state onto which the inverse depth parameterization of this point anchors,
+  /// if 0, means not anchored or included in the states yet, if positive, anchored
+  /// the anchored camera id in the camera cluster is always 0
+  Eigen::Quaterniond q_GA; ///<the quaternion from the nominal anchor camera frame to the global frame,
+  Eigen::Vector3d p_BA_G;  ///< position of the anchor camera frame in the body frame expressed in the global frame
+  /// it is fixed since initialization unless anchor changes
 };
 
 typedef std::vector<MapPoint, Eigen::aligned_allocator<MapPoint> > MapPointVector;

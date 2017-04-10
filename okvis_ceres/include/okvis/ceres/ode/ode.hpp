@@ -68,7 +68,7 @@ __inline__ double sinc(double x) {
     return 1.0 - c_2 * x_2 + c_4 * x_4 - c_6 * x_6;
   }
 }
-
+/*
 // world-centric velocities
 __inline__ void evaluateContinuousTimeOde(const Eigen::Vector3d& gyr, const Eigen::Vector3d& acc, double g,
                                           const Eigen::Vector3d& p_WS_W, const Eigen::Quaterniond& q_WS,
@@ -105,7 +105,7 @@ __inline__ void evaluateContinuousTimeOde(const Eigen::Vector3d& gyr, const Eige
     F_c_ptr->block<3, 3>(6, 3) -= okvis::kinematics::crossMx(C_WS * acc_S);
     F_c_ptr->block<3, 3>(6, 12) -= C_WS;
   }
-}
+}*/
 
 
 /*/ robo-centric velocities
@@ -157,6 +157,7 @@ __inline__ void evaluateContinuousTimeOde(
   }
 }*/
 
+/*
 __inline__ void integrateOneStep_RungeKutta(
     const Eigen::Vector3d& gyr_0, const Eigen::Vector3d& acc_0,
     const Eigen::Vector3d& gyr_1, const Eigen::Vector3d& acc_1, double g,
@@ -294,7 +295,7 @@ __inline__ void integrateOneStep_RungeKutta(
     }
   }
 
-}
+}*/
 
 }
 

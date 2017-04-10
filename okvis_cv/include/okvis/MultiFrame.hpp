@@ -267,6 +267,22 @@ class MultiFrame
   uint64_t id_;  ///< the frame id
   std::vector<Frame, Eigen::aligned_allocator<Frame>> frames_;  ///< the individual frames
   cameras::NCameraSystem cameraSystem_;  ///< the camera system
+//huai{
+public:
+  cameras::NCameraSystem & GetCameraSystem()
+  {
+      return cameraSystem_;
+  }
+  cv::Mat getDescriptors(size_t cameraIdx) {
+    OKVIS_ASSERT_TRUE_DBG(Exception, cameraIdx < frames_.size(), "Out of range");
+    return frames_[cameraIdx].descriptors_;
+  }
+  cv::Mat getFrame(size_t cameraIdx){
+      return frames_[cameraIdx].image_;
+  }
+
+  int idInSource; /// (0 based) id of the frame within the video or the image folder
+  //}
 };
 
 typedef std::shared_ptr<MultiFrame> MultiFramePtr;  ///< For convenience.

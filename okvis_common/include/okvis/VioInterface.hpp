@@ -72,13 +72,14 @@ class VioInterface {
   typedef std::function<
       void(const okvis::Time &, const okvis::kinematics::Transformation &,
            const Eigen::Matrix<double, 9, 1> &,
-           const Eigen::Matrix<double, 3, 1> &)> FullStateCallback;
+           const Eigen::Matrix<double, 3, 1> &, const int)> FullStateCallback;
   typedef std::function<
       void(
           const okvis::Time &,
           const okvis::kinematics::Transformation &,
           const Eigen::Matrix<double, 9, 1> &,
           const Eigen::Matrix<double, 3, 1> &,
+          const int,
           const std::vector<okvis::kinematics::Transformation,
               Eigen::aligned_allocator<okvis::kinematics::Transformation> >&)> FullStateCallbackWithExtrinsics;
   typedef Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic> EigenImage;
@@ -131,6 +132,7 @@ class VioInterface {
    * \param cameraIndex  The index of the camera that the image originates from.
    * \param image        The image.
    * \param keypoints    Optionally aready pass keypoints. This will skip the detection part.
+   * \param frameIdInSource   0 based frame id in the video or the image folder, if not provided default to -1.
    * \param asKeyframe   Use the new image as keyframe. Not implemented.
    * \warning The frame consumer loop does not support using existing keypoints yet.
    * \warning Already specifying whether this frame should be a keyframe is not implemented yet.
@@ -139,6 +141,7 @@ class VioInterface {
   virtual bool addImage(const okvis::Time & stamp, size_t cameraIndex,
                         const cv::Mat & image,
                         const std::vector<cv::KeyPoint> * keypoints = 0,
+                        int frameIdInSource = -1,
                         bool* asKeyframe = 0) = 0;
 
   /**

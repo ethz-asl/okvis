@@ -81,6 +81,7 @@ namespace timing {
 	boost::accumulators::tag::mean
 	>
       > m_acc;
+    std::vector <double> m_times;
   };
   
   // A class that has the timer interface but does nothing.
@@ -96,7 +97,7 @@ namespace timing {
     ~DummyTimer(){}
     
     void start(){}
-    void stop(){}
+    double stop(bool =false){return 0;}
     void discardTiming(){}
     bool isTiming(){ return false; }
   };
@@ -108,7 +109,7 @@ namespace timing {
     ~Timer();
     
     void start();
-    void stop();
+    double stop(bool bSaveTime= false);
     bool isTiming();
     void discardTiming();
   private:
@@ -147,9 +148,11 @@ namespace timing {
     static  std::string print();
     static  std::string secondsToTimeString(double seconds);
     
+    static  std::vector<double> getAllElements(size_t handle);
   private:
-    void addTime(size_t handle, double seconds);
-    
+    void addTime(size_t handle, double seconds); //huai: add time to the accumulator_set
+    void addTime2(size_t handle, double seconds); //huai: add time to both the accumulator_set and a storing vector
+
     static Timing & instance();
     
     // Singleton design pattern

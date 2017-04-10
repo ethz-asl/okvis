@@ -807,7 +807,45 @@ void Estimator::printStates(uint64_t poseId, std::ostream & buffer) const {
   buffer << std::endl;
 }
 
+// print states and their std
+bool Estimator::print(uint64_t poseId)
+{
+    if(!mDebug.is_open())
+    {
+        mDebug.open ("/home/jhuai/Desktop/temp.txt", std::ofstream::out);
+        mDebug << "States: frameIdInSource, state timestamp, T_WS(xyz, xyzw), v_WS, bg, ba"<< std::endl;
+    }
+
+    if(poseId==0)
+    {
+        if(statesMap_.rbegin()->second.isKeyframe)
+            poseId = statesMap_.rbegin()->first; //output the keyframe states for VICLAM
+        else
+            return false;
+    }
+    const States& stateInQuestion = statesMap_.at(poseId);
+
+    std::shared_ptr<ceres::PoseParameterBlock> poseParamBlockPtr =std::static_pointer_cast<ceres::PoseParameterBlock>(
+                mapPtr_->parameterBlockPtr(poseId));
+    kinematics::Transformation T_WS = poseParamBlockPtr->estimate();
+    okvis::Time currentTime = stateInQuestion.timestamp;
+
+    mDebug<<multiFramePtrMap_.at(poseId)->idInSource <<" "<< currentTime << " "<<std::setfill(' ')<< T_WS.parameters().transpose();
+    // update imu sensor states
+    const int imuIdx =0;
+    if(stateInQuestion.sensors.at(SensorStates::Imu).at(imuIdx).at(ImuSensorStates::SpeedAndBias).exists){
+        uint64_t SBId= stateInQuestion.sensors.at(SensorStates::Imu).at(imuIdx).at(ImuSensorStates::SpeedAndBias).id;
+        std::shared_ptr<ceres::SpeedAndBiasParameterBlock> sbParamBlockPtr =std::static_pointer_cast<ceres::SpeedAndBiasParameterBlock>(
+                    mapPtr_->parameterBlockPtr(SBId));
+        SpeedAndBiases sb = sbParamBlockPtr->estimate();
+        mDebug<<" "<< sb.transpose();
+    }
+    mDebug<<std::endl;
+    return true;
+}
+
 // Initialise pose from IMU measurements. For convenience as static.
+// Huai: this can be realized with Quaterniond::FromTwoVectors() c.f. https://github.com/dennisss/mvision
 bool Estimator::initPoseFromImu(
     const okvis::ImuMeasurementDeque & imuMeasurements,
     okvis::kinematics::Transformation & T_WS)
@@ -827,7 +865,7 @@ bool Estimator::initPoseFromImu(
   acc_B /= double(imuMeasurements.size());
   Eigen::Vector3d e_acc = acc_B.normalized();
 
-  // align with ez_W:
+  // align with ez_W:  //huai:this is expected direction of applied force, opposite to gravity
   Eigen::Vector3d ez_W(0.0, 0.0, 1.0);
   Eigen::Matrix<double, 6, 1> poseIncrement;
   poseIncrement.head<3>() = Eigen::Vector3d::Zero();
@@ -894,7 +932,7 @@ void Estimator::optimize(size_t numIter, size_t /*numThreads*/,
       }
 
       // update coordinates
-      it->second.point = std::static_pointer_cast<okvis::ceres::HomogeneousPointParameterBlock>(
+      it->second.pointHomog = std::static_pointer_cast<okvis::ceres::HomogeneousPointParameterBlock>(
           mapPtr_->parameterBlockPtr(it->first))->estimate();
     }
   }
@@ -1092,7 +1130,7 @@ bool Estimator::setLandmark(
 #endif
 
   // also update in map
-  landmarksMap_.at(landmarkId).point = landmark;
+  landmarksMap_.at(landmarkId).pointHomog = landmark;
   return true;
 }
 
@@ -1301,6 +1339,13 @@ bool Estimator::setSensorStateEstimateAs(
   return true;
 }
 
+// Get frame id in source and whether the state is a keyframe
+bool Estimator::getFrameId(uint64_t poseId, int & frameIdInSource, bool & isKF) const
+{
+    frameIdInSource = multiFramePtrMap_.at(poseId)->idInSource;
+    isKF= statesMap_.at(poseId).isKeyframe;
+    return true;
+}
 }  // namespace okvis
 
 

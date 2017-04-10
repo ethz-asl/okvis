@@ -29,3 +29,7 @@
 
 # Docu
 documentation/html/
+
+CMakeLists\.txt\.user
+
+build/

@@ -100,6 +100,18 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
         << "numImuFrames parameter not provided. Setting to default numImuFrames=2.";
     vioParameters_.optimization.numImuFrames = 2;
   }
+
+  if (file["keyframeInsertionOverlapThreshold"].isReal()) {
+    file["keyframeInsertionOverlapThreshold"] >> vioParameters_.optimization.keyframeInsertionOverlapThreshold;
+  } else {
+    vioParameters_.optimization.keyframeInsertionOverlapThreshold = 0.6;
+  }
+  if (file["keyframeInsertionMatchingRatioThreshold"].isReal()) {
+    file["keyframeInsertionMatchingRatioThreshold"] >> vioParameters_.optimization.keyframeInsertionMatchingRatioThreshold;
+  } else {
+    vioParameters_.optimization.keyframeInsertionMatchingRatioThreshold = 0.2;
+  }
+
   // minimum ceres iterations
   if (file["ceres_options"]["minIterations"].isInt()) {
     file["ceres_options"]["minIterations"]
@@ -303,6 +315,64 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
       LOG(WARNING) << frame << " unknown/invalid frame for velocitiesFrame, setting to Wc";
       vioParameters_.publishing.velocitiesFrame=FrameName::Wc;
     }
+  }
+
+  if (file["publishing_options"]["outputPath"].isString()) {
+    std::string path = (std::string)file["publishing_options"]["outputPath"];
+    // cut out first word. str currently contains everything including comments
+    vioParameters_.publishing.outputPath = path.substr(0, path.find(" "));
+    LOG(INFO) << "outputPath " << vioParameters_.publishing.outputPath;
+  }
+
+  if (file["input_data"]["video_file"].isString()) {
+    std::string path = (std::string)file["input_data"]["video_file"];
+    // cut out first word. str currently contains everything including comments
+    vioParameters_.input.videoFile = path.substr(0, path.find(" "));
+  }
+  else
+  {
+      vioParameters_.input.videoFile = "";
+  }
+  if (file["input_data"]["image_folder"].isString()) {
+    std::string path = (std::string)file["input_data"]["image_folder"];
+    // cut out first word. str currently contains everything including comments
+    vioParameters_.input.imageFolder = path.substr(0, path.find(" "));
+  }
+  else
+  {
+      vioParameters_.input.imageFolder = "";
+  }
+  if (file["input_data"]["imu_file"].isString()) {
+    std::string path = (std::string)file["input_data"]["imu_file"];
+    // cut out first word. str currently contains everything including comments
+    vioParameters_.input.imuFile = path.substr(0, path.find(" "));
+  }
+  else
+  {
+      vioParameters_.input.imuFile = "";
+  }
+  if (file["input_data"]["time_file"].isString()) {
+    std::string path = (std::string)file["input_data"]["time_file"];
+    // cut out first word. str currently contains everything including comments
+    vioParameters_.input.timeFile = path.substr(0, path.find(" "));
+  }
+  else
+  {
+      vioParameters_.input.timeFile = "";
+  }
+  if (file["input_data"]["startIndex"].isInt()) {
+    vioParameters_.input.startIndex = file["input_data"]["startIndex"];
+  }
+  else
+  {
+      vioParameters_.input.startIndex = 0;
+  }
+  if (file["input_data"]["finishIndex"].isInt()) {
+    vioParameters_.input.finishIndex = file["input_data"]["finishIndex"];
+  }
+  else
+  {
+      vioParameters_.input.finishIndex = 0;
   }
 
   // camera calibration
@@ -571,6 +641,9 @@ bool VioParametersReader::getCalibrationViaConfig(
       CameraCalibration calib;
 
       cv::FileNode T_SC_node = (*it)["T_SC"];
+      int downScale = 1;
+      if((*it)["down_scale"].isInt())
+          downScale = (*it)["down_scale"];
       cv::FileNode imageDimensionNode = (*it)["image_dimension"];
       cv::FileNode distortionCoefficientNode = (*it)["distortion_coefficients"];
       cv::FileNode focalLengthNode = (*it)["focal_length"];
@@ -581,13 +654,13 @@ bool VioParametersReader::getCalibrationViaConfig(
       T_SC << T_SC_node[0], T_SC_node[1], T_SC_node[2], T_SC_node[3], T_SC_node[4], T_SC_node[5], T_SC_node[6], T_SC_node[7], T_SC_node[8], T_SC_node[9], T_SC_node[10], T_SC_node[11], T_SC_node[12], T_SC_node[13], T_SC_node[14], T_SC_node[15];
       calib.T_SC = okvis::kinematics::Transformation(T_SC);
 
-      calib.imageDimension << imageDimensionNode[0], imageDimensionNode[1];
+      calib.imageDimension << (double)imageDimensionNode[0]/downScale, (double)imageDimensionNode[1]/downScale;
       calib.distortionCoefficients.resize(distortionCoefficientNode.size());
       for(size_t i=0; i<distortionCoefficientNode.size(); ++i) {
         calib.distortionCoefficients[i] = distortionCoefficientNode[i];
       }
-      calib.focalLength << focalLengthNode[0], focalLengthNode[1];
-      calib.principalPoint << principalPointNode[0], principalPointNode[1];
+      calib.focalLength << (double)focalLengthNode[0]/downScale, (double)focalLengthNode[1]/downScale;
+      calib.principalPoint << (double)principalPointNode[0]/downScale, (double)principalPointNode[1]/downScale;
       calib.distortionType = (std::string)((*it)["distortion_type"]);
 
       calibrations.push_back(calib);

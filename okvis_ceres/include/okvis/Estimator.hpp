@@ -61,7 +61,8 @@
 #include <okvis/ceres/MarginalizationError.hpp>
 #include <okvis/ceres/ReprojectionError.hpp>
 #include <okvis/ceres/CeresIterationCallback.hpp>
-
+#include <fstream> // ONLY for debug output
+#include <iomanip>      // std::setfill, std::setw
 /// \brief okvis Main namespace of this package.
 namespace okvis {
 
@@ -578,6 +579,10 @@ class Estimator : public VioBackendInterface
 
   // ceres iteration callback object
   std::unique_ptr<okvis::ceres::CeresIterationCallback> ceresCallback_; ///< Maybe there was a callback registered, store it here.
+public:
+  bool print(uint64_t poseId);
+  std::ofstream mDebug;  // the stream corresponding to the debugFile
+  bool getFrameId(uint64_t poseId, int & frameIdInSource, bool & isKF) const;
 };
 
 }  // namespace okvis
