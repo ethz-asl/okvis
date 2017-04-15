@@ -224,7 +224,7 @@ ExternalProject_Add(opengv_external
       -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR> 
       -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE} 
       -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS_WSUPPRESS} # suppress warnings...
-      -DEIGEN_INCLUDE_DIRS:PATH=/usr/local/include/eigen3
+      -DEIGEN_INCLUDE_DIRS:PATH=/usr/local/include/eigen3 #note oddly only the plural form enables building opengv with manually installed eigen3
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/opengv
     SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/opengv/src/opengv
     INSTALL_DIR ${CMAKE_BINARY_DIR}
