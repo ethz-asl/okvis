@@ -99,6 +99,12 @@ void VioInterface::setLandmarksCallback(
   landmarksCallback_ = landmarksCallback;
 }
 
+// Set the imagesCallback to be called every time a new image is received.
+void VioInterface::setImagesCallback(
+    const ImagesCallback & imagesCallback) {
+  imagesCallback_ = imagesCallback;
+}
+
 // Set the blocking variable that indicates whether the addMeasurement() functions
 // should return immediately (blocking=false), or only when the processing is complete.
 void VioInterface::setBlocking(bool blocking) {
