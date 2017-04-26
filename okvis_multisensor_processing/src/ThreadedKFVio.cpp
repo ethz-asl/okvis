@@ -111,15 +111,6 @@ void ThreadedKFVio::init() {
           (new threadsafe::ThreadSafeQueue<std::shared_ptr<okvis::CameraMeasurement> >()));
   }
   
-  // set up windows so things don't crash on Mac OS
-  if(parameters_.visualization.displayImages){
-    for (size_t im = 0; im < parameters_.nCameraSystem.numCameras(); im++) {
-      std::stringstream windowname;
-      windowname << "OKVIS camera " << im;
-  	  cv::namedWindow(windowname.str());
-    }
-  }
-  
   startThreads();
 }
 
@@ -634,7 +625,7 @@ void ThreadedKFVio::visualizationLoop() {
     VioVisualizer::VisualizationData::Ptr new_data;
     if (visualizationData_.PopBlocking(&new_data) == false)
       return;
-    //visualizer_.showDebugImages(new_data);
+    // visualizer_.showDebugImages(new_data);
     std::vector<cv::Mat> out_images(parameters_.nCameraSystem.numCameras());
     for (size_t i = 0; i < parameters_.nCameraSystem.numCameras(); ++i) {
       out_images[i] = visualizer_.drawMatches(new_data, i);
@@ -645,9 +636,20 @@ void ThreadedKFVio::visualizationLoop() {
 
 // trigger display (needed because OSX won't allow threaded display)
 void ThreadedKFVio::display() {
+  if(!parameters_.visualization.displayImages) {
+    return;
+  }
+
+  for (size_t im = 0; im < parameters_.nCameraSystem.numCameras(); im++) {
+    std::stringstream windowname;
+    windowname << "OKVIS camera " << im;
+    cv::namedWindow(windowname.str());
+  }
+
   std::vector<cv::Mat> out_images;
   if (displayImages_.Size() == 0)
-	return;
+    return;
+  
   if (displayImages_.PopBlocking(&out_images) == false)
     return;
   // draw
@@ -874,6 +876,14 @@ void ThreadedKFVio::publisherLoop() {
     if (landmarksCallback_ && !result.landmarksVector.empty())
       landmarksCallback_(result.stamp, result.landmarksVector,
                          result.transferredLandmarks);  //TODO(gohlp): why two maps?
+
+    if (imagesCallback_ && displayImages_.Size() != 0) {
+        std::vector<cv::Mat> out_images;
+        if (displayImages_.PopBlocking(&out_images) == false) {
+          return;
+        }
+        imagesCallback_(out_images);
+    }
   }
 }
 
