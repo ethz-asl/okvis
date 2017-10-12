@@ -148,7 +148,7 @@ else()
   set(CERES_VERSION 1.9.0)
   set(CERES_TAG 7c57de5080c9f5a4f067e2d20b5f33bad5b1ade6) #version 1.9. Newer ones would need adaptation with ceres::ParameterBlock
   ExternalProject_Add(ceres_external
-    GIT_REPOSITORY https://ceres-solver.googlesource.com/ceres-solver
+    GIT_REPOSITORY https://github.com/ceres-solver/ceres-solver
     GIT_TAG ${CERES_TAG}
     UPDATE_COMMAND ""
     INSTALL_DIR ${CMAKE_BINARY_DIR}
@@ -158,7 +158,7 @@ else()
       -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS} 
       -DBUILD_EXAMPLES:BOOL=OFF
       -DBUILD_TESTING:BOOL=OFF
-      -DEIGEN_INCLUDE_DIR:PATH=/usr/local/include/eigen3
+      -DEIGEN_INCLUDE_DIR:PATH=/usr/include/eigen3
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/ceres
     BUILD_IN_SOURCE 0
     BUILD_COMMAND make -j${N_CORES}
@@ -224,7 +224,7 @@ ExternalProject_Add(opengv_external
       -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR> 
       -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE} 
       -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS_WSUPPRESS} # suppress warnings...
-      -DEIGEN_INCLUDE_DIRS:PATH=/usr/local/include/eigen3 #note oddly only the plural form enables building opengv with manually installed eigen3
+      -DEIGEN_INCLUDE_DIRS:PATH=/usr/include/eigen3 #note oddly only the plural form enables building opengv with manually installed eigen3
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/opengv
     SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/opengv/src/opengv
     INSTALL_DIR ${CMAKE_BINARY_DIR}
