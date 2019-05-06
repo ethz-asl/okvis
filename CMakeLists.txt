@@ -158,7 +158,6 @@ else()
       -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS} 
       -DBUILD_EXAMPLES:BOOL=OFF
       -DBUILD_TESTING:BOOL=OFF
-      -DEIGEN_INCLUDE_DIR:PATH=/usr/include/eigen3
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/ceres
     BUILD_IN_SOURCE 0
     BUILD_COMMAND make -j${N_CORES}
@@ -224,7 +223,6 @@ ExternalProject_Add(opengv_external
       -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR> 
       -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE} 
       -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS_WSUPPRESS} # suppress warnings...
-      -DEIGEN_INCLUDE_DIRS:PATH=/usr/include/eigen3 #note oddly only the plural form enables building opengv with manually installed eigen3
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/opengv
     SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/opengv/src/opengv
     INSTALL_DIR ${CMAKE_BINARY_DIR}
@@ -244,7 +242,7 @@ install(DIRECTORY ${CMAKE_BINARY_DIR}/include/opengv/
   DESTINATION ${CMAKE_INSTALL_PREFIX}/include/opengv/)
 install(DIRECTORY ${CMAKE_BINARY_DIR}/lib/CMake/opengv/
   DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/CMake/opengv/)
-message("okvis cmake install prefix " ${CMAKE_INSTALL_PREFIX})
+
 if(${BUILD_TESTS})
   # gmock
   # http://stackoverflow.com/questions/9689183/cmake-googletest
