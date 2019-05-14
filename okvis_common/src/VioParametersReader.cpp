@@ -317,13 +317,6 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
     }
   }
 
-  if (file["publishing_options"]["outputPath"].isString()) {
-    std::string path = (std::string)file["publishing_options"]["outputPath"];
-    // cut out first word. str currently contains everything including comments
-    vioParameters_.publishing.outputPath = path.substr(0, path.find(" "));
-    LOG(INFO) << "outputPath " << vioParameters_.publishing.outputPath;
-  }
-
   if (file["input_data"]["video_file"].isString()) {
     std::string path = (std::string)file["input_data"]["video_file"];
     // cut out first word. str currently contains everything including comments
