@@ -317,57 +317,6 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
     }
   }
 
-  if (file["input_data"]["video_file"].isString()) {
-    std::string path = (std::string)file["input_data"]["video_file"];
-    // cut out first word. str currently contains everything including comments
-    vioParameters_.input.videoFile = path.substr(0, path.find(" "));
-  }
-  else
-  {
-      vioParameters_.input.videoFile = "";
-  }
-  if (file["input_data"]["image_folder"].isString()) {
-    std::string path = (std::string)file["input_data"]["image_folder"];
-    // cut out first word. str currently contains everything including comments
-    vioParameters_.input.imageFolder = path.substr(0, path.find(" "));
-  }
-  else
-  {
-      vioParameters_.input.imageFolder = "";
-  }
-  if (file["input_data"]["imu_file"].isString()) {
-    std::string path = (std::string)file["input_data"]["imu_file"];
-    // cut out first word. str currently contains everything including comments
-    vioParameters_.input.imuFile = path.substr(0, path.find(" "));
-  }
-  else
-  {
-      vioParameters_.input.imuFile = "";
-  }
-  if (file["input_data"]["time_file"].isString()) {
-    std::string path = (std::string)file["input_data"]["time_file"];
-    // cut out first word. str currently contains everything including comments
-    vioParameters_.input.timeFile = path.substr(0, path.find(" "));
-  }
-  else
-  {
-      vioParameters_.input.timeFile = "";
-  }
-  if (file["input_data"]["startIndex"].isInt()) {
-    vioParameters_.input.startIndex = file["input_data"]["startIndex"];
-  }
-  else
-  {
-      vioParameters_.input.startIndex = 0;
-  }
-  if (file["input_data"]["finishIndex"].isInt()) {
-    vioParameters_.input.finishIndex = file["input_data"]["finishIndex"];
-  }
-  else
-  {
-      vioParameters_.input.finishIndex = 0;
-  }
-
   // camera calibration
   std::vector<CameraCalibration,Eigen::aligned_allocator<CameraCalibration>> calibrations;
   if(!getCameraCalibration(calibrations, file))
