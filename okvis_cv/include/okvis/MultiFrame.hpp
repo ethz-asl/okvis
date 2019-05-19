@@ -269,15 +269,14 @@ class MultiFrame
   cameras::NCameraSystem cameraSystem_;  ///< the camera system
 //huai{
 public:
-  cameras::NCameraSystem & GetCameraSystem()
-  {
+  cameras::NCameraSystem& GetCameraSystem() {
       return cameraSystem_;
   }
   cv::Mat getDescriptors(size_t cameraIdx) {
     OKVIS_ASSERT_TRUE_DBG(Exception, cameraIdx < frames_.size(), "Out of range");
     return frames_[cameraIdx].descriptors_;
   }
-  cv::Mat getFrame(size_t cameraIdx){
+  cv::Mat getFrame(size_t cameraIdx) {
       return frames_[cameraIdx].image_;
   }
 
