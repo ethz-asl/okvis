@@ -102,8 +102,6 @@ public:
   Eigen::Matrix<double, 5, 1> sigma_distortion; ///k1, k2, p1, p2, [k3]
   double sigma_td;
   double sigma_tr;
-  double init_td;
-  double init_tr;
 };
 
 /*!
