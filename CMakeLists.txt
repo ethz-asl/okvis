@@ -10,13 +10,13 @@ set(OKVIS_VERSION
 
 # options for build configuration
 option (USE_SYSTEM_BRISK
-        "Use brisk via find_package rather than downloading it as part of okvis" OFF) 
+        "Use brisk via find_package rather than downloading it as part of okvis" OFF)
 option (USE_SYSTEM_CERES
-        "Use ceres via find_package rather than downloading it as part of okvis" OFF) 
+        "Use ceres via find_package rather than downloading it as part of okvis" OFF)
 option (BUILD_APPS
-        "Builds a demo app (which requires boost)" ON) 
+        "Builds a demo app (which requires boost)" ON)
 option (BUILD_TESTS
-        "Builds all gtests" OFF) 
+        "Builds all gtests" OFF)
 SET(N_CORES 3 CACHE STRING "Using N number of cores for parallel build")
 
 # Offer the user the choice of overriding the installation directories
@@ -31,7 +31,7 @@ else()
 endif()
 set(INSTALL_CMAKE_DIR ${DEF_INSTALL_CMAKE_DIR} CACHE PATH
   "Installation directory for CMake files")
- 
+
 # Make relative paths absolute (needed later on)
 foreach(p LIB BIN INCLUDE CMAKE)
   set(var INSTALL_${p}_DIR)
@@ -81,7 +81,7 @@ link_directories(${CMAKE_BINARY_DIR}/lib)
 
 # require Eigen
 find_package( Eigen REQUIRED )
-include_directories(${EIGEN_INCLUDE_DIR}) 
+include_directories(${EIGEN_INCLUDE_DIR})
 
 # libvisensor
 find_package(VISensor)
@@ -102,7 +102,7 @@ endif()
 
 # glog
 find_package(Glog REQUIRED)
-include_directories(BEFORE ${GLOG_INCLUDE_DIRS}) 
+include_directories(BEFORE ${GLOG_INCLUDE_DIRS})
 
 # brisk
 if(${USE_SYSTEM_BRISK})
@@ -111,8 +111,9 @@ if(${USE_SYSTEM_BRISK})
   message(STATUS "Using system brisk. Found at ${BRISK_INCLUDE_DIRS}.")
 else()
   ExternalProject_Add(brisk_external
-    URL "https://www.doc.ic.ac.uk/~sleutene/software/brisk-2.0.3.zip"    
+    URL "https://www.doc.ic.ac.uk/~sleutene/software/brisk-2.0.3.zip"
     INSTALL_DIR ${CMAKE_BINARY_DIR}
+    PATCH_COMMAND patch include/brisk/brisk-feature-detector.h < ${CMAKE_CURRENT_SOURCE_DIR}/brisk.patch
     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR> -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/brisk
     BUILD_IN_SOURCE 0
@@ -128,9 +129,9 @@ else()
   add_dependencies(agast brisk_external)
 
   # install it once built
-  install(FILES ${CMAKE_BINARY_DIR}/lib/libbrisk.a ${CMAKE_BINARY_DIR}/lib/libagast.a 
+  install(FILES ${CMAKE_BINARY_DIR}/lib/libbrisk.a ${CMAKE_BINARY_DIR}/lib/libagast.a
     DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
-  install(DIRECTORY ${CMAKE_BINARY_DIR}/include/brisk/ 
+  install(DIRECTORY ${CMAKE_BINARY_DIR}/include/brisk/
     DESTINATION ${CMAKE_INSTALL_PREFIX}/include/brisk/)
   install(DIRECTORY ${CMAKE_BINARY_DIR}/lib/CMake/brisk/
     DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/CMake/brisk/)
@@ -152,10 +153,11 @@ else()
     GIT_TAG ${CERES_TAG}
     UPDATE_COMMAND ""
     INSTALL_DIR ${CMAKE_BINARY_DIR}
-    CMAKE_ARGS 
-      -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR> 
+    PATCH_COMMAND patch internal/ceres/schur_eliminator.h < ${CMAKE_CURRENT_SOURCE_DIR}/ceres.patch
+    CMAKE_ARGS
+      -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
       -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
-      -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS} 
+      -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
       -DBUILD_EXAMPLES:BOOL=OFF
       -DBUILD_TESTING:BOOL=OFF
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/ceres
@@ -182,11 +184,11 @@ else()
   if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
     set_property(TARGET ceres PROPERTY IMPORTED_LOCATION
                ${CMAKE_BINARY_DIR}/${CERES_LIB_PREFIX}/libceres-debug.a )
-  else () 
+  else ()
     set_property(TARGET ceres PROPERTY IMPORTED_LOCATION
                ${CMAKE_BINARY_DIR}/${CERES_LIB_PREFIX}/libceres.a )
   endif ()
-   
+
   find_package(OpenMP QUIET)
   if (OPENMP_FOUND)
     message(STATUS "OpenMP found")
@@ -199,16 +201,16 @@ else()
   add_dependencies(${CERES_LIBRARIES} ceres_external)
 
   # install it once built
-  install(FILES ${CMAKE_BINARY_DIR}/${CERES_LIB_PREFIX}/libceres.a 
+  install(FILES ${CMAKE_BINARY_DIR}/${CERES_LIB_PREFIX}/libceres.a
     DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
-  install(DIRECTORY ${CMAKE_BINARY_DIR}/include/ceres/ 
+  install(DIRECTORY ${CMAKE_BINARY_DIR}/include/ceres/
     DESTINATION ${CMAKE_INSTALL_PREFIX}/include/ceres/)
   install(DIRECTORY ${CMAKE_BINARY_DIR}/share/Ceres/
     DESTINATION ${CMAKE_INSTALL_PREFIX}/share/Ceres/)
 endif()
 
 # OpenGV
-set(CMAKE_CXX_FLAGS_WSUPPRESS 
+set(CMAKE_CXX_FLAGS_WSUPPRESS
       "${CMAKE_CXX_FLAGS} -Wno-unused-parameter -Wno-maybe-uninitialized -Wno-sign-compare -Wno-unused-but-set-variable -Wno-unused-variable -Wno-pedantic")
 message(STATUS "NOTE: Suppressing some warnings when compiling OpenGV.")
 ExternalProject_Add(opengv_external
@@ -219,9 +221,9 @@ ExternalProject_Add(opengv_external
         COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_SOURCE_DIR}/cmake/opengv/CMakeLists.txt ${CMAKE_CURRENT_BINARY_DIR}/opengv/src/opengv/CMakeLists.txt
         COMMAND ${CMAKE_COMMAND} -E copy ${PROJECT_SOURCE_DIR}/cmake/opengv/opengvConfig.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/opengv/src/opengv/opengvConfig.cmake.in
         COMMENT "Forcing our own CMakeLists.txt to build OpenGV (static library support)."
-    CMAKE_ARGS 
-      -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR> 
-      -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE} 
+    CMAKE_ARGS
+      -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
+      -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
       -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS_WSUPPRESS} # suppress warnings...
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/opengv
     SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/opengv/src/opengv
@@ -236,9 +238,9 @@ set_target_properties(opengv PROPERTIES IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/li
 add_dependencies(${OpenGV_LIBRARIES} opengv_external)
 
 # install it once built
-install(FILES ${CMAKE_BINARY_DIR}/lib/libopengv.a 
+install(FILES ${CMAKE_BINARY_DIR}/lib/libopengv.a
   DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
-install(DIRECTORY ${CMAKE_BINARY_DIR}/include/opengv/ 
+install(DIRECTORY ${CMAKE_BINARY_DIR}/include/opengv/
   DESTINATION ${CMAKE_INSTALL_PREFIX}/include/opengv/)
 install(DIRECTORY ${CMAKE_BINARY_DIR}/lib/CMake/opengv/
   DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/CMake/opengv/)
@@ -315,20 +317,20 @@ add_dependencies(okvis_multisensor_processing okvis_util)
 # also build the apps
 if(BUILD_APPS)
   FIND_PACKAGE(Boost COMPONENTS filesystem system REQUIRED)
-  include_directories(${Boost_INCLUDE_DIRS}) 
+  include_directories(${Boost_INCLUDE_DIRS})
   add_executable(okvis_app_synchronous okvis_apps/src/okvis_app_synchronous.cpp)
-  target_link_libraries(okvis_app_synchronous 
+  target_link_libraries(okvis_app_synchronous
     okvis_util
     okvis_kinematics
     okvis_time
-    okvis_cv 
+    okvis_cv
     okvis_common
     okvis_ceres
     okvis_timing
     okvis_matcher
-    okvis_frontend 
+    okvis_frontend
     okvis_multisensor_processing
-    pthread 
+    pthread
     ${Boost_LIBRARIES}
   )
   if(${VISENSORDRIVER_FOUND})
@@ -341,18 +343,18 @@ if(BUILD_APPS)
 endif()
 
 # installation is invoked in the individual modules...
-export (TARGETS 
+export (TARGETS
     okvis_app_synchronous
     okvis_util
     okvis_kinematics
     okvis_time
-    okvis_cv 
+    okvis_cv
     okvis_common
     okvis_ceres
     okvis_timing
     okvis_matcher
-    okvis_frontend 
-    okvis_multisensor_processing 
+    okvis_frontend
+    okvis_multisensor_processing
     FILE "${PROJECT_BINARY_DIR}/okvisTargets.cmake")
 export ( PACKAGE okvis )
 
@@ -360,7 +362,7 @@ export ( PACKAGE okvis )
 file(RELATIVE_PATH REL_INCLUDE_DIR "${INSTALL_CMAKE_DIR}"
    "${INSTALL_INCLUDE_DIR}")
 # ... for the build tree
-set(CONF_INCLUDE_DIRS 
+set(CONF_INCLUDE_DIRS
   "${PROJECT_SOURCE_DIR}/okvis_util/include"
   "${PROJECT_SOURCE_DIR}/okvis_kinematics/include"
   "${PROJECT_SOURCE_DIR}/okvis_time/include"
@@ -382,13 +384,13 @@ configure_file(cmake/okvisConfig.cmake.in
 # ... for both
 configure_file(cmake/okvisConfigVersion.cmake.in
   "${PROJECT_BINARY_DIR}/okvisConfigVersion.cmake" @ONLY)
- 
+
 # Install the okvisConfig.cmake and okvisConfigVersion.cmake
 install(FILES
   "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/okvisConfig.cmake"
   "${PROJECT_BINARY_DIR}/okvisConfigVersion.cmake"
   DESTINATION "${INSTALL_CMAKE_DIR}")
- 
+
 # Install the export set for use with the install-tree
 install(EXPORT okvisTargets DESTINATION
   "${INSTALL_CMAKE_DIR}")
