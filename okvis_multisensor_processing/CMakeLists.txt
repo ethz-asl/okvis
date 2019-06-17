@@ -67,7 +67,6 @@ if(BUILD_TESTS)
       test/test_main.cpp
       test/FrameSynchronizer_test.cpp
       test/ImuFrameSynchronizer_test.cpp
-      test/test_main.cpp
       test/testThreading.cpp
       test/testDataFlow.cpp
       test/testSynchronizer.cpp
