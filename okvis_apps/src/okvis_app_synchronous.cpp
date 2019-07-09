@@ -116,19 +116,19 @@ class PoseViewer
         convertToImageCoordinates(_path.back()),
         convertToImageCoordinates(
             _path.back() + cv::Point2d(e_x[0], e_x[1]) * _frameScale),
-        cv::Scalar(0, 0, 255), 1, CV_AA);
+        cv::Scalar(0, 0, 255), 1, cv::LINE_AA);
     cv::line(
         _image,
         convertToImageCoordinates(_path.back()),
         convertToImageCoordinates(
             _path.back() + cv::Point2d(e_y[0], e_y[1]) * _frameScale),
-        cv::Scalar(0, 255, 0), 1, CV_AA);
+        cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
     cv::line(
         _image,
         convertToImageCoordinates(_path.back()),
         convertToImageCoordinates(
             _path.back() + cv::Point2d(e_z[0], e_z[1]) * _frameScale),
-        cv::Scalar(255, 0, 0), 1, CV_AA);
+        cv::Scalar(255, 0, 0), 1, cv::LINE_AA);
 
     // some text:
     std::stringstream postext;
@@ -176,7 +176,7 @@ class PoseViewer
           p1,
           rel_height * cv::Scalar(255, 0, 0)
               + (1.0 - rel_height) * cv::Scalar(0, 0, 255),
-          1, CV_AA);
+          1, cv::LINE_AA);
       i++;
     }
   }

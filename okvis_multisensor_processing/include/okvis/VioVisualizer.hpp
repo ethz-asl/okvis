@@ -43,7 +43,7 @@
 #ifndef INCLUDE_OKVIS_VIOVISUALIZER_HPP_
 #define INCLUDE_OKVIS_VIOVISUALIZER_HPP_
 
-#include <opencv/highgui.h>
+#include <opencv2/highgui.hpp>
 #include <okvis/assert_macros.hpp>
 
 #include <okvis/Parameters.hpp>
