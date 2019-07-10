@@ -353,6 +353,10 @@ class Estimator : public VioBackendInterface
     return statesMap_.at(frameId).timestamp;
   }
 
+  bool getPoseUncertainty(Eigen::Matrix<double,6,6> & P_T_WS) const;
+
+  bool getStateUncertainty(Eigen::Matrix<double,15,15> & P) const;
+
   ///@}
   /// @name Setters
   ///@{

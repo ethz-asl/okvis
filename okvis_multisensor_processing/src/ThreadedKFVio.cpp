@@ -777,11 +777,15 @@ void ThreadedKFVio::optimizationLoop() {
         estimator_.get_T_WS(frame_pairs->id(), lastOptimized_T_WS_);
         estimator_.getSpeedAndBias(frame_pairs->id(), 0,
                                    lastOptimizedSpeedAndBiases_);
+	estimator_.getPoseUncertainty(lastOptimized_P_T_WS_);
+	estimator_.getStateUncertainty(lastOptimized_P_);
         lastOptimizedStateTimestamp_ = frame_pairs->timestamp();
 
         // if we publish the state after each IMU propagation we do not need to publish it here.
         if (!parameters_.publishing.publishImuPropagatedState) {
           result.T_WS = lastOptimized_T_WS_;
+	  result.P_T_WS = lastOptimized_P_T_WS_;
+	  result.P = lastOptimized_P_;
           result.speedAndBiases = lastOptimizedSpeedAndBiases_;
           result.stamp = lastOptimizedStateTimestamp_;
           result.onlyPublishLandmarks = false;
@@ -864,9 +868,14 @@ void ThreadedKFVio::publisherLoop() {
     // call all user callbacks
     if (stateCallback_ && !result.onlyPublishLandmarks)
       stateCallback_(result.stamp, result.T_WS);
+    if (stateWithUncertaintyCallback_ && !result.onlyPublishLandmarks)
+      stateWithUncertaintyCallback_(result.stamp, result.T_WS, result.P_T_WS);
     if (fullStateCallback_ && !result.onlyPublishLandmarks)
       fullStateCallback_(result.stamp, result.T_WS, result.speedAndBiases,
                          result.omega_S);
+    if (fullStateWithUncertaintyCallback_ && !result.onlyPublishLandmarks)
+      fullStateWithUncertaintyCallback_(result.stamp, result.T_WS, result.speedAndBiases,
+                         result.omega_S, result.P);
     if (fullStateCallbackWithExtrinsics_ && !result.onlyPublishLandmarks)
       fullStateCallbackWithExtrinsics_(result.stamp, result.T_WS,
                                        result.speedAndBiases, result.omega_S,

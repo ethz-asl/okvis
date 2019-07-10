@@ -155,6 +155,19 @@ void Map::getLhs(uint64_t parameterBlockId, Eigen::MatrixXd& H) {
   }
 }
 
+// Return pose uncertainty
+bool Map::getLastPoseUncertainty(Eigen::Matrix<double, 6, 6> & P_T_WS) const {
+  // TODO implement
+  return false;
+}
+
+// Return state uncertainty
+bool Map::getLastStateUncertainty(Eigen::Matrix<double, 15, 15> & P) const {
+  // TODO implement
+  return false;
+}
+
+
 // Check a Jacobian with numeric differences.
 bool Map::isJacobianCorrect(::ceres::ResidualBlockId residualBlockId,
                             double relTol) const {

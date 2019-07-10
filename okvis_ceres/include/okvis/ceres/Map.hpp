@@ -133,6 +133,10 @@ class Map {
    */
   void getLhs(uint64_t parameterBlockId, Eigen::MatrixXd& H);
 
+  bool getLastPoseUncertainty(Eigen::Matrix<double, 6, 6> & P_T_WS) const;
+
+  bool getLastStateUncertainty(Eigen::Matrix<double, 15, 15> & P) const;
+
   /// @name add/remove
   /// @{
 

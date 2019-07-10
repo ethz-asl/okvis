@@ -1043,6 +1043,15 @@ bool Estimator::isInImuWindow(uint64_t frameId) const {
   return statesMap_.at(frameId).sensors.at(SensorStates::Imu).at(0).at(ImuSensorStates::SpeedAndBias).exists;
 }
 
+bool Estimator::getPoseUncertainty(Eigen::Matrix<double,6,6> & P_T_WS) const {
+  return mapPtr_->getLastPoseUncertainty(P_T_WS);
+}
+
+bool Estimator::getStateUncertainty(Eigen::Matrix<double,15,15> & P) const {
+  return mapPtr_->getLastStateUncertainty(P);
+}
+
+
 // Set pose for a given pose ID.
 bool Estimator::set_T_WS(uint64_t poseId,
                                  const okvis::kinematics::Transformation & T_WS)

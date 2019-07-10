@@ -295,6 +295,7 @@ class ThreadedKFVio : public VioInterface {
 		EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     okvis::Time stamp;                          ///< Timestamp of the optimized/propagated pose.
     okvis::kinematics::Transformation T_WS;     ///< The pose.
+    Eigen::Matrix<double, 6, 6> P_T_WS;	        ///< The pose uncertainty
     okvis::SpeedAndBias speedAndBiases;         ///< The speeds and biases.
     Eigen::Matrix<double, 3, 1> omega_S;        ///< The rotational speed of the sensor.
     /// The relative transformation of the cameras to the sensor (IMU) frame
@@ -303,6 +304,7 @@ class ThreadedKFVio : public VioInterface {
     okvis::MapPointVector landmarksVector;      ///< Vector containing the current landmarks.
     okvis::MapPointVector transferredLandmarks; ///< Vector of the landmarks that have been marginalized out.
     bool onlyPublishLandmarks;                  ///< Boolean to signalise the publisherLoop() that only the landmarks should be published
+    Eigen::Matrix<double, 15, 15> P;		///< The full state uncertainty
   };
 
   /// @name State variables
@@ -319,6 +321,12 @@ class ThreadedKFVio : public VioInterface {
   /// \brief Resulting pose of the last optimization
   /// \warning Lock lastState_mutex_.
   okvis::kinematics::Transformation lastOptimized_T_WS_;
+  /// \brief Resulting covariance of pose of the last optimization
+  /// \warning Lock lastState_mutex_.
+  Eigen::Matrix<double, 6, 6> lastOptimized_P_T_WS_;
+  /// \brief Resulting covariance of whole state of the last optimization
+  /// \warning Lock lastState_mutex_.
+  Eigen::Matrix<double, 15, 15> lastOptimized_P_;
   /// \brief Resulting speeds and IMU biases after last optimization.
   /// \warning Lock lastState_mutex_.
   okvis::SpeedAndBias lastOptimizedSpeedAndBiases_;

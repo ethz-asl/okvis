@@ -81,10 +81,21 @@ void VioInterface::setStateCallback(const StateCallback & stateCallback) {
   stateCallback_ = stateCallback;
 }
 
+// Set the callback to be called every time a new state is estimated.
+void VioInterface::setStateWithUncertaintyCallback(const StateWithUncertaintyCallback & stateWithUncertaintyCallback) {
+  stateWithUncertaintyCallback_ = stateWithUncertaintyCallback;
+}
+
 // Set the fullStateCallback to be called every time a new state is estimated.
 void VioInterface::setFullStateCallback(
     const FullStateCallback & fullStateCallback) {
   fullStateCallback_ = fullStateCallback;
+}
+
+// Set the fullStateCallback to be called every time a new state is estimated.
+void VioInterface::setFullStateWithUncertaintyCallback(
+    const FullStateWithUncertaintyCallback & fullStateWithUncertaintyCallback) {
+  fullStateWithUncertaintyCallback_ = fullStateWithUncertaintyCallback;
 }
 
 // Set the callback to be called every time a new state is estimated.

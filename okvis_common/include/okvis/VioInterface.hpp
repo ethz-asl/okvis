@@ -68,11 +68,19 @@ class VioInterface {
   OKVIS_DEFINE_EXCEPTION(Exception,std::runtime_error)
 
   typedef std::function<
-  void(const okvis::Time &, const okvis::kinematics::Transformation &)> StateCallback;
+      void(const okvis::Time &, const okvis::kinematics::Transformation &)> StateCallback;
+  typedef std::function<
+      void(const okvis::Time &, const okvis::kinematics::Transformation &,
+	   const Eigen::Matrix<double, 6, 6> &)> StateWithUncertaintyCallback;
   typedef std::function<
       void(const okvis::Time &, const okvis::kinematics::Transformation &,
            const Eigen::Matrix<double, 9, 1> &,
            const Eigen::Matrix<double, 3, 1> &)> FullStateCallback;
+  typedef std::function<
+      void(const okvis::Time &, const okvis::kinematics::Transformation &,
+           const Eigen::Matrix<double, 9, 1> &,
+           const Eigen::Matrix<double, 3, 1> &,
+	   const Eigen::Matrix<double, 15, 15> &)> FullStateWithUncertaintyCallback;
   typedef std::function<
       void(
           const okvis::Time &,
@@ -255,19 +263,38 @@ class VioInterface {
   ///        When an implementing class has an estimate, they can call:
   ///        stateCallback_( stamp, T_w_vk );
   ///        where stamp is the timestamp
-  ///        and T_w_vk is the transformation (and uncertainty) that
+  ///        and T_w_vk is the transformation (without uncertainty) that
   ///        transforms points from the vehicle frame to the world frame
   virtual void setStateCallback(const StateCallback & stateCallback);
+
+  /// \brief Set the stateCallback to be called every time a new state is estimated.
+  ///        When an implementing class has an estimate, they can call:
+  ///        stateCallback_( stamp, T_w_vk );
+  ///        where stamp is the timestamp
+  ///        and T_w_vk is the transformation (with uncertainty) that
+  ///        transforms points from the vehicle frame to the world frame
+  virtual void setStateWithUncertaintyCallback(const
+      StateWithUncertaintyCallback & stateWithUncertaintyCallback);
 
   /// \brief Set the fullStateCallback to be called every time a new state is estimated.
   ///        When an implementing class has an estimate, they can call:
   ///        _fullStateCallback( stamp, T_w_vk, speedAndBiases, omega_S);
   ///        where stamp is the timestamp
-  ///        and T_w_vk is the transformation (and uncertainty) that
+  ///        and T_w_vk is the transformation (without uncertainty) that
   ///        transforms points from the vehicle frame to the world frame. speedAndBiases contain
   ///        speed in world frame followed by gyro and acc biases. finally, omega_S is the rotation speed.
   virtual void setFullStateCallback(
       const FullStateCallback & fullStateCallback);
+
+  /// \brief Set the fullStateCallback to be called every time a new state is estimated.
+  ///        When an implementing class has an estimate, they can call:
+  ///        _fullStateCallback( stamp, T_w_vk, speedAndBiases, omega_S);
+  ///        where stamp is the timestamp
+  ///        and T_w_vk is the transformation (with uncertainty) that
+  ///        transforms points from the vehicle frame to the world frame. speedAndBiases contain
+  ///        speed in world frame followed by gyro and acc biases. finally, omega_S is the rotation speed.
+  virtual void setFullStateWithUncertaintyCallback(
+      const FullStateWithUncertaintyCallback & fullStateWithUncertaintyCallback);
 
   /// \brief Set the fullStateCallbackWithExtrinsics to be called every time a new state is estimated.
   ///        When an implementing class has an estimate, they can call:
@@ -308,7 +335,9 @@ class VioInterface {
   /// \brief Write first line of tracks (data associations) CSV file to describe columns.
   bool writeTracksCsvDescription(size_t cameraId);
 
+  StateWithUncertaintyCallback stateWithUncertaintyCallback_; ///< State callback function.
   StateCallback stateCallback_; ///< State callback function.
+  FullStateWithUncertaintyCallback fullStateWithUncertaintyCallback_; ///< Full state callback function.
   FullStateCallback fullStateCallback_; ///< Full state callback function.
   FullStateCallbackWithExtrinsics fullStateCallbackWithExtrinsics_; ///< Full state and extrinsics callback function.
   LandmarksCallback landmarksCallback_; ///< Landmarks callback function.
