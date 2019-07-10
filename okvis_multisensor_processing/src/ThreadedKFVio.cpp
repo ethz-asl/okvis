@@ -585,6 +585,8 @@ void ThreadedKFVio::imuConsumerLoop() {
       OptimizationResults result;
       result.stamp = *end;
       result.T_WS = T_WS_propagated_;
+      result.P_T_WS = lastOptimized_P_T_WS_;
+      result.P = lastOptimized_P_;
       result.speedAndBiases = speedAndBiases_propagated_;
       result.omega_S = imuMeasurements_.back().measurement.gyroscopes
           - speedAndBiases_propagated_.segment<3>(3);
