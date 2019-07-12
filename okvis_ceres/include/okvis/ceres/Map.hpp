@@ -133,9 +133,9 @@ class Map {
    */
   void getLhs(uint64_t parameterBlockId, Eigen::MatrixXd& H);
 
-  bool getLastPoseUncertainty(Eigen::Matrix<double, 6, 6> & P_T_WS) const;
+  bool getPoseUncertainty(uint64_t parameterBlockId, Eigen::Matrix<double, 6, 6> & P_T_WS);
 
-  bool getLastStateUncertainty(Eigen::Matrix<double, 15, 15> & P) const;
+  bool getStateUncertainty(uint64_t parameterBlockId, Eigen::Matrix<double, 15, 15> & P);
 
   /// @name add/remove
   /// @{
@@ -419,7 +419,6 @@ class Map {
 
   /// \brief Store parameterisation locally.
   okvis::ceres::PoseLocalParameterization4d poseLocalParameterization4d_;
-
 };
 
 }  //namespace okvis

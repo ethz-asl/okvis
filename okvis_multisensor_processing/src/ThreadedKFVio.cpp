@@ -779,8 +779,12 @@ void ThreadedKFVio::optimizationLoop() {
         estimator_.get_T_WS(frame_pairs->id(), lastOptimized_T_WS_);
         estimator_.getSpeedAndBias(frame_pairs->id(), 0,
                                    lastOptimizedSpeedAndBiases_);
-	estimator_.getPoseUncertainty(lastOptimized_P_T_WS_);
-	estimator_.getStateUncertainty(lastOptimized_P_);
+	if (stateWithUncertaintyCallback_) {
+	  estimator_.getPoseUncertainty(lastOptimized_P_T_WS_);
+	}
+	if (fullStateWithUncertaintyCallback_) {
+	  estimator_.getStateUncertainty(lastOptimized_P_);
+	}
         lastOptimizedStateTimestamp_ = frame_pairs->timestamp();
 
         // if we publish the state after each IMU propagation we do not need to publish it here.

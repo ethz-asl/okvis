@@ -1044,11 +1044,13 @@ bool Estimator::isInImuWindow(uint64_t frameId) const {
 }
 
 bool Estimator::getPoseUncertainty(Eigen::Matrix<double,6,6> & P_T_WS) const {
-  return mapPtr_->getLastPoseUncertainty(P_T_WS);
+  uint64_t lastPose = statesMap_.rbegin()->second.id;
+  return mapPtr_->getPoseUncertainty(lastPose, P_T_WS);
 }
 
 bool Estimator::getStateUncertainty(Eigen::Matrix<double,15,15> & P) const {
-  return mapPtr_->getLastStateUncertainty(P);
+  uint64_t lastPose = statesMap_.rbegin()->second.id;
+  return mapPtr_->getStateUncertainty(lastPose, P);
 }
 
 
