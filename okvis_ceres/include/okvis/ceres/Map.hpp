@@ -131,7 +131,7 @@ class Map {
    * @param[in] parameterBlockId Parameter block ID of interest.
    * @param[out] H the output Hessian block.
    */
-  void getLhs(uint64_t parameterBlockId, Eigen::MatrixXd& H);
+  void getLhs(uint64_t parameterBlockId, Eigen::MatrixXd& H, double* sigma2=NULL);
 
   bool getPoseUncertainty(uint64_t parameterBlockId, Eigen::Matrix<double, 6, 6> & P_T_WS);
 

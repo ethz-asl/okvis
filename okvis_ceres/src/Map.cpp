@@ -98,10 +98,12 @@ void Map::printResidualBlockInfo(
 }
 
 // Obtain the Hessian block for a specific parameter block.
-void Map::getLhs(uint64_t parameterBlockId, Eigen::MatrixXd& H) {
+void Map::getLhs(uint64_t parameterBlockId, Eigen::MatrixXd& H, double* sigma2) {
   OKVIS_ASSERT_TRUE_DBG(Exception,parameterBlockExists(parameterBlockId),"parameter block not in map.");
   ResidualBlockCollection res = residuals(parameterBlockId);
   H.setZero();
+  double s2 = 0;
+  uint32_t m = 0;
   for (size_t i = 0; i < res.size(); ++i) {
 
     // parameters:
@@ -144,6 +146,8 @@ void Map::getLhs(uint64_t parameterBlockId, Eigen::MatrixXd& H) {
                                                            residualsRaw,
                                                            jacobiansRaw,
                                                            jacobiansMinimalRaw);
+    s2 += residualsEigen.transpose() * residualsEigen;
+    m += residualsEigen.size();
 
     // get block
     H += jacobiansMinimalEigen[J].transpose() * jacobiansMinimalEigen[J];
@@ -153,14 +157,18 @@ void Map::getLhs(uint64_t parameterBlockId, Eigen::MatrixXd& H) {
     delete[] jacobiansRaw;
     delete[] jacobiansMinimalRaw;
   }
+  if (sigma2) {
+    *sigma2 = s2/(m - H.rows());
+  }
 }
 
 // Return pose uncertainty
 bool Map::getPoseUncertainty(uint64_t parameterBlockId, Eigen::Matrix<double, 6, 6> & P_T_WS) {
   P_T_WS.setZero();
   Eigen::MatrixXd t(6, 6);
-  getLhs(parameterBlockId, t);
-  P_T_WS = t.inverse();
+  double sigma2;
+  getLhs(parameterBlockId, t, &sigma2);
+  P_T_WS = sigma2 * t.inverse();
   return true;
 }
 
