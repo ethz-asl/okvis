@@ -158,21 +158,9 @@ void Map::getLhs(uint64_t parameterBlockId, Eigen::MatrixXd& H) {
 // Return pose uncertainty
 bool Map::getPoseUncertainty(uint64_t parameterBlockId, Eigen::Matrix<double, 6, 6> & P_T_WS) {
   P_T_WS.setZero();
-  // no such block -> fail
-  if (!parameterBlockExists(parameterBlockId)) {
-    return false;
-  }
-  double* block = id2ParameterBlock_Map_.find(parameterBlockId)->
-    second->parameters();
-  std::vector<std::pair<const double*, const double*> > cov_blocks;
-  cov_blocks.push_back(std::make_pair(block, block));
-  ::ceres::Covariance::Options cov_opts;
-  cov_opts.algorithm_type = ::ceres::CovarianceAlgorithmType::DENSE_SVD;
-  ::ceres::Covariance covariance(cov_opts);
-  if (covariance.Compute(cov_blocks, problem_.get())) {
-    return false;
-  }
-  covariance.GetCovarianceBlock(block, block, P_T_WS.data());
+  Eigen::MatrixXd t(6, 6);
+  getLhs(parameterBlockId, t);
+  P_T_WS = t.inverse();
   return true;
 }
 
