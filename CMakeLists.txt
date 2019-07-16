@@ -248,7 +248,7 @@ if(${BUILD_TESTS})
   # http://stackoverflow.com/questions/9689183/cmake-googletest
   ExternalProject_Add(
     googlemock
-    URL https://googlemock.googlecode.com/files/gmock-1.7.0.zip
+    GIT_REPOSITORY https://github.com/paulsapps/gmock-1.7.0.git
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/gmock
     CMAKE_ARGS -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS} -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
     BUILD_COMMAND make -j${N_CORES}
