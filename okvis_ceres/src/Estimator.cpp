@@ -1049,8 +1049,16 @@ bool Estimator::getPoseUncertainty(Eigen::Matrix<double,6,6> & P_T_WS) const {
 }
 
 bool Estimator::getStateUncertainty(Eigen::Matrix<double,15,15> & P) const {
-  uint64_t lastPose = statesMap_.rbegin()->second.id;
-  return mapPtr_->getStateUncertainty(lastPose, P);
+  uint64_t pose_id = statesMap_.rbegin()->second.id;
+  uint64_t speedAndBias_id =
+    statesMap_.rbegin()->second.sensors.at(SensorStates::Imu)
+    .at(0).at(ImuSensorStates::SpeedAndBias).id;
+  std::vector<uint64_t> block_ids = {pose_id, speedAndBias_id};
+  // TODO: get this to work without the temporary matrix/coping
+  Eigen::MatrixXd t(15, 15);
+  bool r = mapPtr_->getUncertainty(block_ids, t);
+  P = t;
+  return r;
 }
 
 

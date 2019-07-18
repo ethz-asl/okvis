@@ -172,24 +172,93 @@ bool Map::getPoseUncertainty(uint64_t parameterBlockId, Eigen::Matrix<double, 6,
   return true;
 }
 
-// Return state uncertainty
-bool Map::getStateUncertainty(uint64_t parameterBlockId, Eigen::Matrix<double, 15, 15> & P) {
+// Return covariance for blocks in vector parameterBlockIds
+bool Map::getUncertainty(std::vector<uint64_t> parameterBlockIds,
+    Eigen::Ref<Eigen::MatrixXd> P) {
   P.setZero();
-  // no such block -> fail
-  if (!parameterBlockExists(parameterBlockId)) {
-    return false;
+  size_t N = parameterBlockIds.size();
+  std::vector<size_t> J_size;
+  std::vector<size_t> J_pos = {0};
+
+  // collect all the residuals, prep J_size and J_pos
+  ResidualBlockCollection res;
+  for (auto parBlk_id : parameterBlockIds) {
+    if (!parameterBlockExists(parBlk_id)) {
+      return false;
+    }
+    ResidualBlockCollection t = residuals(parBlk_id);
+    res.insert(res.end(), t.begin(), t.end());
+    J_size.push_back(id2ParameterBlock_Map_.find(parBlk_id)->second->minimalDimension());
+    J_pos.push_back(J_pos.back() + J_size.back());
   }
-  double* block = id2ParameterBlock_Map_.find(parameterBlockId)->
-    second->parameters();
-  std::vector<std::pair<const double*, const double*> > cov_blocks;
-  cov_blocks.push_back(std::make_pair(block, block));
-  ::ceres::Covariance::Options cov_opts;
-  cov_opts.algorithm_type = ::ceres::CovarianceAlgorithmType::DENSE_SVD;
-  ::ceres::Covariance covariance(cov_opts);
-  if (!covariance.Compute(cov_blocks, problem_.get())) {
-    return false;
+  size_t J_n = J_pos.back();
+
+  double s2 = 0;
+  uint32_t m = 0;
+
+  // calculate Jacobians
+  for (size_t i = 0; i < res.size(); ++i) {
+
+    // parameters:
+    ParameterBlockCollection pars = parameters(res[i].residualBlockId);
+
+    double** parametersRaw = new double*[pars.size()];
+    size_t res_n = res[i].errorInterfacePtr->residualDim();
+    Eigen::VectorXd residualsEigen(res_n);
+    double* residualsRaw = residualsEigen.data();
+
+    double** jacobiansRaw = new double*[pars.size()];
+    std::vector<
+        Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>,
+        Eigen::aligned_allocator<
+            Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic,
+                Eigen::RowMajor> > > jacobiansEigen(pars.size());
+
+    double** jacobiansMinimalRaw = new double*[pars.size()];
+    std::vector<
+        Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>,
+        Eigen::aligned_allocator<
+            Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic,
+                Eigen::RowMajor> > > jacobiansMinimalEigen(pars.size());
+
+    // collect relevant Jacobian blocks
+    std::vector<int32_t> J_idx(N);
+    std::fill(J_idx.begin(), J_idx.end(), -1);
+    for (size_t j = 0; j < pars.size(); j++) {
+      parametersRaw[j] = pars[j].second->parameters();
+      jacobiansEigen[j].resize(res[i].errorInterfacePtr->residualDim(),
+                               pars[j].second->dimension());
+      jacobiansRaw[j] = jacobiansEigen[j].data();
+      jacobiansMinimalEigen[j].resize(res[i].errorInterfacePtr->residualDim(),
+                                      pars[j].second->minimalDimension());
+      jacobiansMinimalRaw[j] = jacobiansMinimalEigen[j].data();
+      for (size_t jj = 0; jj < N; jj++) {
+	if (pars[j].second->id() == parameterBlockIds[jj]) {
+	  J_idx[jj] = j;
+	}
+      }
+    }
+
+    // evaluate residual block
+    res[i].errorInterfacePtr->EvaluateWithMinimalJacobians(parametersRaw,
+                                                           residualsRaw,
+                                                           jacobiansRaw,
+                                                           jacobiansMinimalRaw);
+    s2 += residualsEigen.transpose() * residualsEigen;
+    m += residualsEigen.size();
+
+    // stacked Jacobian is res_n rows (# of residuals) by J_n cols (# of
+    // parameters, in minimal rep) 
+    Eigen::MatrixXd J_stacked = Eigen::MatrixXd::Zero(res_n, J_n);
+    // piece together relevant parts of the Jacobian
+    for (size_t j = 0; j < N; j++) {
+      if (J_idx[j] > 0) {
+	J_stacked.block(0, J_pos[j], res_n, J_size[j]) = jacobiansMinimalEigen[J_idx[j]];
+      }
+    }
+    P += J_stacked.transpose() * J_stacked;
   }
-  covariance.GetCovarianceBlock(block, block, P.data());
+  P = (s2 / (m - J_n)) * P.inverse();
   return true;
 }
 

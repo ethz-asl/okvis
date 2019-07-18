@@ -130,12 +130,25 @@ class Map {
    * @brief Obtain the Hessian block for a specific parameter block.
    * @param[in] parameterBlockId Parameter block ID of interest.
    * @param[out] H the output Hessian block.
+   * @param[out] sigma2 the sum of squared residuals, for estimating the
+   * covariance.
    */
   void getLhs(uint64_t parameterBlockId, Eigen::MatrixXd& H, double* sigma2=NULL);
 
+  /**
+   * @brief Obtain the covariance matrix for a pose
+   * @param[in] parameterBlockId Parameter block ID of the pose of interest.
+   * @param[out] P_T_WS the output covariance matrix.
+   */
   bool getPoseUncertainty(uint64_t parameterBlockId, Eigen::Matrix<double, 6, 6> & P_T_WS);
 
-  bool getStateUncertainty(uint64_t parameterBlockId, Eigen::Matrix<double, 15, 15> & P);
+  /**
+   * @brief Obtain the covariance matrix for any set of blocks
+   * @param[in] parameterBlockIds vector of parameter block IDs of interest.
+   * @param[out] P the output covariance matrix.
+   */
+  bool getUncertainty(std::vector<uint64_t> parameterBlockIds,
+      Eigen::Ref<Eigen::MatrixXd> P);
 
   /// @name add/remove
   /// @{
