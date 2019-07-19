@@ -314,12 +314,25 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
   file["camera_params"]["camera_rate"] >>
       vioParameters_.sensors_information.cameraRate;
 
-  success = file["camera_params"]["image_readout_time"].isReal();
-  OKVIS_ASSERT_TRUE(Exception, success,
-                    "'camera_params: image_readout_time' parameter "
-                    "missing in configuration file.");
-  file["camera_params"]["image_readout_time"] >>
-      vioParameters_.sensors_information.imageReadoutTime;
+  if (file["camera_params"]["image_readout_time"].isReal()) {
+    file["camera_params"]["image_readout_time"] >>
+        vioParameters_.sensors_information.imageReadoutTime;
+    const double upper = 1.0;  // sec
+    const double lower = 0.0;
+    OKVIS_ASSERT_LE(Exception,
+                    vioParameters_.sensors_information.imageReadoutTime, upper,
+                    "image_readout_time should be no more than " +
+                        std::to_string(upper) + " sec");
+    OKVIS_ASSERT_GE(Exception,
+                    vioParameters_.sensors_information.imageReadoutTime, lower,
+                    "image_readout_time should be no less than " +
+                        std::to_string(lower) + " sec");
+  } else {
+    vioParameters_.sensors_information.imageReadoutTime = 0.0;
+    LOG(WARNING) << "'camera_params: image_readout_time' parameter "
+                    "missing in configuration file. Setting to "
+                 << vioParameters_.sensors_information.imageReadoutTime;
+  }
 
   // timestamp tolerance
   if (file["camera_params"]["timestamp_tolerance"].isReal()) {
@@ -612,16 +625,6 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
       Exception, imu_params["imu_rate"].isInt(),
       "'imu_params: imu_rate' parameter missing in configuration file.");
 
-  OKVIS_ASSERT_TRUE(Exception, imu_params["sigma_TGElement"].isReal(),
-                    "'imu_params: sigma_TGElement' parameter missing in "
-                    "configuration file.");
-  OKVIS_ASSERT_TRUE(Exception, imu_params["sigma_TSElement"].isReal(),
-                    "'imu_params: sigma_TSElement' parameter missing in "
-                    "configuration file.");
-  OKVIS_ASSERT_TRUE(Exception, imu_params["sigma_TAElement"].isReal(),
-                    "'imu_params: sigma_TAElement' parameter missing in "
-                    "configuration file.");
-
   imu_params["a_max"] >> vioParameters_.imu.a_max;
   imu_params["g_max"] >> vioParameters_.imu.g_max;
   imu_params["sigma_g_c"] >> vioParameters_.imu.sigma_g_c;
@@ -646,9 +649,30 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
     vioParameters_.imu.g0 = Eigen::Vector3d::Zero();
   }
 
-  imu_params["sigma_TGElement"] >> vioParameters_.imu.sigma_TGElement;
-  imu_params["sigma_TSElement"] >> vioParameters_.imu.sigma_TSElement;
-  imu_params["sigma_TAElement"] >> vioParameters_.imu.sigma_TAElement;
+  if (imu_params["sigma_TGElement"].isReal()) {
+    imu_params["sigma_TGElement"] >> vioParameters_.imu.sigma_TGElement;
+  } else {
+    vioParameters_.imu.sigma_TGElement = 0.0;
+    LOG(WARNING) << "'imu_params: sigma_TGElement' parameter missing in "
+                    "configuration file. Setting to "
+                 << vioParameters_.imu.sigma_TGElement;
+  }
+  if (imu_params["sigma_TSElement"].isReal()) {
+    imu_params["sigma_TSElement"] >> vioParameters_.imu.sigma_TSElement;
+  } else {
+    vioParameters_.imu.sigma_TSElement = 0.0;
+    LOG(WARNING) << "'imu_params: sigma_TSElement' parameter missing in "
+                    "configuration file. Setting to "
+                 << vioParameters_.imu.sigma_TSElement;
+  }
+  if (imu_params["sigma_TAElement"].isReal()) {
+    imu_params["sigma_TAElement"] >> vioParameters_.imu.sigma_TAElement;
+  } else {
+    vioParameters_.imu.sigma_TAElement = 0.0;
+    LOG(WARNING) << "'imu_params: sigma_TAElement' parameter missing in "
+                    "configuration file. Setting to "
+                 << vioParameters_.imu.sigma_TAElement;
+  }
 
   cv::FileNode initTg = file["imu_params"]["Tg0"];
   if (initTg.isSeq()) {
@@ -679,6 +703,9 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
   } else {
     vioParameters_.imu.Ta0 << 1, 0, 0, 0, 1, 0, 0, 0, 1;
   }
+  s.str(std::string());
+  s << vioParameters_.imu.Ta0.transpose();
+  LOG(INFO) << "IMU with Ta0=" << s.str();
   vioParameters_.imu.td0 = 0;
   readConfigFile_ = true;
 }
