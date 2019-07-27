@@ -14,7 +14,7 @@ option (USE_SYSTEM_BRISK
 option (USE_SYSTEM_CERES
         "Use ceres via find_package rather than downloading it as part of okvis" OFF) 
 option (BUILD_APPS
-        "Builds a demo app (which requires boost)" OFF)
+        "Builds a demo app (which requires boost)" ON) 
 option (BUILD_TESTS
         "Builds all gtests" OFF) 
 SET(N_CORES 3 CACHE STRING "Using N number of cores for parallel build")
@@ -51,7 +51,7 @@ endif()
 if (NOT "${CMAKE_BUILD_TYPE}" STREQUAL "Release")
   message(WARNING "CMAKE_BUILD_TYPE not set to 'Release'. Performance may be terrible.")
 else()
-  message(STATUS "Building okvis with build type '${CMAKE_BUILD_TYPE}'")
+  message(STATUS "Building with build type '${CMAKE_BUILD_TYPE}'")
 endif()
 
 if(APPLE)
@@ -342,7 +342,7 @@ endif()
 
 # installation is invoked in the individual modules...
 export (TARGETS 
-#    okvis_app_synchronous
+    okvis_app_synchronous
     okvis_util
     okvis_kinematics
     okvis_time

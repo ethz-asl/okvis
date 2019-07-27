@@ -4,7 +4,7 @@
  *
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted provided that the following conditions are met:
- *
+ * 
  *   * Redistributions of source code must retain the above copyright notice,
  *     this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright notice,
@@ -48,8 +48,8 @@
 #include <opencv2/core/core.hpp>
 #pragma GCC diagnostic pop
 
-#include <okvis/Parameters.hpp>
 #include <okvis/assert_macros.hpp>
+#include <okvis/Parameters.hpp>
 
 /// \brief okvis Main namespace of this package.
 namespace okvis {
@@ -57,10 +57,10 @@ namespace okvis {
 /**
  * @brief This class reads and parses config file.
  */
-class VioParametersReader {
+class VioParametersReader{
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  OKVIS_DEFINE_EXCEPTION(Exception, std::runtime_error)
+  OKVIS_DEFINE_EXCEPTION(Exception,std::runtime_error)
 
   /// \brief The default constructor.
   VioParametersReader();
@@ -87,8 +87,9 @@ class VioParametersReader {
    * @return True if parameters have been read from a configuration file. If it
    *         returns false then the variable \e parameters has not been changed.
    */
-  bool getParameters(okvis::VioParameters& parameters) const {
-    if (readConfigFile_) parameters = vioParameters_;
+  bool getParameters(okvis::VioParameters& parameters) const{
+    if(readConfigFile_)
+      parameters = vioParameters_;
     return readConfigFile_;
   }
 
@@ -98,17 +99,16 @@ class VioParametersReader {
   std::shared_ptr<void> viSensor;
 
  protected:
+
   /// @brief Struct that contains all the camera calibration information.
   struct CameraCalibration {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    okvis::kinematics::Transformation
-        T_SC;  ///< Transformation from camera to sensor (IMU) frame.
-    Eigen::Vector2d imageDimension;          ///< Image dimension. [pixels]
-    Eigen::VectorXd distortionCoefficients;  ///< Distortion Coefficients.
-    Eigen::Vector2d focalLength;             ///< Focal length.
-    Eigen::Vector2d principalPoint;          ///< Principal point.
-    std::string distortionType;  ///< Distortion type. ('radialtangential'
-                                 ///< 'plumb_bob' 'equdistant')
+    okvis::kinematics::Transformation T_SC;   ///< Transformation from camera to sensor (IMU) frame.
+    Eigen::Vector2d imageDimension;           ///< Image dimension. [pixels]
+    Eigen::VectorXd distortionCoefficients;   ///< Distortion Coefficients.
+    Eigen::Vector2d focalLength;              ///< Focal length.
+    Eigen::Vector2d principalPoint;           ///< Principal point.
+    std::string distortionType;               ///< Distortion type. ('radialtangential' 'plumb_bob' 'equdistant')
   };
 
   /// If readConfigFile() has been called at least once this is true
@@ -117,28 +117,25 @@ class VioParametersReader {
   okvis::VioParameters vioParameters_;
 
   /**
-   * @brief Parses booleans from a cv::FileNode. OpenCV sadly has no
-   * implementation like this.
+   * @brief Parses booleans from a cv::FileNode. OpenCV sadly has no implementation like this.
    * @param[in] node The file node.
    * @param[out] val The parsed value.
-   * @return True if parsing was successful. If it returns false then the
-   * variable \e val has not been changed.
+   * @return True if parsing was successful. If it returns false then the variable \e val has not
+   *         been changed.
    */
   bool parseBoolean(cv::FileNode node, bool& val) const;
 
   /**
    * @brief Get the camera calibration. This looks for the calibration in the
-   *        configuration file first. If this fails it will directly get the
-   * calibration from the sensor, if useDriver is set to true.
-   * @remark Overload this function if you want to get the calibrations via ROS
-   * for example.
+   *        configuration file first. If this fails it will directly get the calibration
+   *        from the sensor, if useDriver is set to true.
+   * @remark Overload this function if you want to get the calibrations via ROS for example.
    * @param calibrations The calibrations.
    * @param configurationFile The config file.
    * @return True if reading of the calibration was successful.
    */
   virtual bool getCameraCalibration(
-      std::vector<CameraCalibration,
-                  Eigen::aligned_allocator<CameraCalibration>>& calibrations,
+      std::vector<CameraCalibration,Eigen::aligned_allocator<CameraCalibration>> & calibrations,
       cv::FileStorage& configurationFile);
 
   /**
@@ -148,8 +145,7 @@ class VioParametersReader {
    * @return True if reading and parsing of calibration was successful.
    */
   bool getCalibrationViaConfig(
-      std::vector<CameraCalibration,
-                  Eigen::aligned_allocator<CameraCalibration>>& calibrations,
+      std::vector<CameraCalibration,Eigen::aligned_allocator<CameraCalibration>> & calibrations,
       cv::FileNode cameraNode) const;
 
   /**
@@ -158,13 +154,11 @@ class VioParametersReader {
    * @return True if successful.
    */
   bool getCalibrationViaVisensorAPI(
-      std::vector<CameraCalibration,
-                  Eigen::aligned_allocator<CameraCalibration>>& calibrations)
-      const;
+      std::vector<CameraCalibration,Eigen::aligned_allocator<CameraCalibration>> & calibrations) const;
 
   void print(const CameraCalibration& cc) const;
 };
 
-}  // namespace okvis
+}
 
 #endif /* INCLUDE_OKVIS_VIOPARAMETERSREADER_HPP_ */
