@@ -348,9 +348,9 @@ class CameraBase
 
   int imageWidth_;  ///< image width in pixels
   int imageHeight_;  ///< image height in pixels
-
   uint64_t id_;  ///< an Id
-
+  uint64_t frameReadoutTimeNanos_;
+  bool staggerInWidth_; ///< if true, read line by line along the width
 };
 
 }  // namespace cameras

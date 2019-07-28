@@ -64,22 +64,11 @@ template<class GEOMETRY_TYPE>
   multiFramePtr->getKeypointSize(camIdx, keypointIdx, size);
   information *= 64.0 / (size * size);
 
-  // create error term
-  std::shared_ptr < ceres::ReprojectionError
-      < GEOMETRY_TYPE
-          >> reprojectionError(
-              new ceres::ReprojectionError<GEOMETRY_TYPE>(
-                  multiFramePtr->template geometryAs<GEOMETRY_TYPE>(camIdx),
-                  camIdx, measurement, information));
-
-  ::ceres::ResidualBlockId retVal = mapPtr_->addResidualBlock(
-      reprojectionError,
-      cauchyLossFunctionPtr_ ? cauchyLossFunctionPtr_.get() : NULL,
-      mapPtr_->parameterBlockPtr(poseId),
-      mapPtr_->parameterBlockPtr(landmarkId),
-      mapPtr_->parameterBlockPtr(
-          statesMap_.at(poseId).sensors.at(SensorStates::Camera).at(camIdx).at(
-              CameraSensorStates::T_SCi).id));
+  std::shared_ptr<const GEOMETRY_TYPE> cameraGeometry =
+          multiFramePtr->template geometryAs<GEOMETRY_TYPE>(camIdx);
+  ::ceres::ResidualBlockId retVal = addPointFrameResidual(
+      landmarkId, poseId, camIdx,
+      measurement, information, cameraGeometry);
 
   // remember
   landmarksMap_.at(landmarkId).observations.insert(

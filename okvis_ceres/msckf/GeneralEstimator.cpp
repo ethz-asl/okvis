@@ -32,14 +32,13 @@
  *********************************************************************************/
 
 /**
- * @file Estimator.cpp
- * @brief Source file for the Estimator class.
- * @author Stefan Leutenegger
- * @author Andreas Forster
+ * @file GeneralEstimator.cpp
+ * @brief Source file for the GeneralEstimator class.
+ * @author Jianzhu Huai
  */
 
 #include <glog/logging.h>
-#include <okvis/Estimator.hpp>
+#include <msckf/GeneralEstimator.hpp>
 #include <okvis/ceres/PoseParameterBlock.hpp>
 #include <okvis/ceres/ImuError.hpp>
 #include <okvis/ceres/PoseError.hpp>
@@ -53,32 +52,24 @@
 namespace okvis {
 
 // Constructor if a ceres map is already available.
-Estimator::Estimator(
+GeneralEstimator::GeneralEstimator(
     std::shared_ptr<okvis::ceres::Map> mapPtr)
-    : mapPtr_(mapPtr),
-      referencePoseId_(0),
-      cauchyLossFunctionPtr_(new ::ceres::CauchyLoss(1)),
-      huberLossFunctionPtr_(new ::ceres::HuberLoss(1)),
-      marginalizationResidualId_(0)
+    : Estimator(mapPtr)
 {
 }
 
 // The default constructor.
-Estimator::Estimator()
-    : mapPtr_(new okvis::ceres::Map()),
-      referencePoseId_(0),
-      cauchyLossFunctionPtr_(new ::ceres::CauchyLoss(1)),
-      huberLossFunctionPtr_(new ::ceres::HuberLoss(1)),
-      marginalizationResidualId_(0)
+GeneralEstimator::GeneralEstimator()
+    : Estimator()
 {
 }
 
-Estimator::~Estimator()
+GeneralEstimator::~GeneralEstimator()
 {
 }
 
 // Add a camera to the configuration. Sensors can only be added and never removed.
-int Estimator::addCamera(
+int GeneralEstimator::addCamera(
     const ExtrinsicsEstimationParameters & extrinsicsEstimationParameters)
 {
   extrinsicsEstimationParametersVec_.push_back(extrinsicsEstimationParameters);
@@ -86,7 +77,7 @@ int Estimator::addCamera(
 }
 
 // Add an IMU to the configuration.
-int Estimator::addImu(const ImuParameters & imuParameters)
+int GeneralEstimator::addImu(const ImuParameters & imuParameters)
 {
   if(imuParametersVec_.size()>1){
     LOG(ERROR) << "only one IMU currently supported";
@@ -96,18 +87,8 @@ int Estimator::addImu(const ImuParameters & imuParameters)
   return imuParametersVec_.size() - 1;
 }
 
-// Remove all cameras from the configuration
-void Estimator::clearCameras(){
-  extrinsicsEstimationParametersVec_.clear();
-}
-
-// Remove all IMUs from the configuration.
-void Estimator::clearImus(){
-  imuParametersVec_.clear();
-}
-
 // Add a pose to the state.
-bool Estimator::addStates(
+bool GeneralEstimator::addStates(
     okvis::MultiFramePtr multiFrame,
     const okvis::ImuMeasurementDeque & imuMeasurements,
     bool asKeyframe)
@@ -342,96 +323,9 @@ bool Estimator::addStates(
   return true;
 }
 
-// Add a landmark.
-bool Estimator::addLandmark(uint64_t landmarkId,
-                            const Eigen::Vector4d & landmark) {
-  std::shared_ptr<okvis::ceres::HomogeneousPointParameterBlock> pointParameterBlock(
-      new okvis::ceres::HomogeneousPointParameterBlock(landmark, landmarkId));
-  if (!mapPtr_->addParameterBlock(pointParameterBlock,
-                                  okvis::ceres::Map::HomogeneousPoint)) {
-    return false;
-  }
-
-  // remember
-  double dist = std::numeric_limits<double>::max();
-  if(fabs(landmark[3])>1.0e-8){
-    dist = (landmark/landmark[3]).head<3>().norm(); // euclidean distance
-  }
-  landmarksMap_.insert(
-      std::pair<uint64_t, MapPoint>(
-          landmarkId, MapPoint(landmarkId, landmark, 0.0, dist)));
-  OKVIS_ASSERT_TRUE_DBG(Exception, isLandmarkAdded(landmarkId), "bug: inconsistend landmarkdMap_ with mapPtr_.");
-  return true;
-}
-
-// Remove an observation from a landmark.
-bool Estimator::removeObservation(::ceres::ResidualBlockId residualBlockId) {
-  const ceres::Map::ParameterBlockCollection parameters = mapPtr_->parameters(residualBlockId);
-  const uint64_t landmarkId = parameters.at(1).first;
-  // remove in landmarksMap
-  MapPoint& mapPoint = landmarksMap_.at(landmarkId);
-  for(std::map<okvis::KeypointIdentifier, uint64_t >::iterator it = mapPoint.observations.begin();
-      it!= mapPoint.observations.end(); ){
-    if(it->second == uint64_t(residualBlockId)){
-
-      it = mapPoint.observations.erase(it);
-    } else {
-      it++;
-    }
-  }
-  // remove residual block
-  mapPtr_->removeResidualBlock(residualBlockId);
-  return true;
-}
-
-// Remove an observation from a landmark, if available.
-bool Estimator::removeObservation(uint64_t landmarkId, uint64_t poseId,
-                                  size_t camIdx, size_t keypointIdx) {
-  if(landmarksMap_.find(landmarkId) == landmarksMap_.end()){
-    for (PointMap::iterator it = landmarksMap_.begin(); it!= landmarksMap_.end(); ++it) {
-      LOG(INFO) << it->first<<", no. obs = "<<it->second.observations.size();
-    }
-    LOG(INFO) << landmarksMap_.at(landmarkId).id;
-  }
-  OKVIS_ASSERT_TRUE_DBG(Exception, isLandmarkAdded(landmarkId),
-                     "landmark not added");
-
-  okvis::KeypointIdentifier kid(poseId,camIdx,keypointIdx);
-  MapPoint& mapPoint = landmarksMap_.at(landmarkId);
-  std::map<okvis::KeypointIdentifier, uint64_t >::iterator it = mapPoint.observations.find(kid);
-  if(it == landmarksMap_.at(landmarkId).observations.end()){
-    return false; // observation not present
-  }
-
-  // remove residual block
-  mapPtr_->removeResidualBlock(reinterpret_cast< ::ceres::ResidualBlockId>(it->second));
-
-  // remove also in local map
-  mapPoint.observations.erase(it);
-
-  return true;
-}
-
-/**
- * @brief Does a vector contain a certain element.
- * @tparam Class of a vector element.
- * @param vector Vector to search element in.
- * @param query Element to search for.
- * @return True if query is an element of vector.
- */
-template<class T>
-bool vectorContains(const std::vector<T> & vector, const T & query){
-  for(size_t i=0; i<vector.size(); ++i){
-    if(vector[i] == query){
-      return true;
-    }
-  }
-  return false;
-}
-
 // Applies the dropping/marginalization strategy according to the RSS'13/IJRR'14 paper.
 // The new number of frames in the window will be numKeyframes+numImuFrames.
-bool Estimator::applyMarginalizationStrategy(
+bool GeneralEstimator::applyMarginalizationStrategy(
     size_t numKeyframes, size_t numImuFrames,
     okvis::MapPointVector& removedLandmarks)
 {
@@ -772,120 +666,12 @@ bool Estimator::applyMarginalizationStrategy(
   return true;
 }
 
-// Prints state information to buffer.
-void Estimator::printStates(uint64_t poseId, std::ostream & buffer) const {
-  buffer << "GLOBAL: ";
-  for(size_t i = 0; i<statesMap_.at(poseId).global.size(); ++i){
-    if(statesMap_.at(poseId).global.at(i).exists) {
-      uint64_t id = statesMap_.at(poseId).global.at(i).id;
-      if(mapPtr_->parameterBlockPtr(id)->fixed())
-        buffer << "(";
-      buffer << "id="<<id<<":";
-      buffer << mapPtr_->parameterBlockPtr(id)->typeInfo();
-      if(mapPtr_->parameterBlockPtr(id)->fixed())
-        buffer << ")";
-      buffer <<", ";
-    }
-  }
-  buffer << "SENSOR: ";
-  for(size_t i = 0; i<statesMap_.at(poseId).sensors.size(); ++i){
-    for(size_t j = 0; j<statesMap_.at(poseId).sensors.at(i).size(); ++j){
-      for(size_t k = 0; k<statesMap_.at(poseId).sensors.at(i).at(j).size(); ++k){
-        if(statesMap_.at(poseId).sensors.at(i).at(j).at(k).exists) {
-          uint64_t id = statesMap_.at(poseId).sensors.at(i).at(j).at(k).id;
-          if(mapPtr_->parameterBlockPtr(id)->fixed())
-            buffer << "(";
-          buffer << "id="<<id<<":";
-          buffer << mapPtr_->parameterBlockPtr(id)->typeInfo();
-          if(mapPtr_->parameterBlockPtr(id)->fixed())
-            buffer << ")";
-          buffer <<", ";
-        }
-      }
-    }
-  }
-  buffer << std::endl;
-}
-
-// print states and their std
-bool Estimator::print(const std::string& dumpFile, const uint64_t pose_id) const
-{
-    std::ofstream stream(dumpFile, std::ios_base::app);
-    if (!stream.is_open()) {
-      return false;
-    } else {
-      stream << "States: frameIdInSource, state timestamp, T_WS(xyz, xyzw), "
-                "v_WS, bg, ba" << std::endl;
-    }
-    uint64_t poseId = pose_id;
-    if (pose_id == 0) {
-        if(statesMap_.rbegin()->second.isKeyframe)
-            poseId = statesMap_.rbegin()->first; //output the keyframe states for VICLAM
-        else
-            return false;
-    }
-    const States& stateInQuestion = statesMap_.at(poseId);
-
-    std::shared_ptr<ceres::PoseParameterBlock> poseParamBlockPtr =std::static_pointer_cast<ceres::PoseParameterBlock>(
-                mapPtr_->parameterBlockPtr(poseId));
-    kinematics::Transformation T_WS = poseParamBlockPtr->estimate();
-    okvis::Time currentTime = stateInQuestion.timestamp;
-
-    stream << multiFramePtrMap_.at(poseId)->idInSource << " "
-           << currentTime << " " << std::setfill(' ')
-           << T_WS.parameters().transpose();
-    // update imu sensor states
-    const int imuIdx =0;
-    if(stateInQuestion.sensors.at(SensorStates::Imu).at(imuIdx).at(ImuSensorStates::SpeedAndBias).exists){
-        uint64_t SBId= stateInQuestion.sensors.at(SensorStates::Imu).at(imuIdx).at(ImuSensorStates::SpeedAndBias).id;
-        std::shared_ptr<ceres::SpeedAndBiasParameterBlock> sbParamBlockPtr =std::static_pointer_cast<ceres::SpeedAndBiasParameterBlock>(
-                    mapPtr_->parameterBlockPtr(SBId));
-        SpeedAndBiases sb = sbParamBlockPtr->estimate();
-        stream << " " << sb.transpose();
-    }
-    stream << std::endl;
-    return true;
-}
-
-// Initialise pose from IMU measurements. For convenience as static.
-// Huai: this can be realized with Quaterniond::FromTwoVectors() c.f. https://github.com/dennisss/mvision
-bool Estimator::initPoseFromImu(
-    const okvis::ImuMeasurementDeque & imuMeasurements,
-    okvis::kinematics::Transformation & T_WS)
-{
-  // set translation to zero, unit rotation
-  T_WS.setIdentity();
-
-  if (imuMeasurements.size() == 0)
-    return false;
-
-  // acceleration vector
-  Eigen::Vector3d acc_B = Eigen::Vector3d::Zero();
-  for (okvis::ImuMeasurementDeque::const_iterator it = imuMeasurements.begin();
-      it < imuMeasurements.end(); ++it) {
-    acc_B += it->measurement.accelerometers;
-  }
-  acc_B /= double(imuMeasurements.size());
-  Eigen::Vector3d e_acc = acc_B.normalized();
-
-  // align with ez_W:  //huai:this is expected direction of applied force, opposite to gravity
-  Eigen::Vector3d ez_W(0.0, 0.0, 1.0);
-  Eigen::Matrix<double, 6, 1> poseIncrement;
-  poseIncrement.head<3>() = Eigen::Vector3d::Zero();
-  poseIncrement.tail<3>() = ez_W.cross(e_acc).normalized();
-  double angle = std::acos(ez_W.transpose() * e_acc);
-  poseIncrement.tail<3>() *= angle;
-  T_WS.oplus(-poseIncrement);
-
-  return true;
-}
-
 // Start ceres optimization.
 #ifdef USE_OPENMP
-void Estimator::optimize(size_t numIter, size_t numThreads,
+void GeneralEstimator::optimize(size_t numIter, size_t numThreads,
                                  bool verbose)
 #else
-void Estimator::optimize(size_t numIter, size_t /*numThreads*/,
+void GeneralEstimator::optimize(size_t numIter, size_t /*numThreads*/,
                                  bool verbose) // avoid warning since numThreads unused
 #warning openmp not detected, your system may be slower than expected
 #endif
@@ -946,409 +732,4 @@ void Estimator::optimize(size_t numIter, size_t /*numThreads*/,
   }
 }
 
-// Set a time limit for the optimization process.
-bool Estimator::setOptimizationTimeLimit(double timeLimit, int minIterations) {
-  if(ceresCallback_ != nullptr) {
-    if(timeLimit < 0.0) {
-      // no time limit => set minimum iterations to maximum iterations
-      ceresCallback_->setMinimumIterations(mapPtr_->options.max_num_iterations);
-      return true;
-    }
-    ceresCallback_->setTimeLimit(timeLimit);
-    ceresCallback_->setMinimumIterations(minIterations);
-    return true;
-  }
-  else if(timeLimit >= 0.0) {
-    ceresCallback_ = std::unique_ptr<okvis::ceres::CeresIterationCallback>(
-          new okvis::ceres::CeresIterationCallback(timeLimit,minIterations));
-    mapPtr_->options.callbacks.push_back(ceresCallback_.get());
-    return true;
-  }
-  // no callback yet registered with ceres.
-  // but given time limit is lower than 0, so no callback needed
-  return true;
-}
-
-// getters
-// Get a specific landmark.
-bool Estimator::getLandmark(uint64_t landmarkId,
-                                    MapPoint& mapPoint) const
-{
-  std::lock_guard<std::mutex> l(statesMutex_);
-  if (landmarksMap_.find(landmarkId) == landmarksMap_.end()) {
-    OKVIS_THROW_DBG(Exception,"landmark with id = "<<landmarkId<<" does not exist.")
-    return false;
-  }
-  mapPoint = landmarksMap_.at(landmarkId);
-  return true;
-}
-
-// Checks whether the landmark is initialized.
-bool Estimator::isLandmarkInitialized(uint64_t landmarkId) const {
-  OKVIS_ASSERT_TRUE_DBG(Exception, isLandmarkAdded(landmarkId),
-                     "landmark not added");
-  return std::static_pointer_cast<okvis::ceres::HomogeneousPointParameterBlock>(
-      mapPtr_->parameterBlockPtr(landmarkId))->initialized();
-}
-
-// Get a copy of all the landmarks as a PointMap.
-size_t Estimator::getLandmarks(PointMap & landmarks) const
-{
-  std::lock_guard<std::mutex> l(statesMutex_);
-  landmarks = landmarksMap_;
-  return landmarksMap_.size();
-}
-
-// Get a copy of all the landmark in a MapPointVector. This is for legacy support.
-// Use getLandmarks(okvis::PointMap&) if possible.
-size_t Estimator::getLandmarks(MapPointVector & landmarks) const
-{
-  std::lock_guard<std::mutex> l(statesMutex_);
-  landmarks.clear();
-  landmarks.reserve(landmarksMap_.size());
-  for(PointMap::const_iterator it=landmarksMap_.begin(); it!=landmarksMap_.end(); ++it){
-    landmarks.push_back(it->second);
-  }
-  return landmarksMap_.size();
-}
-
-// Get pose for a given pose ID.
-bool Estimator::get_T_WS(uint64_t poseId,
-                                 okvis::kinematics::Transformation & T_WS) const
-{
-  if (!getGlobalStateEstimateAs<ceres::PoseParameterBlock>(poseId,
-                                                           GlobalStates::T_WS,
-                                                           T_WS)) {
-    return false;
-  }
-
-  return true;
-}
-
-// Feel free to implement caching for them...
-// Get speeds and IMU biases for a given pose ID.
-bool Estimator::getSpeedAndBias(uint64_t poseId, uint64_t imuIdx,
-                                okvis::SpeedAndBias & speedAndBias) const
-{
-  if (!getSensorStateEstimateAs<ceres::SpeedAndBiasParameterBlock>(
-      poseId, imuIdx, SensorStates::Imu, ImuSensorStates::SpeedAndBias,
-      speedAndBias)) {
-    return false;
-  }
-  return true;
-}
-
-// Get camera states for a given pose ID.
-bool Estimator::getCameraSensorStates(
-    uint64_t poseId, size_t cameraIdx,
-    okvis::kinematics::Transformation & T_SCi) const
-{
-  return getSensorStateEstimateAs<ceres::PoseParameterBlock>(
-      poseId, cameraIdx, SensorStates::Camera, CameraSensorStates::T_SCi, T_SCi);
-}
-
-// Get the ID of the current keyframe.
-uint64_t Estimator::currentKeyframeId() const {
-  for (std::map<uint64_t, States>::const_reverse_iterator rit = statesMap_.rbegin();
-      rit != statesMap_.rend(); ++rit) {
-    if (rit->second.isKeyframe) {
-      return rit->first;
-    }
-  }
-  OKVIS_THROW_DBG(Exception, "no keyframes existing...");
-  return 0;
-}
-
-// Get the ID of an older frame.
-uint64_t Estimator::frameIdByAge(size_t age) const {
-  std::map<uint64_t, States>::const_reverse_iterator rit = statesMap_.rbegin();
-  for(size_t i=0; i<age; ++i){
-    ++rit;
-    OKVIS_ASSERT_TRUE_DBG(Exception, rit != statesMap_.rend(),
-                       "requested age " << age << " out of range.");
-  }
-  return rit->first;
-}
-
-// Get the ID of the newest frame added to the state.
-uint64_t Estimator::currentFrameId() const {
-  OKVIS_ASSERT_TRUE_DBG(Exception, statesMap_.size()>0, "no frames added yet.")
-  return statesMap_.rbegin()->first;
-}
-
-// Checks if a particular frame is still in the IMU window
-bool Estimator::isInImuWindow(uint64_t frameId) const {
-  if(statesMap_.at(frameId).sensors.at(SensorStates::Imu).size()==0){
-    return false; // no IMU added
-  }
-  return statesMap_.at(frameId).sensors.at(SensorStates::Imu).at(0).at(ImuSensorStates::SpeedAndBias).exists;
-}
-
-// Set pose for a given pose ID.
-bool Estimator::set_T_WS(uint64_t poseId,
-                                 const okvis::kinematics::Transformation & T_WS)
-{
-  if (!setGlobalStateEstimateAs<ceres::PoseParameterBlock>(poseId,
-                                                           GlobalStates::T_WS,
-                                                           T_WS)) {
-    return false;
-  }
-
-  return true;
-}
-
-// Set the speeds and IMU biases for a given pose ID.
-bool Estimator::setSpeedAndBias(uint64_t poseId, size_t imuIdx, const okvis::SpeedAndBias & speedAndBias)
-{
-  return setSensorStateEstimateAs<ceres::SpeedAndBiasParameterBlock>(
-      poseId, imuIdx, SensorStates::Imu, ImuSensorStates::SpeedAndBias, speedAndBias);
-}
-
-// Set the transformation from sensor to camera frame for a given pose ID.
-bool Estimator::setCameraSensorStates(
-    uint64_t poseId, size_t cameraIdx,
-    const okvis::kinematics::Transformation & T_SCi)
-{
-  return setSensorStateEstimateAs<ceres::PoseParameterBlock>(
-      poseId, cameraIdx, SensorStates::Camera, CameraSensorStates::T_SCi, T_SCi);
-}
-
-// Set the homogeneous coordinates for a landmark.
-bool Estimator::setLandmark(
-    uint64_t landmarkId, const Eigen::Vector4d & landmark)
-{
-  std::shared_ptr<ceres::ParameterBlock> parameterBlockPtr = mapPtr_
-      ->parameterBlockPtr(landmarkId);
-#ifndef NDEBUG
-  std::shared_ptr<ceres::HomogeneousPointParameterBlock> derivedParameterBlockPtr =
-  std::dynamic_pointer_cast<ceres::HomogeneousPointParameterBlock>(parameterBlockPtr);
-  if(!derivedParameterBlockPtr) {
-    OKVIS_THROW_DBG(Exception,"wrong pointer type requested.")
-    return false;
-  }
-  derivedParameterBlockPtr->setEstimate(landmark);;
-#else
-  std::static_pointer_cast<ceres::HomogeneousPointParameterBlock>(
-      parameterBlockPtr)->setEstimate(landmark);
-#endif
-
-  // also update in map
-  landmarksMap_.at(landmarkId).pointHomog = landmark;
-  return true;
-}
-
-// Set the landmark initialization state.
-void Estimator::setLandmarkInitialized(uint64_t landmarkId,
-                                               bool initialized) {
-  OKVIS_ASSERT_TRUE_DBG(Exception, isLandmarkAdded(landmarkId),
-                     "landmark not added");
-  std::static_pointer_cast<okvis::ceres::HomogeneousPointParameterBlock>(
-      mapPtr_->parameterBlockPtr(landmarkId))->setInitialized(initialized);
-}
-
-// private stuff
-// getters
-bool Estimator::getGlobalStateParameterBlockPtr(
-    uint64_t poseId, int stateType,
-    std::shared_ptr<ceres::ParameterBlock>& stateParameterBlockPtr) const
-{
-  // check existence in states set
-  if (statesMap_.find(poseId) == statesMap_.end()) {
-    OKVIS_THROW(Exception,"pose with id = "<<poseId<<" does not exist.")
-    return false;
-  }
-
-  // obtain the parameter block ID
-  uint64_t id = statesMap_.at(poseId).global.at(stateType).id;
-  if (!mapPtr_->parameterBlockExists(id)) {
-    OKVIS_THROW(Exception,"pose with id = "<<id<<" does not exist.")
-    return false;
-  }
-
-  stateParameterBlockPtr = mapPtr_->parameterBlockPtr(id);
-  return true;
-}
-template<class PARAMETER_BLOCK_T>
-bool Estimator::getGlobalStateParameterBlockAs(
-    uint64_t poseId, int stateType,
-    PARAMETER_BLOCK_T & stateParameterBlock) const
-{
-  // convert base class pointer with various levels of checking
-  std::shared_ptr<ceres::ParameterBlock> parameterBlockPtr;
-  if (!getGlobalStateParameterBlockPtr(poseId, stateType, parameterBlockPtr)) {
-    return false;
-  }
-#ifndef NDEBUG
-  std::shared_ptr<PARAMETER_BLOCK_T> derivedParameterBlockPtr =
-  std::dynamic_pointer_cast<PARAMETER_BLOCK_T>(parameterBlockPtr);
-  if(!derivedParameterBlockPtr) {
-    LOG(INFO) << "--"<<parameterBlockPtr->typeInfo();
-    std::shared_ptr<PARAMETER_BLOCK_T> info(new PARAMETER_BLOCK_T);
-    OKVIS_THROW_DBG(Exception,"wrong pointer type requested: requested "
-                 <<info->typeInfo()<<" but is of type"
-                 <<parameterBlockPtr->typeInfo())
-    return false;
-  }
-  stateParameterBlock = *derivedParameterBlockPtr;
-#else
-  stateParameterBlock = *std::static_pointer_cast<PARAMETER_BLOCK_T>(
-      parameterBlockPtr);
-#endif
-  return true;
-}
-template<class PARAMETER_BLOCK_T>
-bool Estimator::getGlobalStateEstimateAs(
-    uint64_t poseId, int stateType,
-    typename PARAMETER_BLOCK_T::estimate_t & state) const
-{
-  PARAMETER_BLOCK_T stateParameterBlock;
-  if (!getGlobalStateParameterBlockAs(poseId, stateType, stateParameterBlock)) {
-    return false;
-  }
-  state = stateParameterBlock.estimate();
-  return true;
-}
-
-bool Estimator::getSensorStateParameterBlockPtr(
-    uint64_t poseId, int sensorIdx, int sensorType, int stateType,
-    std::shared_ptr<ceres::ParameterBlock>& stateParameterBlockPtr) const
-{
-  // check existence in states set
-  if (statesMap_.find(poseId) == statesMap_.end()) {
-    OKVIS_THROW_DBG(Exception,"pose with id = "<<poseId<<" does not exist.")
-    return false;
-  }
-
-  // obtain the parameter block ID
-  uint64_t id = statesMap_.at(poseId).sensors.at(sensorType).at(sensorIdx).at(
-      stateType).id;
-  if (!mapPtr_->parameterBlockExists(id)) {
-    OKVIS_THROW_DBG(Exception,"pose with id = "<<poseId<<" does not exist.")
-    return false;
-  }
-  stateParameterBlockPtr = mapPtr_->parameterBlockPtr(id);
-  return true;
-}
-template<class PARAMETER_BLOCK_T>
-bool Estimator::getSensorStateParameterBlockAs(
-    uint64_t poseId, int sensorIdx, int sensorType, int stateType,
-    PARAMETER_BLOCK_T & stateParameterBlock) const
-{
-  // convert base class pointer with various levels of checking
-  std::shared_ptr<ceres::ParameterBlock> parameterBlockPtr;
-  if (!getSensorStateParameterBlockPtr(poseId, sensorIdx, sensorType, stateType,
-                                       parameterBlockPtr)) {
-    return false;
-  }
-#ifndef NDEBUG
-  std::shared_ptr<PARAMETER_BLOCK_T> derivedParameterBlockPtr =
-  std::dynamic_pointer_cast<PARAMETER_BLOCK_T>(parameterBlockPtr);
-  if(!derivedParameterBlockPtr) {
-    std::shared_ptr<PARAMETER_BLOCK_T> info(new PARAMETER_BLOCK_T);
-    OKVIS_THROW_DBG(Exception,"wrong pointer type requested: requested "
-                     <<info->typeInfo()<<" but is of type"
-                     <<parameterBlockPtr->typeInfo())
-    return false;
-  }
-  stateParameterBlock = *derivedParameterBlockPtr;
-#else
-  stateParameterBlock = *std::static_pointer_cast<PARAMETER_BLOCK_T>(
-      parameterBlockPtr);
-#endif
-  return true;
-}
-template<class PARAMETER_BLOCK_T>
-bool Estimator::getSensorStateEstimateAs(
-    uint64_t poseId, int sensorIdx, int sensorType, int stateType,
-    typename PARAMETER_BLOCK_T::estimate_t & state) const
-{
-  PARAMETER_BLOCK_T stateParameterBlock;
-  if (!getSensorStateParameterBlockAs(poseId, sensorIdx, sensorType, stateType,
-                                      stateParameterBlock)) {
-    return false;
-  }
-  state = stateParameterBlock.estimate();
-  return true;
-}
-
-template<class PARAMETER_BLOCK_T>
-bool Estimator::setGlobalStateEstimateAs(
-    uint64_t poseId, int stateType,
-    const typename PARAMETER_BLOCK_T::estimate_t & state)
-{
-  // check existence in states set
-  if (statesMap_.find(poseId) == statesMap_.end()) {
-    OKVIS_THROW_DBG(Exception,"pose with id = "<<poseId<<" does not exist.")
-    return false;
-  }
-
-  // obtain the parameter block ID
-  uint64_t id = statesMap_.at(poseId).global.at(stateType).id;
-  if (!mapPtr_->parameterBlockExists(id)) {
-    OKVIS_THROW_DBG(Exception,"pose with id = "<<poseId<<" does not exist.")
-    return false;
-  }
-
-  std::shared_ptr<ceres::ParameterBlock> parameterBlockPtr = mapPtr_
-      ->parameterBlockPtr(id);
-#ifndef NDEBUG
-  std::shared_ptr<PARAMETER_BLOCK_T> derivedParameterBlockPtr =
-  std::dynamic_pointer_cast<PARAMETER_BLOCK_T>(parameterBlockPtr);
-  if(!derivedParameterBlockPtr) {
-    OKVIS_THROW_DBG(Exception,"wrong pointer type requested.")
-    return false;
-  }
-  derivedParameterBlockPtr->setEstimate(state);
-#else
-  std::static_pointer_cast<PARAMETER_BLOCK_T>(parameterBlockPtr)->setEstimate(
-      state);
-#endif
-  return true;
-}
-
-template<class PARAMETER_BLOCK_T>
-bool Estimator::setSensorStateEstimateAs(
-    uint64_t poseId, int sensorIdx, int sensorType, int stateType,
-    const typename PARAMETER_BLOCK_T::estimate_t & state)
-{
-  // check existence in states set
-  if (statesMap_.find(poseId) == statesMap_.end()) {
-    OKVIS_THROW_DBG(Exception,"pose with id = "<<poseId<<" does not exist.")
-    return false;
-  }
-
-  // obtain the parameter block ID
-  uint64_t id = statesMap_.at(poseId).sensors.at(sensorType).at(sensorIdx).at(
-      stateType).id;
-  if (!mapPtr_->parameterBlockExists(id)) {
-    OKVIS_THROW_DBG(Exception,"pose with id = "<<poseId<<" does not exist.")
-    return false;
-  }
-
-  std::shared_ptr<ceres::ParameterBlock> parameterBlockPtr = mapPtr_
-      ->parameterBlockPtr(id);
-#ifndef NDEBUG
-  std::shared_ptr<PARAMETER_BLOCK_T> derivedParameterBlockPtr =
-  std::dynamic_pointer_cast<PARAMETER_BLOCK_T>(parameterBlockPtr);
-  if(!derivedParameterBlockPtr) {
-    OKVIS_THROW_DBG(Exception,"wrong pointer type requested.")
-    return false;
-  }
-  derivedParameterBlockPtr->setEstimate(state);
-#else
-  std::static_pointer_cast<PARAMETER_BLOCK_T>(parameterBlockPtr)->setEstimate(
-      state);
-#endif
-  return true;
-}
-
-// Get frame id in source and whether the state is a keyframe
-bool Estimator::getFrameId(uint64_t poseId, int & frameIdInSource, bool & isKF) const
-{
-    frameIdInSource = multiFramePtrMap_.at(poseId)->idInSource;
-    isKF= statesMap_.at(poseId).isKeyframe;
-    return true;
-}
 }  // namespace okvis
-
-

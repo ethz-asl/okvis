@@ -61,8 +61,12 @@
 #include <okvis/ceres/MarginalizationError.hpp>
 #include <okvis/ceres/ReprojectionError.hpp>
 #include <okvis/ceres/CeresIterationCallback.hpp>
+
+#include <msckf/CameraRig.hpp>
+#include <msckf/ImuRig.hpp>
 #include <fstream> // ONLY for debug output
-#include <iomanip>      // std::setfill, std::setw
+#include <iomanip> // std::setfill, std::setw
+
 /// \brief okvis Main namespace of this package.
 namespace okvis {
 
@@ -100,7 +104,7 @@ class Estimator : public VioBackendInterface
    * @param extrinsicsEstimationParameters The parameters that tell how to estimate extrinsics.
    * @return Index of new camera.
    */
-  int addCamera(
+  virtual int addCamera(
       const okvis::ExtrinsicsEstimationParameters & extrinsicsEstimationParameters);
 
   /**
@@ -109,7 +113,7 @@ class Estimator : public VioBackendInterface
    * @param imuParameters The IMU parameters.
    * @return index of IMU.
    */
-  int addImu(const okvis::ImuParameters & imuParameters);
+  virtual int addImu(const okvis::ImuParameters & imuParameters);
 
   /**
    * @brief Remove all cameras from the configuration
@@ -130,7 +134,7 @@ class Estimator : public VioBackendInterface
    * @param asKeyframe Is this new frame a keyframe?
    * @return True if successful.
    */
-  bool addStates(okvis::MultiFramePtr multiFrame,
+  virtual bool addStates(okvis::MultiFramePtr multiFrame,
                  const okvis::ImuMeasurementDeque & imuMeasurements,
                  bool asKeyframe);
 
@@ -181,7 +185,7 @@ class Estimator : public VioBackendInterface
    * @param removedLandmarks Get the landmarks that were removed by this operation.
    * @return True if successful.
    */
-  bool applyMarginalizationStrategy(size_t numKeyframes, size_t numImuFrames,
+  virtual bool applyMarginalizationStrategy(size_t numKeyframes, size_t numImuFrames,
                                     okvis::MapPointVector& removedLandmarks);
 
   /**
@@ -200,7 +204,7 @@ class Estimator : public VioBackendInterface
    * @param[in] numThreads Number of threads.
    * @param[in] verbose Print out optimization progress and result, if true.
    */
-  void optimize(size_t numIter, size_t numThreads = 1, bool verbose = false);
+  virtual void optimize(size_t numIter, size_t numThreads = 1, bool verbose = false);
 
   /**
    * @brief Set a time limit for the optimization process.
@@ -412,7 +416,7 @@ class Estimator : public VioBackendInterface
   }
   ///@}
 
- private:
+ protected:
 
   /**
    * @brief Remove an observation from a landmark.
@@ -464,14 +468,23 @@ class Estimator : public VioBackendInterface
   enum CameraSensorStates
   {
     T_SCi = 0, ///< Extrinsics as T_SC
-    Intrinsics = 1, ///< Intrinsics
+    Intrinsics = 1, ///< Intrinsics, eg., for pinhole camera, fx ,fy, cx, cy
+    Distortion = 2,  ///< Distortion coefficients, eg., for radial tangential distoriton
+                 /// of pinhole cameras, k1, k2, p1, p2, [k3], this ordering is
+                 /// OpenCV style
+    TD = 3,      ///< time delay of the image timestamp with respect to the IMU
+                 /// timescale, Raw t_Ci + t_d = t_Ci in IMU time,
+    TR = 4       ///< t_r is the read out time of a whole frames of a rolling shutter camera
   };
 
   /// \brief ImuSensorStates The IMU-internal states enumerated
   /// \warning This is slightly inconsistent, since the velocity should be global.
   enum ImuSensorStates
   {
-    SpeedAndBias = 0 ///< Speed and biases as v in S-frame, then b_g and b_a
+    SpeedAndBias = 0, ///< Speed and biases as v in S-frame, then b_g and b_a
+    TG,               ///< gyro T_g, eg., SM or SMR_{GS}
+    TS,               ///< g sensitivity
+    TA                ///< accelerometer T_a, eg, SM or SMR_{AS}
   };
 
   /// \brief PositionSensorStates, currently unused
@@ -579,14 +592,36 @@ class Estimator : public VioBackendInterface
 
   // ceres iteration callback object
   std::unique_ptr<okvis::ceres::CeresIterationCallback> ceresCallback_; ///< Maybe there was a callback registered, store it here.
-public:
-  bool print(uint64_t poseId);
-  std::ofstream mDebug;  // the stream corresponding to the debugFile
-  bool getFrameId(uint64_t poseId, int & frameIdInSource, bool & isKF) const;
-};
 
+
+  okvis::cameras::CameraRig camera_rig_; // for each camera
+  // initial values for the camera model is from addStates multiFramePtr,
+  // model info, covariance and fixed variables from the extrinsicsEstimationParametersVec_
+  // during addStates or addCamera
+
+  okvis::ImuRig imu_rig_; // for the only imu
+  // init values and uncertainties for the intrinsics, noise parameters,
+  // and model info and fixed variables are from the imuParametersVec_
+  // during addCamera
+
+  template<class GEOMETRY_TYPE>
+  ::ceres::ResidualBlockId addPointFrameResidual(
+      uint64_t landmarkId,
+      uint64_t poseId,
+      size_t camIdx,
+      const Eigen::Vector2d& measurement,
+      const Eigen::Matrix2d& information,
+      std::shared_ptr<const GEOMETRY_TYPE> cameraGeometry);
+ public:
+  bool print(const std::string& dumpFile, const uint64_t poseId) const;
+  bool getFrameId(uint64_t poseId, int & frameIdInSource, bool & isKF) const;
+
+};
+template<class T>
+bool vectorContains(const std::vector<T> & vector, const T & query);
 }  // namespace okvis
 
 #include "implementation/Estimator.hpp"
+#include "msckf/implementation/Estimator.hpp"
 
 #endif /* INCLUDE_OKVIS_ESTIMATOR_HPP_ */

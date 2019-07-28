@@ -24,6 +24,10 @@ add_library(${PROJECT_NAME}
   src/LocalParamizationAdditionalInterfaces.cpp
   include/okvis/Estimator.hpp
   include/okvis/ceres/CeresIterationCallback.hpp
+  msckf/GeneralEstimator.cpp
+  msckf/CameraRig.cpp
+  msckf/ImuRig.cpp
+  msckf/checkSensorRig.cpp
 )
 
 # and link it
