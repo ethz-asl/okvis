@@ -47,6 +47,7 @@
 #include <okvis/cameras/EquidistantDistortion.hpp>
 #include <okvis/cameras/RadialTangentialDistortion.hpp>
 #include <okvis/cameras/RadialTangentialDistortion8.hpp>
+#include <okvis/cameras/FovDistortion.hpp>
 
 #include <opencv2/core/core.hpp>
 
@@ -545,6 +546,33 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
       s << calibrations[i].T_SC.T();
       LOG(INFO) << "Radial tangential 8 pinhole camera " << camIdx
                 << " with T_SC=\n" << s.str();
+    } else if (strcmp(calibrations[i].distortionType.c_str(), "FOV") == 0) {
+      std::shared_ptr<okvis::cameras::CameraBase> camPtr(
+          new okvis::cameras::PinholeCamera<
+              okvis::cameras::FovDistortion>(
+                  calibrations[i].imageDimension[0],
+                  calibrations[i].imageDimension[1],
+                  calibrations[i].focalLength[0],
+                  calibrations[i].focalLength[1],
+                  calibrations[i].principalPoint[0],
+                  calibrations[i].principalPoint[1],
+                  okvis::cameras::FovDistortion(
+                      calibrations[i].distortionCoefficients[0])/*, id ?*/));
+      Eigen::VectorXd intrin(5);
+      intrin[0] = calibrations[i].focalLength[0];
+      intrin[1] = calibrations[i].focalLength[1];
+      intrin[2] = calibrations[i].principalPoint[0];
+      intrin[3] = calibrations[i].principalPoint[1];
+      intrin[4] = calibrations[i].distortionCoefficients[0];
+      camPtr->setIntrinsics(intrin);
+      vioParameters_.nCameraSystem.addCamera(
+          T_SC_okvis_ptr, camPtr,
+          okvis::cameras::NCameraSystem::FOV/*, computeOverlaps ?*/);
+      std::stringstream s;
+      s << calibrations[i].T_SC.T();
+      LOG(INFO) << "FOV pinhole camera " << camIdx << " with Omega "
+	            << calibrations[i].distortionCoefficients[0]
+                << " with T_SC=\n" << s.str();
     } else {
       LOG(ERROR) << "unrecognized distortion type " << calibrations[i].distortionType;
     }
@@ -781,7 +809,7 @@ bool VioParametersReader::getCalibrationViaConfig(
           && (*it)["image_dimension"].isSeq()
           && (*it)["image_dimension"].size() == 2
           && (*it)["distortion_coefficients"].isSeq()
-          && (*it)["distortion_coefficients"].size() >= 4
+          && (*it)["distortion_coefficients"].size() >= 1
           && (*it)["distortion_type"].isString()
           && (*it)["focal_length"].isSeq()
           && (*it)["focal_length"].size() == 2

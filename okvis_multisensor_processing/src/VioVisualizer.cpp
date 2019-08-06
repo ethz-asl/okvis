@@ -53,6 +53,7 @@
 #include <okvis/cameras/EquidistantDistortion.hpp>
 #include <okvis/cameras/RadialTangentialDistortion.hpp>
 #include <okvis/cameras/RadialTangentialDistortion8.hpp>
+#include <okvis/cameras/FovDistortion.hpp>
 
 /// \brief okvis Main namespace of this package.
 namespace okvis {
@@ -159,6 +160,16 @@ cv::Mat VioVisualizer::drawMatches(VisualizationData::Ptr& data,
               ->geometryAs<
                   okvis::cameras::PinholeCamera<
                       okvis::cameras::RadialTangentialDistortion8>>(
+              image_number)->projectHomogeneous(hP_C, &keyframePt)
+              == okvis::cameras::CameraBase::ProjectionStatus::Successful)
+            isVisibleInKeyframe = true;
+          break;
+        }
+        case okvis::cameras::NCameraSystem::FOV: {
+          if (frame
+		      ->geometryAs<
+                  okvis::cameras::PinholeCamera<
+                      okvis::cameras::FovDistortion> >(
               image_number)->projectHomogeneous(hP_C, &keyframePt)
               == okvis::cameras::CameraBase::ProjectionStatus::Successful)
             isVisibleInKeyframe = true;

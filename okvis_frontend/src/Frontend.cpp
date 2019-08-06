@@ -55,6 +55,7 @@
 #include <okvis/cameras/EquidistantDistortion.hpp>
 #include <okvis/cameras/RadialTangentialDistortion.hpp>
 #include <okvis/cameras/RadialTangentialDistortion8.hpp>
+#include <okvis/cameras/FovDistortion.hpp>
 
 // Kneip RANSAC
 #include <opengv/sac/Ransac.hpp>
@@ -176,6 +177,15 @@ bool Frontend::dataAssociationAndInitialization(
             &uncertainMatchFraction);
         break;
       }
+      case okvis::cameras::NCameraSystem::FOV: {
+        num3dMatches = matchToKeyframes<
+            VioKeyframeWindowMatchingAlgorithm<
+                okvis::cameras::PinholeCamera<
+                    okvis::cameras::FovDistortion> > >(
+            estimator, params, framesInOut->id(), rotationOnly, false,
+            &uncertainMatchFraction);
+        break;
+      }
       default:
         OKVIS_THROW(Exception, "Unsupported distortion type.")
         break;
@@ -225,6 +235,15 @@ bool Frontend::dataAssociationAndInitialization(
             false);
 
         break;
+      }        
+      case okvis::cameras::NCameraSystem::FOV: {
+        matchToLastFrame<
+            VioKeyframeWindowMatchingAlgorithm<
+                okvis::cameras::PinholeCamera<
+                    okvis::cameras::FovDistortion> > >(
+            estimator, params, framesInOut->id(),
+            false);
+        break;
       }
       default:
         OKVIS_THROW(Exception, "Unsupported distortion type.")
@@ -259,6 +278,14 @@ bool Frontend::dataAssociationAndInitialization(
               okvis::cameras::PinholeCamera<
                   okvis::cameras::RadialTangentialDistortion8> > >(estimator,
                                                                    framesInOut);
+      break;
+    }
+    case okvis::cameras::NCameraSystem::FOV: {
+      matchStereo<
+          VioKeyframeWindowMatchingAlgorithm<
+              okvis::cameras::PinholeCamera<
+                  okvis::cameras::FovDistortion> > >(estimator,
+                                                     framesInOut);
       break;
     }
     default:

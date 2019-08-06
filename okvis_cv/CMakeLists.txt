@@ -47,6 +47,7 @@ if(BUILD_TESTS)
     test/TestFrame.cpp
     test/TestNCameraSystem.cpp
     test/TestMultiFrame.cpp
+    test/TestFovDistortion.cpp
   )
   target_link_libraries(${PROJECT_TEST_NAME} 
     ${PROJECT_NAME} 

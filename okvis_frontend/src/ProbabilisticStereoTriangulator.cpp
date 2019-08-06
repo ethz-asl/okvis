@@ -50,6 +50,7 @@
 #include <okvis/cameras/EquidistantDistortion.hpp>
 #include <okvis/cameras/RadialTangentialDistortion.hpp>
 #include <okvis/cameras/RadialTangentialDistortion8.hpp>
+#include <okvis/cameras/FovDistortion.hpp>
 
 /// \brief okvis Main namespace of this package.
 namespace okvis {
@@ -389,6 +390,8 @@ template class ProbabilisticStereoTriangulator<
     okvis::cameras::PinholeCamera<okvis::cameras::RadialTangentialDistortion> > ;
 template class ProbabilisticStereoTriangulator<
     okvis::cameras::PinholeCamera<okvis::cameras::RadialTangentialDistortion8> > ;
+template class ProbabilisticStereoTriangulator<
+    okvis::cameras::PinholeCamera<okvis::cameras::FovDistortion> > ;
 
 }  // namespace triangulation
 }  // namespace okvis

@@ -47,6 +47,7 @@
 #include <okvis/cameras/EquidistantDistortion.hpp>
 #include <okvis/cameras/RadialTangentialDistortion.hpp>
 #include <okvis/cameras/RadialTangentialDistortion8.hpp>
+#include <okvis/cameras/FovDistortion.hpp>
 
 // Constructor.
 opengv::relative_pose::FrameRelativeAdapter::FrameRelativeAdapter(
@@ -91,6 +92,14 @@ opengv::relative_pose::FrameRelativeAdapter::FrameRelativeAdapter(
           ->focalLengthU();
       break;
     }
+    case okvis::cameras::NCameraSystem::FOV: {
+      fu1 = frameAPtr
+          ->geometryAs<
+              okvis::cameras::PinholeCamera<
+                  okvis::cameras::FovDistortion> >(camIdA)
+          ->focalLengthU();
+      break;
+    }
     default:
       OKVIS_THROW(Exception, "Unsupported distortion type")
       break;
@@ -120,6 +129,14 @@ opengv::relative_pose::FrameRelativeAdapter::FrameRelativeAdapter(
           ->geometryAs<
               okvis::cameras::PinholeCamera<
                   okvis::cameras::RadialTangentialDistortion8> >(camIdB)
+          ->focalLengthU();
+      break;
+    }
+    case okvis::cameras::NCameraSystem::FOV: {
+      fu2 = frameAPtr
+          ->geometryAs<
+              okvis::cameras::PinholeCamera<
+                  okvis::cameras::FovDistortion> >(camIdB)
           ->focalLengthU();
       break;
     }
@@ -200,6 +217,14 @@ opengv::relative_pose::FrameRelativeAdapter::FrameRelativeAdapter(
           ->backProject(keypoint, &bearingVectors1_[idx1]);
         break;
       }
+      case okvis::cameras::NCameraSystem::FOV: {
+        frameAPtr
+          ->geometryAs<
+              okvis::cameras::PinholeCamera<
+                  okvis::cameras::FovDistortion> >(camIdA)
+          ->backProject(keypoint, &bearingVectors1_[idx1]);
+        break;
+      }
       default:
         OKVIS_THROW(Exception, "Unsupported distortion type")
         break;
@@ -233,6 +258,14 @@ opengv::relative_pose::FrameRelativeAdapter::FrameRelativeAdapter(
             ->geometryAs<
                 okvis::cameras::PinholeCamera<
                     okvis::cameras::RadialTangentialDistortion8> >(camIdB)
+            ->backProject(keypoint, &bearingVectors2_[idx2]);
+        break;
+      }
+      case okvis::cameras::NCameraSystem::FOV: {
+        frameAPtr
+            ->geometryAs<
+                okvis::cameras::PinholeCamera<
+                    okvis::cameras::FovDistortion> >(camIdB)
             ->backProject(keypoint, &bearingVectors2_[idx2]);
         break;
       }

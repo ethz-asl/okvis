@@ -49,6 +49,7 @@
 #include <okvis/cameras/EquidistantDistortion.hpp>
 #include <okvis/cameras/RadialTangentialDistortion.hpp>
 #include <okvis/cameras/RadialTangentialDistortion8.hpp>
+#include <okvis/cameras/FovDistortion.hpp>
 
 #include <opencv2/features2d/features2d.hpp> // for cv::KeyPoint
 
@@ -534,5 +535,8 @@ template class VioKeyframeWindowMatchingAlgorithm<
 
 template class VioKeyframeWindowMatchingAlgorithm<
     okvis::cameras::PinholeCamera<okvis::cameras::RadialTangentialDistortion8> > ;
+
+template class VioKeyframeWindowMatchingAlgorithm<
+    okvis::cameras::PinholeCamera<okvis::cameras::FovDistortion> > ;
 
 }
