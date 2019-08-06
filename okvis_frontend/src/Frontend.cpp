@@ -767,9 +767,9 @@ int Frontend::runRansac2d2d(okvis::Estimator& estimator,
       size_t idxB = adapter.getMatchKeypointIdxB(k);
       if (!inliers[k]) {
 
-        uint64_t lmId = multiFrame->landmarkId(im, k);
+        uint64_t lmId = multiFrame->landmarkId(im, idxB);
         // reset ID:
-        multiFrame->setLandmarkId(im, k, 0);
+        multiFrame->setLandmarkId(im, idxB, 0);
         // remove observation
         if (removeOutliers) {
           if (lmId != 0 && estimator.isLandmarkAdded(lmId)){
