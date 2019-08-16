@@ -232,6 +232,11 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
   } else {
     vioParameters_.optimization.keyframeInsertionMatchingRatioThreshold = 0.2;
   }
+  if (file["algorithm"].isInt()) {
+    file["algorithm"] >> vioParameters_.optimization.algorithm;
+  } else {
+    vioParameters_.optimization.algorithm = 0;
+  }
 
   // minimum ceres iterations
   if (file["ceres_options"]["minIterations"].isInt()) {

@@ -420,7 +420,7 @@ class ThreadedKFVio : public VioInterface {
   okvis::MockVioBackendInterface& estimator_;
   okvis::MockVioFrontendInterface& frontend_;
 #else
-  okvis::Estimator estimator_;    ///< The backend estimator.
+  std::shared_ptr<okvis::Estimator> estimator_;    ///< The backend estimator.
   okvis::Frontend frontend_;      ///< The frontend.
 #endif
 

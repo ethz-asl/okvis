@@ -617,8 +617,23 @@ class Estimator : public VioBackendInterface
   bool getFrameId(uint64_t poseId, int & frameIdInSource, bool & isKF) const;
 
 };
+
+/**
+ * @brief Does a vector contain a certain element.
+ * @tparam Class of a vector element.
+ * @param vector Vector to search element in.
+ * @param query Element to search for.
+ * @return True if query is an element of vector.
+ */
 template<class T>
-bool vectorContains(const std::vector<T> & vector, const T & query);
+bool vectorContains(const std::vector<T> & vector, const T & query){
+  for(size_t i=0; i<vector.size(); ++i){
+    if(vector[i] == query){
+      return true;
+    }
+  }
+  return false;
+}
 }  // namespace okvis
 
 #include "implementation/Estimator.hpp"

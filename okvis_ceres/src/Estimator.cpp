@@ -412,23 +412,6 @@ bool Estimator::removeObservation(uint64_t landmarkId, uint64_t poseId,
   return true;
 }
 
-/**
- * @brief Does a vector contain a certain element.
- * @tparam Class of a vector element.
- * @param vector Vector to search element in.
- * @param query Element to search for.
- * @return True if query is an element of vector.
- */
-template<class T>
-bool vectorContains(const std::vector<T> & vector, const T & query){
-  for(size_t i=0; i<vector.size(); ++i){
-    if(vector[i] == query){
-      return true;
-    }
-  }
-  return false;
-}
-
 // Applies the dropping/marginalization strategy according to the RSS'13/IJRR'14 paper.
 // The new number of frames in the window will be numKeyframes+numImuFrames.
 bool Estimator::applyMarginalizationStrategy(

@@ -45,6 +45,7 @@
 #include <okvis/ThreadedKFVio.hpp>
 #include <okvis/assert_macros.hpp>
 #include <okvis/ceres/ImuError.hpp>
+#include <msckf/GeneralEstimator.hpp>
 
 /// \brief okvis Main namespace of this package.
 namespace okvis {
@@ -77,12 +78,20 @@ ThreadedKFVio::ThreadedKFVio(okvis::VioParameters& parameters)
       frameSynchronizer_(okvis::FrameSynchronizer(parameters)),
       lastAddedImageTimestamp_(okvis::Time(0, 0)),
       optimizationDone_(true),
-      estimator_(),
       frontend_(parameters.nCameraSystem.numCameras()),
       parameters_(parameters),
       maxImuInputQueueSize_(
           2 * max_camera_input_queue_size * parameters.imu.rate
               / parameters.sensors_information.cameraRate) {
+  if (parameters.optimization.algorithm == 0) {
+    estimator_.reset(new okvis::Estimator());
+  } else if (parameters.optimization.algorithm == 2) {
+    estimator_.reset(new okvis::GeneralEstimator());
+  } else {
+    std::cerr << "The estimator algorithm " << parameters.optimization.algorithm
+              << " has not been implemented or incorporated.\n";
+  }
+
   setBlocking(false);
   init();
 }
@@ -106,11 +115,11 @@ void ThreadedKFVio::init() {
   lastOptimizedStateTimestamp_ = okvis::Time(0.0) + temporal_imu_data_overlap;  // s.t. last_timestamp_ - overlap >= 0 (since okvis::time(-0.02) returns big number)
   lastAddedStateTimestamp_ = okvis::Time(0.0) + temporal_imu_data_overlap;  // s.t. last_timestamp_ - overlap >= 0 (since okvis::time(-0.02) returns big number)
 
-  estimator_.addImu(parameters_.imu);
+  estimator_->addImu(parameters_.imu);
   for (size_t i = 0; i < numCameras_; ++i) {
     // parameters_.camera_extrinsics is never set (default 0's)...
     // do they ever change?
-    estimator_.addCamera(parameters_.camera_extrinsics);
+    estimator_->addCamera(parameters_.camera_extrinsics);
     cameraMeasurementsReceived_.emplace_back(
           std::shared_ptr<threadsafe::ThreadSafeQueue<std::shared_ptr<okvis::CameraMeasurement> > >
           (new threadsafe::ThreadSafeQueue<std::shared_ptr<okvis::CameraMeasurement> >()));
@@ -183,7 +192,7 @@ ThreadedKFVio::~ThreadedKFVio() {
   publisherThread_.join();
 
   /*okvis::kinematics::Transformation endPosition;
-  estimator_.get_T_WS(estimator_.currentFrameId(), endPosition);
+  estimator_->get_T_WS(estimator_->currentFrameId(), endPosition);
   std::stringstream s;
   s << endPosition.r();
   LOG(INFO) << "Sensor end position:\n" << s.str();
@@ -321,7 +330,7 @@ void ThreadedKFVio::setBlocking(bool blocking) {
   // disable time limit for optimization
   if(blocking_) {
     std::lock_guard<std::mutex> lock(estimator_mutex_);
-    estimator_.setOptimizationTimeLimit(-1.0,parameters_.optimization.max_iterations);
+    estimator_->setOptimizationTimeLimit(-1.0,parameters_.optimization.max_iterations);
   }
 }
 
@@ -401,7 +410,7 @@ void ThreadedKFVio::frameConsumerLoop(size_t cameraIndex) {
     }
 
     // get T_WC(camIndx) for detectAndDescribe()
-    if (estimator_.numFrames() == 0) {
+    if (estimator_->numFrames() == 0) {
       // first frame ever
       bool success = okvis::Estimator::initPoseFromImu(imuData, T_WS);
       {
@@ -483,7 +492,7 @@ void ThreadedKFVio::matchingLoop() {
     OKVIS_ASSERT_TRUE_DBG(Exception,imuDataBeginTime < imuDataEndTime,
         "imu data end time is smaller than begin time." <<
         "current frametimestamp " << frame->timestamp() << " (id: " << frame->id() <<
-        "last timestamp         " << lastAddedStateTimestamp_ << " (id: " << estimator_.currentFrameId());
+        "last timestamp         " << lastAddedStateTimestamp_ << " (id: " << estimator_->currentFrameId());
 
     // wait until all relevant imu messages have arrived and check for termination request
     if (imuFrameSynchronizer_.waitForUpToDateImuData(
@@ -512,7 +521,7 @@ void ThreadedKFVio::matchingLoop() {
       addStateTimer.start();
       okvis::Time t0Matching = okvis::Time::now();
       bool asKeyframe = false;
-      if (estimator_.addStates(frame, imuData, asKeyframe)) {
+      if (estimator_->addStates(frame, imuData, asKeyframe)) {
         lastAddedStateTimestamp_ = frame->timestamp();
         addStateTimer.stop();
       } else {
@@ -523,17 +532,17 @@ void ThreadedKFVio::matchingLoop() {
 
       // -- matching keypoints, initialising landmarks etc.
       okvis::kinematics::Transformation T_WS;
-      estimator_.get_T_WS(frame->id(), T_WS);
+      estimator_->get_T_WS(frame->id(), T_WS);
       matchingTimer.start();
-      frontend_.dataAssociationAndInitialization(estimator_, T_WS, parameters_,
+      frontend_.dataAssociationAndInitialization(*estimator_, T_WS, parameters_,
                                                  map_, frame, &asKeyframe);
       matchingTimer.stop();
       if (asKeyframe)
-        estimator_.setKeyframe(frame->id(), asKeyframe);
+        estimator_->setKeyframe(frame->id(), asKeyframe);
       if(!blocking_) {
         double timeLimit = parameters_.optimization.timeLimitForMatchingAndOptimization
                            -(okvis::Time::now()-t0Matching).toSec();
-        estimator_.setOptimizationTimeLimit(std::max<double>(0.0, timeLimit),
+        estimator_->setOptimizationTimeLimit(std::max<double>(0.0, timeLimit),
                                             parameters_.optimization.min_iterations);
       }
       optimizationDone_ = false;
@@ -740,20 +749,20 @@ void ThreadedKFVio::optimizationLoop() {
       std::lock_guard<std::mutex> l(estimator_mutex_);
       optimizationTimer.start();
       //if(frontend_.isInitialized()){
-        estimator_.optimize(parameters_.optimization.max_iterations, 2, false);
+        estimator_->optimize(parameters_.optimization.max_iterations, 2, false);
       //}
-      /*if (estimator_.numFrames() > 0 && !frontend_.isInitialized()){
+      /*if (estimator_->numFrames() > 0 && !frontend_.isInitialized()){
         // undo translation
-        for(size_t n=0; n<estimator_.numFrames(); ++n){
+        for(size_t n=0; n<estimator_->numFrames(); ++n){
           okvis::kinematics::Transformation T_WS_0;
-          estimator_.get_T_WS(estimator_.frameIdByAge(n),T_WS_0);
+          estimator_->get_T_WS(estimator_->frameIdByAge(n),T_WS_0);
           Eigen::Matrix4d T_WS_0_mat = T_WS_0.T();
           T_WS_0_mat.topRightCorner<3,1>().setZero();
-          estimator_.set_T_WS(estimator_.frameIdByAge(n),okvis::kinematics::Transformation(T_WS_0_mat));
+          estimator_->set_T_WS(estimator_->frameIdByAge(n),okvis::kinematics::Transformation(T_WS_0_mat));
           okvis::SpeedAndBias sb_0 = okvis::SpeedAndBias::Zero();
-          if(estimator_.getSpeedAndBias(estimator_.frameIdByAge(n), 0, sb_0)){
+          if(estimator_->getSpeedAndBias(estimator_->frameIdByAge(n), 0, sb_0)){
             sb_0.head<3>().setZero();
-            estimator_.setSpeedAndBias(estimator_.frameIdByAge(n), 0, sb_0);
+            estimator_->setSpeedAndBias(estimator_->frameIdByAge(n), 0, sb_0);
           }
         }
       }*/
@@ -761,15 +770,15 @@ void ThreadedKFVio::optimizationLoop() {
       optimizationTimer.stop();
 
       // get timestamp of last frame in IMU window. Need to do this before marginalization as it will be removed there (if not keyframe)
-      if (estimator_.numFrames()
+      if (estimator_->numFrames()
           > size_t(parameters_.optimization.numImuFrames)) {
-        deleteImuMeasurementsUntil = estimator_.multiFrame(
-            estimator_.frameIdByAge(parameters_.optimization.numImuFrames))
+        deleteImuMeasurementsUntil = estimator_->multiFrame(
+            estimator_->frameIdByAge(parameters_.optimization.numImuFrames))
             ->timestamp() - temporal_imu_data_overlap;
       }
 
       marginalizationTimer.start();
-      estimator_.applyMarginalizationStrategy(
+      estimator_->applyMarginalizationStrategy(
           parameters_.optimization.numKeyframes,
           parameters_.optimization.numImuFrames, result.transferredLandmarks);
       marginalizationTimer.stop();
@@ -781,13 +790,13 @@ void ThreadedKFVio::optimizationLoop() {
       // saving optimized state and saving it in OptimizationResults struct
       {
         std::lock_guard<std::mutex> lock(lastState_mutex_);
-        estimator_.get_T_WS(frame_pairs->id(), lastOptimized_T_WS_);
-        estimator_.getSpeedAndBias(frame_pairs->id(), 0,
+        estimator_->get_T_WS(frame_pairs->id(), lastOptimized_T_WS_);
+        estimator_->getSpeedAndBias(frame_pairs->id(), 0,
                                    lastOptimizedSpeedAndBiases_);
         lastOptimizedStateTimestamp_ = frame_pairs->timestamp();
         int frameIdInSource = -1;
         bool isKF= false;
-        estimator_.getFrameId(frame_pairs->id(), frameIdInSource, isKF );
+        estimator_->getFrameId(frame_pairs->id(), frameIdInSource, isKF );
         // if we publish the state after each IMU propagation we do not need to publish it here.
         if (!parameters_.publishing.publishImuPropagatedState) {
           result.T_WS = lastOptimized_T_WS_;
@@ -799,7 +808,7 @@ void ThreadedKFVio::optimizationLoop() {
         }
         else
           result.onlyPublishLandmarks = true;
-        estimator_.getLandmarks(result.landmarksVector);
+        estimator_->getLandmarks(result.landmarksVector);
 
         repropagationNeeded_ = true;
       }
@@ -822,10 +831,10 @@ void ThreadedKFVio::optimizationLoop() {
             it->cameraIdx = camIndex;
             it->frameId = frame_pairs->id();
             it->landmarkId = frame_pairs->landmarkId(camIndex, k);
-            if (estimator_.isLandmarkAdded(it->landmarkId)) {
-              estimator_.getLandmark(it->landmarkId, landmark);
+            if (estimator_->isLandmarkAdded(it->landmarkId)) {
+              estimator_->getLandmark(it->landmarkId, landmark);
               it->landmark_W = landmark.pointHomog;
-              if (estimator_.isLandmarkInitialized(it->landmarkId))
+              if (estimator_->isLandmarkInitialized(it->landmarkId))
                 it->isInitialized = true;
               else
                 it->isInitialized = false;
@@ -835,9 +844,9 @@ void ThreadedKFVio::optimizationLoop() {
             ++it;
           }
         }
-        visualizationDataPtr->keyFrames = estimator_.multiFrame(
-            estimator_.currentKeyframeId());
-        estimator_.get_T_WS(estimator_.currentKeyframeId(),
+        visualizationDataPtr->keyFrames = estimator_->multiFrame(
+            estimator_->currentKeyframeId());
+        estimator_->get_T_WS(estimator_->currentKeyframeId(),
                             visualizationDataPtr->T_WS_keyFrame);
       }
 
@@ -849,7 +858,7 @@ void ThreadedKFVio::optimizationLoop() {
       // adding further elements to result that do not access estimator.
       for (size_t i = 0; i < parameters_.nCameraSystem.numCameras(); ++i) {
         okvis::kinematics::Transformation T_SCA;
-        estimator_.getCameraSensorStates(frame_pairs->id(), i, T_SCA);
+        estimator_->getCameraSensorStates(frame_pairs->id(), i, T_SCA);
         result.vector_of_T_SCi.push_back(T_SCA);
       }
     }
