@@ -288,7 +288,12 @@ int ImuError::redoPreintegration(const okvis::kinematics::Transformation& /*T_WS
   P_delta_ = 0.5 * P_delta_ + 0.5 * P_delta_.transpose().eval();
 
   // calculate inverse
+#if 0
   information_ = P_delta_.inverse();
+#else
+  information_.setIdentity();
+  P_delta_.llt().solveInPlace(information_);
+#endif
   information_ = 0.5 * information_ + 0.5 * information_.transpose().eval();
 
   // square root

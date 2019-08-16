@@ -74,7 +74,7 @@ template<class DISTORTION_T>
 bool PinholeCamera<DISTORTION_T>::setIntrinsics(
     const Eigen::VectorXd & intrinsics)
 {
-  if (intrinsics.cols() != NumIntrinsics) {
+  if (intrinsics.size() != NumIntrinsics) {
     return false;
   }
   intrinsics_ = intrinsics;
