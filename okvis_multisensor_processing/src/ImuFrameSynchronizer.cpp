@@ -67,7 +67,8 @@ bool ImuFrameSynchronizer::waitForUpToDateImuData(const okvis::Time& frame_stamp
   if(newestImuDataStamp_ <= frame_stamp && !shutdown_) {
     imuDataNeededUntil_ = frame_stamp;
     std::unique_lock<std::mutex> lock(mutex_);
-    gotNeededImuData_.wait(lock);
+    gotNeededImuData_.wait(
+        lock, [this]{return imuDataNeededUntil_ < newestImuDataStamp_;});
   }
   if(shutdown_)
     return false;
