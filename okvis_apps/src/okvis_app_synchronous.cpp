@@ -195,6 +195,34 @@ class PoseViewer
   std::atomic_bool showing_;
 };
 
+class ExtrinsicObserver {
+ public:
+  void recordExtrinsicEstimate(
+      const okvis::Time &timestamp, const okvis::kinematics::Transformation &,
+      const Eigen::Matrix<double, 9, 1> &, const Eigen::Matrix<double, 3, 1> &,
+      const int,
+      const std::vector<
+          okvis::kinematics::Transformation,
+          Eigen::aligned_allocator<okvis::kinematics::Transformation>>
+          &vT_SCi) {
+    output_stream_ << timestamp.toNSec();
+    for (auto T_SC : vT_SCi) {
+      Eigen::Vector3d r = T_SC.r();
+      output_stream_ << " " << r[0] << " " << r[1] << " " << r[2];
+    }
+    output_stream_ << std::endl;
+  }
+  ExtrinsicObserver(const std::string &output_file)
+      : output_file_(output_file), output_stream_(output_file) {
+    if (!output_stream_.is_open()) {
+      std::cerr << "Warn: unable to open " << output_file << std::endl;
+    }
+  }
+  ~ExtrinsicObserver() { output_stream_.close(); }
+  std::string output_file_;
+  std::ofstream output_stream_;
+};
+
 // this is just a workbench. most of the stuff here will go into the Frontend class.
 int main(int argc, char **argv)
 {
@@ -202,17 +230,20 @@ int main(int argc, char **argv)
   FLAGS_stderrthreshold = 0;  // INFO: 0, WARNING: 1, ERROR: 2, FATAL: 3
   FLAGS_colorlogtostderr = 1;
 
-  if (argc != 3 && argc != 4) {
+  if (argc < 3) {
     LOG(ERROR)<<
-    "Usage: ./" << argv[0] << " configuration-yaml-file dataset-folder [skip-first-seconds]";
+    "Usage: ./" << argv[0] << " configuration-yaml-file dataset-folder [skip-first-seconds] [log_file]";
     return -1;
   }
 
   okvis::Duration deltaT(0.0);
-  if (argc == 4) {
+  if (argc > 3) {
     deltaT = okvis::Duration(atof(argv[3]));
   }
-
+  std::string output_file;
+  if (argc > 4) {
+    output_file = argv[4];
+  }
   // read configuration file
   std::string configFilename(argv[1]);
 
@@ -227,6 +258,12 @@ int main(int argc, char **argv)
       std::bind(&PoseViewer::publishFullStateAsCallback, &poseViewer,
                 std::placeholders::_1, std::placeholders::_2,
                 std::placeholders::_3, std::placeholders::_4));
+  ExtrinsicObserver exObs(output_file);
+  okvis_estimator.setFullStateCallbackWithExtrinsics(
+      std::bind(&ExtrinsicObserver::recordExtrinsicEstimate, &exObs,
+                std::placeholders::_1, std::placeholders::_2,
+                std::placeholders::_3, std::placeholders::_4,
+                std::placeholders::_5, std::placeholders::_6));
 
   okvis_estimator.setBlocking(true);
 
@@ -298,7 +335,7 @@ int main(int argc, char **argv)
     // check if at the end
     for (size_t i = 0; i < numCameras; ++i) {
       if (cam_iterators[i] == image_names[i].end()) {
-        std::cout << std::endl << "Finished. Press any key to exit." << std::endl << std::flush;
+        std::cout << std::endl << "Finished images. Press any key to exit." << std::endl << std::flush;
         cv::waitKey();
         return 0;
       }
@@ -324,7 +361,7 @@ int main(int argc, char **argv)
       okvis::Time t_imu = start;
       do {
         if (!std::getline(imu_file, line)) {
-          std::cout << std::endl << "Finished. Press any key to exit." << std::endl << std::flush;
+          std::cout << std::endl << "Finished IMU data. Press any key to exit." << std::endl << std::flush;
           cv::waitKey();
           return 0;
         }
