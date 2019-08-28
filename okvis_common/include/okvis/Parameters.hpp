@@ -139,6 +139,15 @@ struct ImuParameters{
                // compensating imageDelay. TODO: move td0 to NCameraModel's CameraBase
   int model_type; // 0 bg ba, 1 bg ba Tg Ts Ta, 2, bg ba Tg Ts SMa
   std::vector<bool> fixed_params_vec; // usu. of size 5, eg 0,0,0,0,0 meaning none of the 5 param blocks is fixed
+  ImuParameters() {
+      g0.setZero();
+      a0.setZero();
+      Eigen::Matrix<double, 9, 1> eye;
+      eye << 1, 0, 0, 0, 1, 0, 0, 0, 1;
+      Tg0 = eye;
+      Ts0.setZero();
+      Ta0 = eye;
+  }
 };
 
 /*!
