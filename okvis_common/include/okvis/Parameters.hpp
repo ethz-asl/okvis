@@ -268,6 +268,11 @@ struct Optimization{
   float keyframeInsertionOverlapThreshold;
   float keyframeInsertionMatchingRatioThreshold;
   int algorithm;
+  // parameters for determining keyframes in msckf
+  double translationThreshold;
+  double rotationThreshold;
+  double trackingRateThreshold;
+  size_t minTrackLength;
 };
 
 /**

@@ -191,6 +191,48 @@ void parseInitialState(cv::FileNode initialStateNode,
             << std::endl;
 }
 
+void parseOptimizationParameters(cv::FileNode optNode,
+                                 Optimization* optParams) {
+  if (optNode["keyframeInsertionOverlapThreshold"].isReal()) {
+    optNode["keyframeInsertionOverlapThreshold"] >>
+        optParams->keyframeInsertionOverlapThreshold;
+  } else {
+    optParams->keyframeInsertionOverlapThreshold = 0.6;
+  }
+  if (optNode["keyframeInsertionMatchingRatioThreshold"].isReal()) {
+    optNode["keyframeInsertionMatchingRatioThreshold"] >>
+        optParams->keyframeInsertionMatchingRatioThreshold;
+  } else {
+    optParams->keyframeInsertionMatchingRatioThreshold = 0.2;
+  }
+  if (optNode["algorithm"].isInt()) {
+    optNode["algorithm"] >> optParams->algorithm;
+  } else {
+    optParams->algorithm = 0;
+  }
+  if (optNode["keyframeTranslationThreshold"].isReal()) {
+    optNode["keyframeTranslationThreshold"] >> optParams->translationThreshold;
+  } else {
+    optParams->translationThreshold = 0.4;
+  }
+  if (optNode["keyframeRotationThreshold"].isReal()) {
+    optNode["keyframeRotationThreshold"] >> optParams->rotationThreshold;
+  } else {
+    optParams->rotationThreshold = 0.2618;
+  }
+  if (optNode["keyframeTrackingRateThreshold"].isReal()) {
+    optNode["keyframeTrackingRateThreshold"] >> optParams->trackingRateThreshold;
+  } else {
+    optParams->trackingRateThreshold = 0.5;
+  }
+  if (optNode["minTrackLength"].isInt()) {
+    optParams->minTrackLength =
+        static_cast<size_t>(static_cast<int>(optNode["minTrackLength"]));
+  } else {
+    optParams->minTrackLength = 3u;
+  }
+}
+
 // Read and parse a config file.
 void VioParametersReader::readConfigFile(const std::string& filename) {
   vioParameters_.optimization.useMedianFilter = false;
@@ -220,23 +262,8 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
     vioParameters_.optimization.numImuFrames = 2;
   }
 
-  if (file["keyframeInsertionOverlapThreshold"].isReal()) {
-    file["keyframeInsertionOverlapThreshold"] >>
-        vioParameters_.optimization.keyframeInsertionOverlapThreshold;
-  } else {
-    vioParameters_.optimization.keyframeInsertionOverlapThreshold = 0.6;
-  }
-  if (file["keyframeInsertionMatchingRatioThreshold"].isReal()) {
-    file["keyframeInsertionMatchingRatioThreshold"] >>
-        vioParameters_.optimization.keyframeInsertionMatchingRatioThreshold;
-  } else {
-    vioParameters_.optimization.keyframeInsertionMatchingRatioThreshold = 0.2;
-  }
-  if (file["algorithm"].isInt()) {
-    file["algorithm"] >> vioParameters_.optimization.algorithm;
-  } else {
-    vioParameters_.optimization.algorithm = 0;
-  }
+  parseOptimizationParameters(
+      file["optimization"], &vioParameters_.optimization);
 
   // minimum ceres iterations
   if (file["ceres_options"]["minIterations"].isInt()) {

@@ -133,6 +133,16 @@ struct Match
 };
 typedef std::vector<Match> Matches;
 
+// each landmark's case of residualizing
+// MSCKF only handles the first two cases
+enum ResidualizeCase {
+  NotInState_NotTrackedNow = 0, // a point not in the states is not tracked in current frame
+  NotToAdd_TrackedNow, // a point not in states is tracked in current frame but not to be added to states
+  ToAdd_TrackedNow, // a point not in states is tracked in current frame and to be added to states
+  InState_NotTrackedNow, // a point in the states is not tracked in current frame
+  InState_TrackedNow, // a point in states is tracked in current frame
+};
+
 /**
  * @brief A type to store information about a point in the world map.
  */
@@ -145,7 +155,9 @@ struct MapPoint
       : id(0),
         quality(0.0),
         distance(0.0),
-        anchorStateId(0)
+        anchorStateId(0),
+        residualizeCase(NotInState_NotTrackedNow),
+        usedForUpdate(false)
   {
   }
   /**
@@ -161,7 +173,9 @@ struct MapPoint
         pointHomog(point),
         quality(quality),
         distance(distance),
-        anchorStateId(0)
+        anchorStateId(0),
+        residualizeCase(NotInState_NotTrackedNow),
+        usedForUpdate(false)
   {
   }
   uint64_t id;            ///< ID of the point. E.g. landmark ID.
@@ -181,6 +195,9 @@ struct MapPoint
   Eigen::Vector3d p_BA_G;  ///< position of the anchor camera frame in the body
   /// frame expressed in the global frame
   /// it is fixed since initialization unless anchor changes
+
+  ResidualizeCase residualizeCase;
+  bool usedForUpdate; // a point not in states has some observations used for MSCKF update
 };
 
 typedef std::vector<MapPoint, Eigen::aligned_allocator<MapPoint> > MapPointVector;
