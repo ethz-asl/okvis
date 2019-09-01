@@ -282,6 +282,9 @@ struct Optimization{
   double rotationThreshold;
   double trackingRateThreshold;
   size_t minTrackLength;
+  // parameter to check motion of a feature for triangulation
+  double triangulationTranslationThreshold;
+  int numClonedStates; ///< Max number of cloned nav states in MSCKF
 };
 
 /**

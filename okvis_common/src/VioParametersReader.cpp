@@ -231,6 +231,31 @@ void parseOptimizationParameters(cv::FileNode optNode,
   } else {
     optParams->minTrackLength = 3u;
   }
+  if (optNode["triangulationTranslationThreshold"].isReal()) {
+    optNode["triangulationTranslationThreshold"] >>
+        optParams->triangulationTranslationThreshold;
+  } else {
+    const double threshold = -1.0;
+    optParams->triangulationTranslationThreshold = threshold;
+  }
+  LOG(INFO) << "Translation threshold for feature triangulation is set to "
+            << optParams->triangulationTranslationThreshold;
+  if (optNode["numClonedStates"].isInt()) {
+    optParams->numClonedStates = static_cast<int>(optNode["numClonedStates"]);
+    optParams->numKeyframes = 0;
+    optParams->numImuFrames = optParams->numClonedStates;
+    LOG(INFO) << "Num cloned states is set to " << optParams->numClonedStates
+              << ". By providing numCLonedStates, we assume MSCKF is to be "
+                 "used, and numKeyframes is reset to "
+              << optParams->numKeyframes << " and numImuFrames reset to "
+              << optParams->numImuFrames;
+  } else {
+    optParams->numClonedStates =
+        optParams->numKeyframes + optParams->numImuFrames;
+    LOG(INFO)
+        << "Num cloned states is set to sum of numKeyframes and numImuFrames "
+        << optParams->numClonedStates;
+  }
 }
 
 // Read and parse a config file.
