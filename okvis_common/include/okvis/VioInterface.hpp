@@ -94,9 +94,9 @@ class VioInterface {
       const std::vector<
           okvis::kinematics::Transformation,
           Eigen::aligned_allocator<okvis::kinematics::Transformation>> &,
-      const Eigen::Matrix<double, 27, 1> &,
-      const Eigen::Matrix<double, 10, 1> &,
-      const Eigen::Matrix<double, 55, 1> &)>
+      const Eigen::Matrix<double, Eigen::Dynamic, 1> &,
+      const Eigen::Matrix<double, Eigen::Dynamic, 1> &,
+      const Eigen::Matrix<double, Eigen::Dynamic, 1> &)>
       FullStateCallbackWithAllCalibration;
 
   VioInterface();

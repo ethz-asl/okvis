@@ -103,12 +103,15 @@ void NCameraSystem::addCamera(
     std::shared_ptr<const okvis::kinematics::Transformation> T_SC,
     std::shared_ptr<const cameras::CameraBase> cameraGeometry,
     DistortionType distortionType,
+    std::string proj_opt_rep,
+    std::string extrinsic_opt_rep,
     bool computeOverlaps)
 {
   T_SC_.push_back(T_SC);
   cameraGeometries_.push_back(cameraGeometry);
   distortionTypes_.push_back(distortionType);
-
+  proj_opt_rep_.emplace_back(proj_opt_rep);
+  extrinsic_opt_rep_.emplace_back(extrinsic_opt_rep);
   // recompute overlaps if requested
   if (computeOverlaps) {
     this->computeOverlaps();
@@ -203,5 +206,12 @@ size_t NCameraSystem::numCameras() const {
   return cameraGeometries_.size();
 }
 
+std::string NCameraSystem::projOptRep(size_t cameraIndex) const {
+  return proj_opt_rep_[cameraIndex];
+}
+
+std::string NCameraSystem::extrinsicOptRep(size_t cameraIndex) const {
+  return extrinsic_opt_rep_[cameraIndex];
+}
 }  // namespace cameras
 }  // namespace okvis

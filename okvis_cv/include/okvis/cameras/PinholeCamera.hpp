@@ -132,6 +132,10 @@ class PinholeCamera : public CameraBase
     return NumIntrinsics;
   }
 
+  inline int noDistortionParameters() const
+  {
+    return distortion_t::NumDistortionIntrinsics;
+  }
   //////////////////////////////////////////////////////////////
   /// \name Methods to project points
   /// @{

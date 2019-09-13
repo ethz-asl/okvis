@@ -7,6 +7,7 @@
 #include <okvis/cameras/PinholeCamera.hpp>
 #include <okvis/cameras/RadialTangentialDistortion.hpp>
 #include <okvis/cameras/RadialTangentialDistortion8.hpp>
+#include <okvis/cameras/FovDistortion.hpp>
 
 namespace okvis {
 namespace cameras {
@@ -73,6 +74,16 @@ std::shared_ptr<cameras::CameraBase> cloneCameraGeometry(
               cameraGeometry->imageWidth(), cameraGeometry->imageHeight(),
               intrinsic_vec[0], intrinsic_vec[1], intrinsic_vec[2],
               intrinsic_vec[3], okvis::cameras::NoDistortion(), id));
+    } else if (strcmp(distortionType.c_str(), "FovDistortion") == 0) {
+      return std::shared_ptr<okvis::cameras::CameraBase>(
+          new okvis::cameras::PinholeCamera<
+              okvis::cameras::FovDistortion>(
+              cameraGeometry->imageWidth(), cameraGeometry->imageHeight(),
+              intrinsic_vec[0], intrinsic_vec[1], intrinsic_vec[2],
+              intrinsic_vec[3],
+              okvis::cameras::FovDistortion(
+                  intrinsic_vec[distortion_start_index]),
+              id));
     } else {
       LOG(ERROR) << "unrecognized distortion type " << distortionType;
     }

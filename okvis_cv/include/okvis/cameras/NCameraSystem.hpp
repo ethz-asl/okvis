@@ -106,6 +106,8 @@ class NCameraSystem
   inline void addCamera(std::shared_ptr<const okvis::kinematics::Transformation> T_SC,
                         std::shared_ptr<const cameras::CameraBase> cameraGeometry,
                         DistortionType distortionType,
+                        std::string proj_opt_rep = "",
+                        std::string extrinsic_opt_rep = "",
                         bool computeOverlaps = true);
 
   /// \brief Obtatin the number of cameras currently added.
@@ -144,6 +146,10 @@ class NCameraSystem
   /// @return True, if there is at least one pixel of overlap.
   inline bool hasOverlap(size_t cameraIndexSeenBy, size_t cameraIndex) const;
 
+  inline std::string projOptRep(size_t cameraIndex) const;
+
+  inline std::string extrinsicOptRep(size_t cameraIndex) const;
+
  protected:
   /// \brief Use this to check overlapMats_ and overlaps_ have correct sizes
   /// @return True, if valid.
@@ -153,6 +159,9 @@ class NCameraSystem
   std::vector<DistortionType> distortionTypes_;
   std::vector<std::vector<cv::Mat>> overlapMats_;  ///< Overlaps between cameras: mats
   std::vector<std::vector<bool>> overlaps_;  ///< Overlaps between cameras: binary
+
+  std::vector<std::string> proj_opt_rep_;
+  std::vector<std::string> extrinsic_opt_rep_;
 };
 
 }  // namespace cameras

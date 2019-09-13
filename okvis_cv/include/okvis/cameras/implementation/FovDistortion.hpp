@@ -32,28 +32,28 @@ bool FovDistortion::setParameters(const Eigen::VectorXd& parameters) {
 
 bool FovDistortion::distort(const Eigen::Vector2d& pointUndistorted,
                             Eigen::Vector2d* pointDistorted) const {
-  const Eigen::Vector2d& y = pointUndistorted;
-  const double r_u = y.norm();
-  //  const double r_u_cubed = r_u * r_u * r_u;
+  const double u = pointUndistorted(0);
+  const double v = pointUndistorted(1);
+  const double radius2 = u * u + v * v;
+  const double radius = std::sqrt(radius2);
   const double tanwhalf = tan(w_ / 2.);
-  //  const double tanwhalfsq = tanwhalf * tanwhalf;
-  const double atan_wrd = atan(2. * tanwhalf * r_u);
-  double r_rd;
-
-  if (w_ * w_ < 1e-5) {
+  const double atan_wrd = atan(2. * tanwhalf * radius);
+  double omega2 = w_ * w_;
+  double factor;
+  const double eps = 1e-5;
+  if (omega2 < eps) {
     // Limit w_ > 0.
-    r_rd = 1.0;
+    factor = omega2 / 12 - (omega2 * radius2) / 3 + 1;
   } else {
-    if (r_u * r_u < 1e-5) {
-      // Limit r_u > 0.
-      r_rd = 2. * tanwhalf / w_;
+    if (radius2 < eps) {
+      // Limit radius > 0.
+      const double tanwhalfsq = tanwhalf * tanwhalf;
+      factor = -(2 * tanwhalf * (4 * radius2 * tanwhalfsq - 3)) / (3 * w_);
     } else {
-      r_rd = atan_wrd / (r_u * w_);
+      factor = atan_wrd / (radius * w_);
     }
   }
-
-  *pointDistorted = pointUndistorted * r_rd;
-
+  *pointDistorted = pointUndistorted * factor;
   return true;
 }
 
@@ -61,121 +61,86 @@ bool FovDistortion::distort(const Eigen::Vector2d& pointUndistorted,
                             Eigen::Vector2d* pointDistorted,
                             Eigen::Matrix2d* pointJacobian,
                             Eigen::Matrix2Xd* parameterJacobian) const {
-  const Eigen::Vector2d& y = pointUndistorted;
-  const double r_u = y.norm();
-  const double r_u_cubed = r_u * r_u * r_u;
+  const double u = pointUndistorted(0);
+  const double v = pointUndistorted(1);
+
+  const double radius2 = u * u + v * v;
+  const double radius = std::sqrt(radius2);
   const double tanwhalf = tan(w_ / 2.);
   const double tanwhalfsq = tanwhalf * tanwhalf;
-  const double atan_wrd = atan(2. * tanwhalf * r_u);
-  double r_rd;
-
-  if (w_ * w_ < 1e-5) {
+  const double atan_wrd = atan(2. * tanwhalf * radius);
+  double omega2 = w_ * w_;
+  double factor;
+  const double eps = 1e-5;
+  if (omega2 < eps) {
     // Limit w_ > 0.
-    r_rd = 1.0;
+    factor = omega2 / 12 - (omega2 * radius2) / 3 + 1;
   } else {
-    if (r_u * r_u < 1e-5) {
-      // Limit r_u > 0.
-      r_rd = 2. * tanwhalf / w_;
+    if (radius2 < eps) {
+      // Limit radius > 0.
+      factor = -(2 * tanwhalf * (4 * radius2 * tanwhalfsq - 3)) / (3 * w_);
+      // factor = 2. * tanwhalf / w_;
     } else {
-      r_rd = atan_wrd / (r_u * w_);
+      factor = atan_wrd / (radius * w_);
     }
   }
-
-  const double u = y(0);
-  const double v = y(1);
-
-  *pointDistorted = pointUndistorted * r_rd;
+  *pointDistorted = pointUndistorted * factor;
 
   Eigen::Matrix2d& J = *pointJacobian;
-  J.setZero();
+  double dfactor_dradius;
+  double dradius_du;
+  double dradius_dv;
+  double dfactor_du;
+  double dfactor_dv;
 
-  if (w_ * w_ < 1e-5) {
-    J.setIdentity();
-  } else if (r_u * r_u < 1e-5) {
-    J.setIdentity();
-    // The coordinates get multiplied by an expression not depending on r_u.
-    J *= (2. * tanwhalf / w_);
+  if (omega2 < eps) {
+    dfactor_du = -(2 * omega2 * u) / 3;
+    dfactor_dv = -(2 * omega2 * v) / 3;
+    J << factor + u * dfactor_du, u * dfactor_dv, v * dfactor_du,
+        factor + v * dfactor_dv;
+
+  } else if (radius2 < eps) {
+    dfactor_du = -(16 * u * tanwhalfsq * tanwhalf) / (3 * w_);
+    dfactor_dv = -(16 * v * tanwhalfsq * tanwhalf) / (3 * w_);
+    J << factor + u * dfactor_du, u * dfactor_dv, v * dfactor_du,
+        factor + v * dfactor_dv;
   } else {
-    const double duf_du =
-        (atan_wrd) / (w_ * r_u) - (u * u * atan_wrd) / (w_ * r_u_cubed) +
-        (2 * u * u * tanwhalf) /
-            (w_ * (u * u + v * v) * (4 * tanwhalfsq * (u * u + v * v) + 1));
-    const double duf_dv =
-        (2 * u * v * tanwhalf) /
-            (w_ * (u * u + v * v) * (4 * tanwhalfsq * (u * u + v * v) + 1)) -
-        (u * v * atan_wrd) / (w_ * r_u_cubed);
-    const double dvf_du =
-        (2 * u * v * tanwhalf) /
-            (w_ * (u * u + v * v) * (4 * tanwhalfsq * (u * u + v * v) + 1)) -
-        (u * v * atan_wrd) / (w_ * r_u_cubed);
-    const double dvf_dv =
-        (atan_wrd) / (w_ * r_u) - (v * v * atan_wrd) / (w_ * r_u_cubed) +
-        (2 * v * v * tanwhalf) /
-            (w_ * (u * u + v * v) * (4 * tanwhalfsq * (u * u + v * v) + 1));
-
-    J << duf_du, duf_dv, dvf_du, dvf_dv;
+    dradius_du = u / radius;
+    dradius_dv = v / radius;
+    dfactor_dradius =
+        (2 * tanwhalf) / (w_ * radius * (4 * radius2 * tanwhalfsq + 1)) -
+        atan(2 * radius * tanwhalf) / (w_ * radius2);
+    J << factor + u * dfactor_dradius * dradius_du,
+        u * dfactor_dradius * dradius_dv, v * dfactor_dradius * dradius_du,
+        factor + v * dfactor_dradius * dradius_dv;
   }
 
   if (parameterJacobian) {
-    exit(1);  // "FOV parameter Jacobian for distort not implemented!"
+    Eigen::Matrix2Xd& Ji = *parameterJacobian;
+    Ji.resize(2, NumDistortionIntrinsics);
+    double dfactor_domega;
+    if (omega2 < eps) {
+      dfactor_domega = -(w_ * (4 * radius2 - 1)) / 6;
+    } else if (radius2 < eps) {
+      dfactor_domega = (tanwhalfsq + 1) / w_ +
+                       radius2 * ((8 * tanwhalfsq * tanwhalf) / (3 * omega2) -
+                                  (4 * tanwhalfsq * (tanwhalfsq + 1)) / w_) -
+                       (2 * tanwhalf) / omega2;
+    } else {
+      dfactor_domega =
+          (tanwhalfsq + 1) / (w_ * (4 * radius2 * tanwhalfsq + 1)) -
+          atan(2 * radius * tanwhalf) / (omega2 * radius);
+    }
+    Ji << u * dfactor_domega, v * dfactor_domega;
   }
-
   return true;
 }
 
 bool FovDistortion::distortWithExternalParameters(
-    const Eigen::Vector2d& pointUndistorted, const Eigen::VectorXd& parameters,
-    Eigen::Vector2d* pointDistorted, Eigen::Matrix2d* pointJacobian,
-    Eigen::Matrix2Xd* parameterJacobian) const {
-  // "FOV distortWithExternalParameters not implemented!"
-  /*
-    const double k1 = parameters[0];
-    const double k2 = parameters[1];
-    const double p1 = parameters[2];
-    const double p2 = parameters[3];
-    // first compute the distorted point
-    const double u0 = pointUndistorted[0];
-    const double u1 = pointUndistorted[1];
-    const double mx_u = u0 * u0;
-    const double my_u = u1 * u1;
-    const double mxy_u = u0 * u1;
-    const double rho_u = mx_u + my_u;
-    const double rad_dist_u = k1 * rho_u + k2 * rho_u * rho_u;
-    (*pointDistorted)[0] = u0 + u0 * rad_dist_u + 2.0 * p1 * mxy_u
-        + p2 * (rho_u + 2.0 * mx_u);
-    (*pointDistorted)[1] = u1 + u1 * rad_dist_u + 2.0 * p2 * mxy_u
-        + p1 * (rho_u + 2.0 * my_u);
-
-    // next the Jacobian w.r.t. changes on the undistorted point
-    Eigen::Matrix2d & J = *pointJacobian;
-    J(0, 0) = 1 + rad_dist_u + k1 * 2.0 * mx_u + k2 * rho_u * 4 * mx_u
-        + 2.0 * p1 * u1 + 6 * p2 * u0;
-    J(1, 0) = k1 * 2.0 * u0 * u1 + k2 * 4 * rho_u * u0 * u1 + p1 * 2.0 * u0
-        + 2.0 * p2 * u1;
-    J(0, 1) = J(1, 0);
-    J(1, 1) = 1 + rad_dist_u + k1 * 2.0 * my_u + k2 * rho_u * 4 * my_u
-        + 6 * p1 * u1 + 2.0 * p2 * u0;
-
-    if (parameterJacobian) {
-      // the Jacobian w.r.t. intrinsics parameters
-      Eigen::Matrix2Xd & J2 = *parameterJacobian;
-      J2.resize(2,NumDistortionIntrinsics);
-      const double r2 =rho_u;
-      const double r4 = r2 * r2;
-
-      //[ u0*(u0^2 + u1^2), u0*(u0^2 + u1^2)^2,       2*u0*u1, 3*u0^2 + u1^2]
-      //[ u1*(u0^2 + u1^2), u1*(u0^2 + u1^2)^2, u0^2 + 3*u1^2,       2*u0*u1]
-
-      J2(0, 0) = u0 * r2;
-      J2(0, 1) = u0 * r4;
-      J2(0, 2) = 2.0 * u0 * u1;
-      J2(0, 3) = r2 + 2.0 * u0 * u0;
-
-      J2(1, 0) = u1 * r2;
-      J2(1, 1) = u1 * r4;
-      J2(1, 2) = r2 + 2.0 * u1 * u1;
-      J2(1, 3) = 2.0 * u0 * u1;
-    }*/
+    const Eigen::Vector2d& /*pointUndistorted*/, const Eigen::VectorXd& /*parameters*/,
+    Eigen::Vector2d* /*pointDistorted*/, Eigen::Matrix2d* /*pointJacobian*/,
+    Eigen::Matrix2Xd* /*parameterJacobian*/) const {
+  throw std::runtime_error("FOV distortWithExternalParameters not implemented!");
   return false;
 }
 bool FovDistortion::undistort(const Eigen::Vector2d& pointDistorted,
@@ -204,44 +169,10 @@ bool FovDistortion::undistort(const Eigen::Vector2d& pointDistorted,
   return true;
 }
 
-bool FovDistortion::undistort(const Eigen::Vector2d& pointDistorted,
-                              Eigen::Vector2d* pointUndistorted,
-                              Eigen::Matrix2d* pointJacobian) const {
-  /*
-    // this is expensive: we solve with Gauss-Newton...
-    Eigen::Vector2d x_bar = pointDistorted; // initialise at distorted point
-    const int n = 5;  // just 5 iterations max.
-    Eigen::Matrix2d E;  // error Jacobian
-
-    bool success = false;
-    for (int i = 0; i < n; i++) {
-
-      Eigen::Vector2d x_tmp;
-
-      distort(x_bar, &x_tmp, &E);
-
-      Eigen::Vector2d e(pointDistorted - x_tmp);
-      Eigen::Vector2d dx = (E.transpose() * E).inverse() * E.transpose() * e;
-
-      x_bar += dx;
-
-      const double chi2 = e.dot(e);
-      if (chi2 < 1e-4) {
-        success = true;
-      }
-      if (chi2 < 1e-15) {
-        success = true;
-        break;
-      }
-
-    }
-    *pointUndistorted = x_bar;
-
-    // the Jacobian of the inverse map is simply the inverse Jacobian.
-    *pointJacobian = E.inverse();
-
-    return success;*/
-  // "FOV undistort with pointJacobian not implemented!"
+bool FovDistortion::undistort(const Eigen::Vector2d& /*pointDistorted*/,
+                              Eigen::Vector2d* /*pointUndistorted*/,
+                              Eigen::Matrix2d* /*pointJacobian*/) const {
+  throw std::runtime_error("FOV undistort with pointJacobian not implemented!");
   return false;
 }
 

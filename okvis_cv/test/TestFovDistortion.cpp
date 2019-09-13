@@ -1,14 +1,12 @@
 #include <gtest/gtest.h>
 #include <okvis/cameras/FovDistortion.hpp>
 
-TEST(FovDistortion, UndistortAndJacobian) {
+void undistortAndJacobian(const Eigen::Vector2d& undistorted, const double omega) {
   using namespace okvis;
   using namespace okvis::cameras;
-  FovDistortion d(0.6);
-  Eigen::MatrixXd Jd, estJd;
-
-  Eigen::Vector2d x0(3.0E-1, 3.0E-1);
-  Eigen::Vector2d x1(3.0E-1, 3.0E-1);
+  FovDistortion d(omega);
+  Eigen::Vector2d x0 = undistorted;
+  Eigen::Vector2d x1 = undistorted;
   Eigen::Vector2d xtemp;
   d.distort(x1, &xtemp);
   d.undistort(xtemp, &x1);
@@ -17,7 +15,8 @@ TEST(FovDistortion, UndistortAndJacobian) {
   EXPECT_LT(pointDiff, 1e-8);
 
   Eigen::Matrix2d pointJacobian, pointJacobianExpected;
-  d.distort(x0, &xtemp, &pointJacobian, NULL);
+  Eigen::Matrix2Xd distortJacobian, distortJacobianExpected;
+  d.distort(x0, &xtemp, &pointJacobian, &distortJacobian);
 
   d.distort(x0, &xtemp);
   Eigen::Vector2d xtemp1;
@@ -32,8 +31,31 @@ TEST(FovDistortion, UndistortAndJacobian) {
   d.distort(x1, &xtemp1);
   pointJacobianExpected.topRightCorner<2, 1>() = (xtemp1 - xtemp) / step;
 
+  Eigen::VectorXd distortParams;
+  d.getParameters(distortParams);
+  FovDistortion d1(distortParams[0] + step);
+  d1.distort(x0, &xtemp1);
+  distortJacobianExpected = (xtemp1 - xtemp) / step;
+
   double jacDiffNorm =
       (pointJacobianExpected - pointJacobian).lpNorm<Eigen::Infinity>();
-
   EXPECT_LT(jacDiffNorm, 1.0e-5);
+
+  double distortJacDiffNorm = (distortJacobianExpected - distortJacobian).lpNorm<Eigen::Infinity>();
+  std::cout << "analytic distort Jac\n" << distortJacobian
+            << "\nnumeric Jac\n" << distortJacobianExpected << "\n";
+  EXPECT_LT(distortJacDiffNorm, 1.0e-5);
 }
+
+TEST(FovDistortion, UndistortAndJacobian) {
+    undistortAndJacobian(Eigen::Vector2d(3.0e-1, 2.0e-1), 0.9);
+}
+
+TEST(FovDistortion, UndistortAndJacobianSmallOmega) {
+    undistortAndJacobian(Eigen::Vector2d(3.0e-1, 3.0e-1), 1e-8);
+}
+
+TEST(FovDistortion, UndistortAndJacobianSmallRadius) {
+    undistortAndJacobian(Eigen::Vector2d(1.0e-8, 1.0e-8), 0.8);
+}
+

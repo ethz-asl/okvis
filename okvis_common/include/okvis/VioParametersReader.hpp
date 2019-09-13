@@ -109,6 +109,8 @@ class VioParametersReader{
     Eigen::Vector2d focalLength;              ///< Focal length.
     Eigen::Vector2d principalPoint;           ///< Principal point.
     std::string distortionType;               ///< Distortion type. ('radialtangential' 'plumb_bob' 'equdistant')
+    std::string projOptMode;
+    std::string extrinsicOptMode;
   };
 
   /// If readConfigFile() has been called at least once this is true

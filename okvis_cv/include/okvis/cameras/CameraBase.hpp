@@ -330,6 +330,9 @@ class CameraBase
   /// \brief Obtain the number of intrinsics parameters.
   virtual int noIntrinsicsParameters() const = 0;
 
+  /// \brief Obtain the number of distortion parameters.
+  virtual int noDistortionParameters() const = 0;
+
   /// \brief Obtain the type
   virtual std::string type() const = 0;
 

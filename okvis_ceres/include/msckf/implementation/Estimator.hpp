@@ -5,6 +5,7 @@
  * @author Jianzhu Huai
  */
 
+#include <msckf/ProjParamOptModels.hpp>
 /// \brief okvis Main namespace of this package.
 namespace okvis {
 
@@ -16,8 +17,7 @@ template<class GEOMETRY_TYPE>
     const Eigen::Vector2d& measurement,
     const Eigen::Matrix2d& information,
     std::shared_ptr<const GEOMETRY_TYPE> cameraGeometry) {
-  if (camera_rig_.getModelType(camIdx) == -1) {
-    // create error term
+  if (camera_rig_.getProjectionOptMode(camIdx) == ProjectionOptFixed::kModelId) {
     std::shared_ptr < ceres::ReprojectionError
         < GEOMETRY_TYPE
             >> reprojectionError(
@@ -35,12 +35,7 @@ template<class GEOMETRY_TYPE>
                 CameraSensorStates::T_SCi).id));
     return retVal;
   } else {
-    // create a reprojection error using the model id from the camera_rig_,
-    // and measurement, and uncertainty
-
-    // add residual block with relevant parameter blocks,
-    // these parameter blocks can be constant or variable and will be
-    // used to construct the camera geometry model in the reprojection residual
+    LOG(ERROR) << "Not implemented point residual factor!";
     return 0;
   }
 }

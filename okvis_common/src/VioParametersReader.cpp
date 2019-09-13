@@ -360,7 +360,8 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
   OKVIS_ASSERT_TRUE(Exception, success,
                     "'imageDelay' parameter missing in configuration file.");
   file["imageDelay"] >> vioParameters_.sensors_information.imageDelay;
-  LOG(INFO) << "imageDelay=" << vioParameters_.sensors_information.imageDelay;
+  LOG(INFO) << "imageDelay=" << std::setprecision(15)
+            << vioParameters_.sensors_information.imageDelay;
 
   // camera rate
   success = file["camera_params"]["camera_rate"].isInt();
@@ -526,12 +527,14 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
 
   size_t camIdx = 0;
   for (size_t i = 0; i < calibrations.size(); ++i) {
-
     std::shared_ptr<const okvis::kinematics::Transformation> T_SC_okvis_ptr(
           new okvis::kinematics::Transformation(calibrations[i].T_SC.r(),
                                                 calibrations[i].T_SC.q().normalized()));
-
-    if (strcmp(calibrations[i].distortionType.c_str(), "equidistant") == 0) {
+    std::string distortionType = calibrations[i].distortionType;
+    std::transform(distortionType.begin(), distortionType.end(),
+                   distortionType.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    if (strcmp(distortionType.c_str(), "equidistant") == 0) {
       vioParameters_.nCameraSystem.addCamera(
           T_SC_okvis_ptr,
           std::shared_ptr<const okvis::cameras::CameraBase>(
@@ -548,13 +551,15 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
                     calibrations[i].distortionCoefficients[1],
                     calibrations[i].distortionCoefficients[2],
                     calibrations[i].distortionCoefficients[3])/*, id ?*/)),
-          okvis::cameras::NCameraSystem::Equidistant/*, computeOverlaps ?*/);
+          okvis::cameras::NCameraSystem::Equidistant,
+          calibrations[i].projOptMode, calibrations[i].extrinsicOptMode
+          /*, computeOverlaps ?*/);
       std::stringstream s;
       s << calibrations[i].T_SC.T();
       LOG(INFO) << "Equidistant pinhole camera " << camIdx
                 << " with T_SC=\n" << s.str();
-    } else if (strcmp(calibrations[i].distortionType.c_str(), "radialtangential") == 0
-               || strcmp(calibrations[i].distortionType.c_str(), "plumb_bob") == 0) {
+    } else if (strcmp(distortionType.c_str(), "radialtangential") == 0
+               || strcmp(distortionType.c_str(), "plumb_bob") == 0) {
       vioParameters_.nCameraSystem.addCamera(
           T_SC_okvis_ptr,
           std::shared_ptr<const okvis::cameras::CameraBase>(
@@ -571,13 +576,15 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
                     calibrations[i].distortionCoefficients[1],
                     calibrations[i].distortionCoefficients[2],
                     calibrations[i].distortionCoefficients[3])/*, id ?*/)),
-          okvis::cameras::NCameraSystem::RadialTangential/*, computeOverlaps ?*/);
+          okvis::cameras::NCameraSystem::RadialTangential,
+          calibrations[i].projOptMode, calibrations[i].extrinsicOptMode
+          /*, computeOverlaps ?*/);
       std::stringstream s;
       s << calibrations[i].T_SC.T();
       LOG(INFO) << "Radial tangential pinhole camera " << camIdx
                 << " with T_SC=\n" << s.str();
-    } else if (strcmp(calibrations[i].distortionType.c_str(), "radialtangential8") == 0
-               || strcmp(calibrations[i].distortionType.c_str(), "plumb_bob8") == 0) {
+    } else if (strcmp(distortionType.c_str(), "radialtangential8") == 0
+               || strcmp(distortionType.c_str(), "plumb_bob8") == 0) {
       vioParameters_.nCameraSystem.addCamera(
           T_SC_okvis_ptr,
           std::shared_ptr<const okvis::cameras::CameraBase>(
@@ -598,12 +605,14 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
                     calibrations[i].distortionCoefficients[5],
                     calibrations[i].distortionCoefficients[6],
                     calibrations[i].distortionCoefficients[7])/*, id ?*/)),
-          okvis::cameras::NCameraSystem::RadialTangential8/*, computeOverlaps ?*/);
+          okvis::cameras::NCameraSystem::RadialTangential8,
+          calibrations[i].projOptMode, calibrations[i].extrinsicOptMode
+          /*, computeOverlaps ?*/);
       std::stringstream s;
       s << calibrations[i].T_SC.T();
       LOG(INFO) << "Radial tangential 8 pinhole camera " << camIdx
                 << " with T_SC=\n" << s.str();
-    } else if (strcmp(calibrations[i].distortionType.c_str(), "FOV") == 0) {
+    } else if (strcmp(distortionType.c_str(), "fov") == 0) {
       std::shared_ptr<okvis::cameras::CameraBase> camPtr(
           new okvis::cameras::PinholeCamera<
               okvis::cameras::FovDistortion>(
@@ -624,7 +633,9 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
       camPtr->setIntrinsics(intrin);
       vioParameters_.nCameraSystem.addCamera(
           T_SC_okvis_ptr, camPtr,
-          okvis::cameras::NCameraSystem::FOV/*, computeOverlaps ?*/);
+          okvis::cameras::NCameraSystem::FOV,
+          calibrations[i].projOptMode, calibrations[i].extrinsicOptMode
+          /*, computeOverlaps ?*/);
       std::stringstream s;
       s << calibrations[i].T_SC.T();
       LOG(INFO) << "FOV pinhole camera " << camIdx << " with Omega "
@@ -711,6 +722,15 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
     vioParameters_.imu.g0 = g0;
   } else {
     vioParameters_.imu.g0 = Eigen::Vector3d::Zero();
+  }
+
+  if (imu_params["model_type"].isString()) {
+    imu_params["model_type"] >> vioParameters_.imu.model_type;
+  } else {
+    vioParameters_.imu.model_type = "BG_BA_TG_TS_TA";
+    LOG(WARNING) << "'imu_params: model_type' parameter missing in "
+                    "configuration file. Setting to "
+                 << vioParameters_.imu.model_type;
   }
 
   if (imu_params["sigma_TGElement"].isReal()) {
@@ -917,7 +937,14 @@ bool VioParametersReader::getCalibrationViaConfig(
                                   downScale,
           static_cast<double>(principalPointNode[1]) / downScale;
       calib.distortionType = (std::string)((*it)["distortion_type"]);
-
+      if ((*it)["extrinsic_opt_mode"].isString()) {
+        calib.extrinsicOptMode =
+            static_cast<std::string>((*it)["extrinsic_opt_mode"]);
+      }
+      if ((*it)["projection_opt_mode"].isString()) {
+        calib.projOptMode =
+            static_cast<std::string>((*it)["projection_opt_mode"]);
+      }
       calibrations.push_back(calib);
       print(calib);
     }
