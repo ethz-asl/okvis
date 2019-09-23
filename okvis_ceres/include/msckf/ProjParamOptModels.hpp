@@ -85,7 +85,7 @@ class ProjectionOptFX_CXY {
   static Eigen::MatrixXd getInitCov(double sigma_focal_length,
                                     double sigma_principal_point) {
     Eigen::MatrixXd covProjIntrinsics = Eigen::Matrix<double, 3, 3>::Identity();
-    covProjIntrinsics(1, 1) *= std::pow(sigma_focal_length, 2);
+    covProjIntrinsics(0, 0) *= std::pow(sigma_focal_length, 2);
     covProjIntrinsics.bottomRightCorner<2, 2>() *=
         std::pow(sigma_principal_point, 2);
     return covProjIntrinsics;
