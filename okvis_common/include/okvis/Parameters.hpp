@@ -338,6 +338,9 @@ struct InitialState {
   Eigen::Vector3d std_q_WS;
   Eigen::Vector3d std_p_WS;  // std of the sensor position in the sensor frame
                              // at the start epoch expressed in that frame
+  InitialState() : bUseExternalInitState(false), stateTime(0, 0) {
+
+  }
 };
 
 /// @brief Struct to combine all parameters and settings.
