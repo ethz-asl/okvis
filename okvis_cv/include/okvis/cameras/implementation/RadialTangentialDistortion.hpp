@@ -242,7 +242,7 @@ bool RadialTangentialDistortion::undistort(
   *pointUndistorted = x_bar;
 
   if(!success){
-    std::cout<<(E.transpose() * E)<<std::endl;
+    std::cout << "RT undistort error Jacobian:" << (E.transpose() * E) << std::endl;
   }
 
   return success;
