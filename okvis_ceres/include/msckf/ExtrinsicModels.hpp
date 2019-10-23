@@ -30,11 +30,19 @@ class ExtrinsicFixed {
     *r_delta = r;
     *q_delta = q;
   }
-  static void toParamsInfo(const std::string delimiter,
+  static void toParamsInfo(const std::string /*delimiter*/,
                            std::string* extrinsic_format) {
-    *extrinsic_format = "p_SC_S_x[m]" + delimiter + "p_SC_S_y" + delimiter +
-                        "p_SC_S_z" + delimiter + "q_SC_x" + delimiter +
-                        "q_SC_y" + delimiter + "q_SC_z" + delimiter + "q_SC_w";
+    *extrinsic_format = "";
+  }
+  static void toParamsValueString(const okvis::kinematics::Transformation& /*T_SC*/,
+                                  const std::string /*delimiter*/,
+                                  std::string* extrinsic_string) {
+    *extrinsic_string = "";
+  }
+  static void toParamValues(
+      const okvis::kinematics::Transformation& /*T_SC*/,
+      Eigen::VectorXd* /*extrinsic_opt_coeffs*/) {
+    return;
   }
 };
 
@@ -71,6 +79,19 @@ class Extrinsic_p_CS {
                            std::string* extrinsic_format) {
     *extrinsic_format =
         "p_SC_S_x[m]" + delimiter + "p_SC_S_y" + delimiter + "p_SC_S_z";
+  }
+  static void toParamsValueString(const okvis::kinematics::Transformation& T_SC,
+                                  const std::string delimiter,
+                                  std::string* extrinsic_string) {
+    Eigen::Vector3d r = T_SC.q().conjugate() * (-T_SC.r());
+    std::stringstream ss;
+    ss << r[0] << delimiter << r[1] << delimiter << r[2];
+    *extrinsic_string = ss.str();
+  }
+  static void toParamValues(
+      const okvis::kinematics::Transformation& T_SC,
+      Eigen::VectorXd* extrinsic_opt_coeffs) {
+    *extrinsic_opt_coeffs = T_SC.q().conjugate() * (-T_SC.r());
   }
 };
 
@@ -127,6 +148,21 @@ class Extrinsic_p_SC_q_SC {
     *extrinsic_format = "p_SC_S_x[m]" + delimiter + "p_SC_S_y" + delimiter +
                         "p_SC_S_z" + delimiter + "q_SC_x" + delimiter +
                         "q_SC_y" + delimiter + "q_SC_z" + delimiter + "q_SC_w";
+  }
+  static void toParamsValueString(const okvis::kinematics::Transformation& T_SC,
+                                  const std::string delimiter,
+                                  std::string* extrinsic_string) {
+    Eigen::Vector3d r = T_SC.r();
+    Eigen::Quaterniond q = T_SC.q();
+    std::stringstream ss;
+    ss << r[0] << delimiter << r[1] << delimiter << r[2];
+    ss << delimiter << q.x() << delimiter << q.y() << delimiter << q.z() << delimiter << q.w();
+    *extrinsic_string = ss.str();
+  }
+  static void toParamValues(
+      const okvis::kinematics::Transformation& T_SC,
+      Eigen::VectorXd* extrinsic_opt_coeffs) {
+    *extrinsic_opt_coeffs = T_SC.coeffs();
   }
 };
 
@@ -231,6 +267,40 @@ inline void ExtrinsicModelToParamsInfo(
   #undef EXTRINSIC_MODEL_CASE
   #undef MODEL_CASES
     }
+}
+
+inline void ExtrinsicModelToParamsValueString(
+    int model_id, const okvis::kinematics::Transformation& T_SC,
+    const std::string delimiter, std::string* extrinsic_string) {
+  switch (model_id) {
+#define MODEL_CASES EXTRINSIC_MODEL_CASES
+#define EXTRINSIC_MODEL_CASE(ExtrinsicModel)                    \
+  case ExtrinsicModel::kModelId:                                \
+    return ExtrinsicModel::toParamsValueString(T_SC, delimiter, \
+                                               extrinsic_string);
+
+    MODEL_SWITCH_CASES
+
+#undef EXTRINSIC_MODEL_CASE
+#undef MODEL_CASES
+  }
+}
+
+inline void ExtrinsicModelToParamValues(
+    int model_id, const okvis::kinematics::Transformation& T_SC,
+    Eigen::VectorXd* extrinsic_opt_coeffs) {
+  switch (model_id) {
+#define MODEL_CASES EXTRINSIC_MODEL_CASES
+#define EXTRINSIC_MODEL_CASE(ExtrinsicModel)                    \
+  case ExtrinsicModel::kModelId:                                \
+    return ExtrinsicModel::toParamValues(                       \
+        T_SC, extrinsic_opt_coeffs);
+
+    MODEL_SWITCH_CASES
+
+#undef EXTRINSIC_MODEL_CASE
+#undef MODEL_CASES
+  }
 }
 
 }  // namespace okvis

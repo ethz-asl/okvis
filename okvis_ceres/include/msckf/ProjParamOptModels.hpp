@@ -27,8 +27,8 @@ class ProjectionOptFixed {
                                     double /*sigma_principal_point*/) {
     return Eigen::MatrixXd();
   }
-  static void toParamsInfo(const std::string delimiter, std::string* params_info) {
-    *params_info = "fx[pixel]" + delimiter + "fy" + delimiter + "cx" + delimiter + "cy";
+  static void toParamsInfo(const std::string /*delimiter*/, std::string* params_info) {
+    *params_info = "";
   }
 };
 
