@@ -122,6 +122,14 @@ Eigen::Vector4d triangulateFast(const Eigen::Vector3d& p1,
   return Eigen::Vector4d(midpoint[0], midpoint[1], midpoint[2], 1.0).normalized();
 }
 
+bool hasLowDisparity(const Eigen::Vector3d& e1, const Eigen::Vector3d& e2,
+                     const Eigen::Vector3d& e3, double sigma) {
+  if ((e1.cross(e2)).norm() < 6 * sigma || (e1.cross(e3)).norm() < 6 * sigma) {
+    return true;
+  } else {
+    return false;
+  }
+}
 }
 
 }

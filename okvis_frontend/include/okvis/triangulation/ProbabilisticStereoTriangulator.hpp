@@ -72,6 +72,20 @@ class ProbabilisticStereoTriangulator {
   ProbabilisticStereoTriangulator(double pixelSigma = 0.5);
 
   /**
+   *  \brief A minimal constructor to set frames and relative transformation
+   *     used in cases where only stereoTriangulate of its member functions is
+   *     called later on with nonnegative sigmaRay
+   *  \param frameA_ptr: First multiframe.
+   *  \param frameB_ptr: Second multiframe.
+   *  \param camIdA: Camera ID for first frame.
+   *  \param camIdB: Camera ID for second frame.
+   *  \param T_AB: Relative transformation from frameA to frameB.
+   */
+  ProbabilisticStereoTriangulator(std::shared_ptr<okvis::MultiFrame> frameA_ptr,
+                                  std::shared_ptr<okvis::MultiFrame> frameB_ptr,
+                                  size_t camIdA, size_t camIdB,
+                                  const okvis::kinematics::Transformation& T_AB);
+  /**
    *  \brief Constructor to set frames and relative transformation.
    *  \param frameA_ptr: First multiframe.
    *  \param frameB_ptr: Second multiframe.
@@ -119,7 +133,8 @@ class ProbabilisticStereoTriangulator {
   bool stereoTriangulate(size_t keypointIdxA, size_t keypointIdxB,
                          Eigen::Vector4d & outHomogeneousPoint_A,
                          bool & outCanBeInitializedInaccuarate,
-                         double sigmaRay = -1.0) const;
+                         double sigmaRay = -1.0,
+                         bool disparityCheck = false) const;
 
   /**
    *  \brief Triangulation.

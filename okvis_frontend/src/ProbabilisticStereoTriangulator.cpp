@@ -70,6 +70,19 @@ ProbabilisticStereoTriangulator<CAMERA_GEOMETRY_T>::ProbabilisticStereoTriangula
   sigmaRay_ = pixelSigma / 300.0;
 }
 
+template<class CAMERA_GEOMETRY_T>
+ProbabilisticStereoTriangulator<CAMERA_GEOMETRY_T>::ProbabilisticStereoTriangulator(
+    std::shared_ptr<okvis::MultiFrame> frameA_ptr,
+    std::shared_ptr<okvis::MultiFrame> frameB_ptr, size_t camIdA, size_t camIdB,
+    const okvis::kinematics::Transformation& T_AB)
+    : frameA_(frameA_ptr),
+      frameB_(frameB_ptr),
+      camIdA_(camIdA),
+      camIdB_(camIdB),
+      T_AB_(T_AB) {
+  T_BA_ = T_AB_.inverse();
+}
+
 // Constructor to set frames and relative transformation.
 template<class CAMERA_GEOMETRY_T>
 ProbabilisticStereoTriangulator<CAMERA_GEOMETRY_T>::ProbabilisticStereoTriangulator(
@@ -170,8 +183,7 @@ bool ProbabilisticStereoTriangulator<CAMERA_GEOMETRY_T>::stereoTriangulate(
     size_t keypointIdxA, size_t keypointIdxB,
     Eigen::Vector4d& outHomogeneousPoint_A,
     bool & outCanBeInitializedInaccuarate,
-    double sigmaRay) const {
-
+    double sigmaRay, bool disparityCheck) const {
   OKVIS_ASSERT_TRUE_DBG(Exception,frameA_&&frameB_,"initialize with frames before use!");
 
   // chose the source of uncertainty
@@ -192,12 +204,20 @@ bool ProbabilisticStereoTriangulator<CAMERA_GEOMETRY_T>::stereoTriangulate(
       keypointCoordinatesA, &backProjectionDirectionA_inA);
   frameB_->geometryAs<CAMERA_GEOMETRY_T>(camIdB_)->backProject(
       keypointCoordinatesB, &backProjectionDirectionB_inA);  // direction in frame B
+  Eigen::Vector3d rayB_inB = backProjectionDirectionB_inA.normalized();
   backProjectionDirectionB_inA = T_AB_.C() * backProjectionDirectionB_inA;
 
+  Eigen::Vector3d rayA_inA = backProjectionDirectionA_inA.normalized();
+  Eigen::Vector3d rayB_inA = backProjectionDirectionB_inA.normalized();
   Eigen::Vector4d hpA = triangulateFast(
       Eigen::Vector3d(0, 0, 0),  // center of A in A coordinates (0,0,0)
-      backProjectionDirectionA_inA.normalized(), T_AB_.r(),  // center of B in A coordinates
-      backProjectionDirectionB_inA.normalized(), sigmaR, isValid, isParallel);
+      rayA_inA, T_AB_.r(),  // center of B in A coordinates
+      rayB_inA, sigmaR, isValid, isParallel);
+
+  if (disparityCheck) {
+    isParallel = isParallel || hasLowDisparity(rayA_inA, rayB_inB, rayB_inA, sigmaR);
+  }
+
   outCanBeInitializedInaccuarate = !isParallel;
 
   if (!isValid) {
