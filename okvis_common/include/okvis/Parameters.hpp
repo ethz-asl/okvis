@@ -320,8 +320,6 @@ struct InputData {
   std::string timeFile;
   std::string videoFile;
   std::string imuFile;
-  std::string voPosesFile;
-  std::string voFeatureTracksFile;
   int startIndex;
   int finishIndex;
 };
