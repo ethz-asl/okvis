@@ -28,6 +28,7 @@ add_library(${PROJECT_NAME}
   msckf/CameraRig.cpp
   msckf/ImuRig.cpp
   msckf/checkSensorRig.cpp
+  msckf/InitialPVandStd.cpp
 )
 
 # and link it

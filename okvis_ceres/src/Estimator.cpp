@@ -40,6 +40,8 @@
 
 #include <glog/logging.h>
 #include <okvis/Estimator.hpp>
+#include <msckf/EuclideanParamBlock.hpp>
+#include <msckf/EuclideanParamBlockSized.hpp>
 #include <okvis/ceres/PoseParameterBlock.hpp>
 #include <okvis/ceres/ImuError.hpp>
 #include <okvis/ceres/PoseError.hpp>
@@ -118,12 +120,18 @@ bool Estimator::addStates(
   okvis::SpeedAndBias speedAndBias;
   if (statesMap_.empty()) {
     // in case this is the first frame ever, let's initialize the pose:
-    bool success0 = initPoseFromImu(imuMeasurements, T_WS);
-    OKVIS_ASSERT_TRUE_DBG(Exception, success0,
-        "pose could not be initialized from imu measurements.");
-    if (!success0)
-      return false;
+    if (pvstd_.initWithExternalSource_)
+      T_WS = okvis::kinematics::Transformation(pvstd_.p_WS, pvstd_.q_WS);
+    else {
+      bool success0 = initPoseFromImu(imuMeasurements, T_WS);
+      OKVIS_ASSERT_TRUE_DBG(
+          Exception, success0,
+          "pose could not be initialized from imu measurements.");
+      if (!success0) return false;
+      pvstd_.updatePose(T_WS, multiFrame->timestamp());
+    }
     speedAndBias.setZero();
+    speedAndBias.head<3>() = pvstd_.v_WS;
     speedAndBias.segment<3>(6) = imuParametersVec_.at(0).a0;
   } else {
     // get the previous states
@@ -375,6 +383,7 @@ bool Estimator::removeObservation(::ceres::ResidualBlockId residualBlockId) {
     if(it->second == uint64_t(residualBlockId)){
 
       it = mapPoint.observations.erase(it);
+      break;
     } else {
       it++;
     }
@@ -790,7 +799,6 @@ void Estimator::printStates(uint64_t poseId, std::ostream & buffer) const {
   buffer << std::endl;
 }
 
-// print states and their std
 bool Estimator::print(const std::string& dumpFile, const uint64_t pose_id) const
 {
     std::ofstream stream(dumpFile, std::ios_base::app);
@@ -831,7 +839,8 @@ bool Estimator::print(const std::string& dumpFile, const uint64_t pose_id) const
 }
 
 // Initialise pose from IMU measurements. For convenience as static.
-// Huai: this can be realized with Quaterniond::FromTwoVectors() c.f. https://github.com/dennisss/mvision
+// Huai: this can be realized with Quaterniond::FromTwoVectors() c.f.
+// https://github.com/dennisss/mvision
 bool Estimator::initPoseFromImu(
     const okvis::ImuMeasurementDeque & imuMeasurements,
     okvis::kinematics::Transformation & T_WS)
@@ -1059,12 +1068,65 @@ uint64_t Estimator::currentFrameId() const {
   return statesMap_.rbegin()->first;
 }
 
+okvis::Time Estimator::currentFrameTimestamp() const {
+  OKVIS_ASSERT_TRUE_DBG(Exception, statesMap_.size() > 0,
+                        "no frames added yet.")
+  return statesMap_.rbegin()->second.timestamp;
+}
+
+uint64_t Estimator::oldestFrameId() const {
+  OKVIS_ASSERT_TRUE_DBG(Exception, statesMap_.size() > 0,
+                        "no frames added yet.")
+  return statesMap_.begin()->first;
+}
+
+okvis::Time Estimator::oldestFrameTimestamp() const {
+  return statesMap_.begin()->second.timestamp;
+}
+
+size_t Estimator::statesMapSize() const {
+  return statesMap_.size();
+}
 // Checks if a particular frame is still in the IMU window
 bool Estimator::isInImuWindow(uint64_t frameId) const {
   if(statesMap_.at(frameId).sensors.at(SensorStates::Imu).size()==0){
     return false; // no IMU added
   }
   return statesMap_.at(frameId).sensors.at(SensorStates::Imu).at(0).at(ImuSensorStates::SpeedAndBias).exists;
+}
+
+bool Estimator::print(std::ostream& stream) const {
+  uint64_t poseId = statesMap_.rbegin()->first;
+  std::shared_ptr<ceres::PoseParameterBlock> poseParamBlockPtr =
+      std::static_pointer_cast<ceres::PoseParameterBlock>(
+          mapPtr_->parameterBlockPtr(poseId));
+  kinematics::Transformation T_WS = poseParamBlockPtr->estimate();
+  okvis::Time currentTime = statesMap_.rbegin()->second.timestamp;
+  assert(multiFramePtrMap_.rbegin()->first == poseId);
+
+  Eigen::IOFormat SpaceInitFmt(Eigen::StreamPrecision, Eigen::DontAlignCols,
+                               " ", " ", "", "", "", "");
+  Eigen::Quaterniond q_WS = T_WS.q();
+  if (q_WS.w() < 0) {
+    q_WS.coeffs() *= -1;
+  }
+  stream << currentTime << " " << multiFramePtrMap_.rbegin()->second->idInSource
+         << " " << std::setfill(' ')
+         << T_WS.r().transpose().format(SpaceInitFmt) << " "
+         << q_WS.coeffs().transpose().format(SpaceInitFmt);
+  // imu sensor states
+  const int imuIdx = 0;
+  const States stateInQuestion = statesMap_.rbegin()->second;
+  uint64_t SBId = stateInQuestion.sensors.at(SensorStates::Imu)
+                      .at(imuIdx)
+                      .at(ImuSensorStates::SpeedAndBias)
+                      .id;
+  std::shared_ptr<ceres::SpeedAndBiasParameterBlock> sbParamBlockPtr =
+      std::static_pointer_cast<ceres::SpeedAndBiasParameterBlock>(
+          mapPtr_->parameterBlockPtr(SBId));
+  SpeedAndBiases sb = sbParamBlockPtr->estimate();
+  stream << " " << sb.transpose().format(SpaceInitFmt);
+  return true;
 }
 
 // Set pose for a given pose ID.
@@ -1240,19 +1302,6 @@ bool Estimator::getSensorStateParameterBlockAs(
 #endif
   return true;
 }
-template<class PARAMETER_BLOCK_T>
-bool Estimator::getSensorStateEstimateAs(
-    uint64_t poseId, int sensorIdx, int sensorType, int stateType,
-    typename PARAMETER_BLOCK_T::estimate_t & state) const
-{
-  PARAMETER_BLOCK_T stateParameterBlock;
-  if (!getSensorStateParameterBlockAs(poseId, sensorIdx, sensorType, stateType,
-                                      stateParameterBlock)) {
-    return false;
-  }
-  state = stateParameterBlock.estimate();
-  return true;
-}
 
 template<class PARAMETER_BLOCK_T>
 bool Estimator::setGlobalStateEstimateAs(
@@ -1332,6 +1381,27 @@ bool Estimator::getFrameId(uint64_t poseId, int & frameIdInSource, bool & isKF) 
     isKF= statesMap_.at(poseId).isKeyframe;
     return true;
 }
+
+size_t Estimator::numObservations(uint64_t landmarkId) const {
+  PointMap::const_iterator it = landmarksMap_.find(landmarkId);
+  if (it != landmarksMap_.end())
+    return it->second.observations.size();
+  else
+    return 0;
+}
+
+bool Estimator::getLandmarkHeadObs(uint64_t landmarkId,
+                                      okvis::KeypointIdentifier* kpId) const {
+  auto lmIt = landmarksMap_.find(landmarkId);
+  if (lmIt == landmarksMap_.end()) {
+    OKVIS_THROW_DBG(Exception,
+                    "landmark with id = " << landmarkId << " does not exist.")
+    return false;
+  }
+  *kpId = lmIt->second.observations.begin()->first;
+  return true;
+}
+
 }  // namespace okvis
 
 

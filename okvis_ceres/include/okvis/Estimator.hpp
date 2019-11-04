@@ -63,6 +63,7 @@
 #include <okvis/ceres/CeresIterationCallback.hpp>
 
 #include <msckf/CameraRig.hpp>
+#include <msckf/InitialPVandStd.hpp>
 #include <msckf/ImuRig.hpp>
 #include <fstream> // ONLY for debug output
 #include <iomanip> // std::setfill, std::setw
@@ -236,6 +237,17 @@ class Estimator : public VioBackendInterface
 
   /// @name Getters
   ///\{
+
+  /**
+   * @brief Get a specific landmark's first observation.
+   *     thread unsafe, only call it when the estimator is locked by estimator_mutex_
+   * @param[in]  landmarkId ID of desired landmark.
+   * @param[out] kpId keypoint identifier of the first observation thanks to
+   *     the fact that the MapPoint::observations is an ordered map
+   * @return True if successful.
+   */
+  bool getLandmarkHeadObs(uint64_t landmarkId, okvis::KeypointIdentifier* kpId) const;
+
   /**
    * @brief Get a specific landmark.
    * @param[in]  landmarkId ID of desired landmark.
@@ -329,6 +341,14 @@ class Estimator : public VioBackendInterface
   /// \return The ID of the current frame.
   uint64_t currentFrameId() const;
 
+  okvis::Time currentFrameTimestamp() const;
+
+  uint64_t oldestFrameId() const;
+
+  okvis::Time oldestFrameTimestamp() const;
+
+  size_t statesMapSize() const;
+
   ///@}
 
   /**
@@ -357,6 +377,19 @@ class Estimator : public VioBackendInterface
   okvis::Time timestamp(uint64_t frameId) const {
     return statesMap_.at(frameId).timestamp;
   }
+
+  virtual int getEstimatedVariableMinimalDim() const {
+    return -1;
+  }
+
+  virtual void computeCovariance(Eigen::MatrixXd* /*cov*/) const { }
+
+  /// print out the most recent state vector and/or the stds of its elements. This
+  /// function can be called in the optimizationLoop, but a better way to save
+  /// results is use the publisher loop
+  virtual bool print(std::ostream& stream) const;
+
+  virtual void printTrackLengthHistogram(std::ostream& /*stream*/) const {}
 
   ///@}
   /// @name Setters
@@ -414,7 +447,54 @@ class Estimator : public VioBackendInterface
   void setMap(std::shared_ptr<okvis::ceres::Map> mapPtr) {
     mapPtr_ = mapPtr;
   }
+
+  void resetInitialPVandStd(const InitialPVandStd& rhs) {
+     pvstd_ = rhs;
+  }
+
+  virtual void setKeyframeRedundancyThresholds(double /*dist*/, double /*angle*/,
+                                               double /*trackingRate*/,
+                                               size_t /*minTrackLength*/) {}
   ///@}
+
+  /// \brief SensorStates The sensor-internal states enumerated
+  enum SensorStates
+  {
+    Camera = 0, ///< Camera
+    Imu = 1, ///< IMU
+    Position = 2, ///< Position, currently unused
+    Gps = 3, ///< GPS, currently unused
+    Magnetometer = 4, ///< Magnetometer, currently unused
+    StaticPressure = 5, ///< Static pressure, currently unused
+    DynamicPressure = 6 ///< Dynamic pressure, currently unused
+  };
+
+  /// \brief CameraSensorStates The camera-internal states enumerated
+  enum CameraSensorStates
+  {
+    T_SCi = 0, ///< Extrinsics as T_SC
+    Intrinsics = 1, ///< Intrinsics, eg., for pinhole camera, fx ,fy, cx, cy
+    Distortion = 2,  ///< Distortion coefficients, eg., for radial tangential distoriton
+                 /// of pinhole cameras, k1, k2, p1, p2, [k3], this ordering is
+                 /// OpenCV style
+    TD = 3,      ///< time delay of the image timestamp with respect to the IMU
+                 /// timescale, Raw t_Ci + t_d = t_Ci in IMU time,
+    TR = 4       ///< t_r is the read out time of a whole frames of a rolling shutter camera
+  };
+
+  /// \brief ImuSensorStates The IMU-internal states enumerated
+  /// \warning This is slightly inconsistent, since the velocity should be global.
+  enum ImuSensorStates
+  {
+    SpeedAndBias = 0, ///< Speed and biases as v in S-frame, then b_g and b_a
+    TG,               ///< gyro T_g, eg., SM or SMR_{GS}
+    TS,               ///< g sensitivity
+    TA                ///< accelerometer T_a, eg, SM or SMR_{AS}
+  };
+
+  template<class PARAMETER_BLOCK_T>
+  bool getSensorStateEstimateAs(uint64_t poseId, int sensorIdx, int sensorType,
+                                int stateType, typename PARAMETER_BLOCK_T::estimate_t & state) const;
 
  protected:
 
@@ -450,41 +530,6 @@ class Estimator : public VioBackendInterface
     MagneticZBias = 1, ///< Magnetometer z-bias, currently unused
     Qff = 2, ///< QFF (pressure at sea level), currently unused
     T_GW = 3, ///< Alignment of global frame, currently unused
-  };
-
-  /// \brief SensorStates The sensor-internal states enumerated
-  enum SensorStates
-  {
-    Camera = 0, ///< Camera
-    Imu = 1, ///< IMU
-    Position = 2, ///< Position, currently unused
-    Gps = 3, ///< GPS, currently unused
-    Magnetometer = 4, ///< Magnetometer, currently unused
-    StaticPressure = 5, ///< Static pressure, currently unused
-    DynamicPressure = 6 ///< Dynamic pressure, currently unused
-  };
-
-  /// \brief CameraSensorStates The camera-internal states enumerated
-  enum CameraSensorStates
-  {
-    T_SCi = 0, ///< Extrinsics as T_SC
-    Intrinsics = 1, ///< Intrinsics, eg., for pinhole camera, fx ,fy, cx, cy
-    Distortion = 2,  ///< Distortion coefficients, eg., for radial tangential distoriton
-                 /// of pinhole cameras, k1, k2, p1, p2, [k3], this ordering is
-                 /// OpenCV style
-    TD = 3,      ///< time delay of the image timestamp with respect to the IMU
-                 /// timescale, Raw t_Ci + t_d = t_Ci in IMU time,
-    TR = 4       ///< t_r is the read out time of a whole frames of a rolling shutter camera
-  };
-
-  /// \brief ImuSensorStates The IMU-internal states enumerated
-  /// \warning This is slightly inconsistent, since the velocity should be global.
-  enum ImuSensorStates
-  {
-    SpeedAndBias = 0, ///< Speed and biases as v in S-frame, then b_g and b_a
-    TG,               ///< gyro T_g, eg., SM or SMR_{GS}
-    TS,               ///< g sensitivity
-    TA                ///< accelerometer T_a, eg, SM or SMR_{AS}
   };
 
   /// \brief PositionSensorStates, currently unused
@@ -535,9 +580,6 @@ class Estimator : public VioBackendInterface
   bool getSensorStateParameterBlockAs(uint64_t poseId, int sensorIdx,
                                       int sensorType, int stateType,
                                       PARAMETER_BLOCK_T & stateParameterBlock) const;
-  template<class PARAMETER_BLOCK_T>
-  bool getSensorStateEstimateAs(uint64_t poseId, int sensorIdx, int sensorType,
-                                int stateType, typename PARAMETER_BLOCK_T::estimate_t & state) const;
 
   // setters
   template<class PARAMETER_BLOCK_T>
@@ -553,20 +595,38 @@ class Estimator : public VioBackendInterface
   typedef std::array<std::vector<SpecificSensorStatesContainer>, 7> AllSensorStatesContainer; ///< Union of all sensor states.
 
   /// \brief States This summarizes all the possible states -- i.e. their ids:
-  struct States
-  {
-    States() : isKeyframe(false), id(0) {}
-    States(bool isKeyframe, uint64_t id, okvis::Time timestamp)
-      : isKeyframe(isKeyframe), id(id), timestamp(timestamp) {}
+  /// t_j = t_{j_0} - imageDelay + t_{d_j}
+  /// here t_{j_0} is the raw timestamp of image j,
+  /// t_{d_j} is the current estimated time offset between the visual and
+  /// inertial data, after correcting the initial time offset
+  /// imageDelay. Therefore, t_{d_j} is set 0 at the beginning t_j is the
+  /// timestamp of the state, remains constant after initialization t_{f_i} =
+  /// t_j - t_{d_j} + t_d + (v-N/2)t_r/N here t_d and t_r are the true time
+  /// offset and image readout time t_{f_i} is the time feature i is observed
+  struct States {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    States() : isKeyframe(false), id(0), tdAtCreation(0) {}
+    // _timestamp = image timestamp - imageDelay + _tdAtCreation
+    States(bool isKeyframe, uint64_t id, okvis::Time _timestamp,
+           okvis::Duration _tdAtCreation = okvis::Duration())
+        : isKeyframe(isKeyframe),
+          id(id),
+          timestamp(_timestamp),
+          tdAtCreation(_tdAtCreation) {}
     GlobalStatesContainer global;
     AllSensorStatesContainer sensors;
     bool isKeyframe;
     uint64_t id;
-    okvis::Time timestamp;
+    const okvis::Time timestamp;         // t_j, fixed once initialized
+    const okvis::Duration tdAtCreation;  // t_{d_j}, fixed once initialized
+    Eigen::Matrix<double, 6, 1>
+        linearizationPoint;  /// first estimate of position r_WB and velocity
+                             /// v_WB
   };
 
   // the following keeps track of all the states at different time instances (key=poseId)
-  std::map<uint64_t, States> statesMap_; ///< Buffer for currently considered states.
+  std::map<uint64_t, States, std::less<uint64_t>,
+           Eigen::aligned_allocator<std::pair<const uint64_t, States>>> statesMap_; ///< Buffer for currently considered states.
   std::map<uint64_t, okvis::MultiFramePtr> multiFramePtrMap_; ///< remember all needed okvis::MultiFrame.
   std::shared_ptr<okvis::ceres::Map> mapPtr_; ///< The underlying okvis::Map.
 
@@ -594,7 +654,10 @@ class Estimator : public VioBackendInterface
   std::unique_ptr<okvis::ceres::CeresIterationCallback> ceresCallback_; ///< Maybe there was a callback registered, store it here.
 
 
-  okvis::cameras::CameraRig camera_rig_; // for each camera
+  okvis::cameras::CameraRig camera_rig_; 
+  // an evolving camera rig to temporarily store the optimized camera
+  // raw parameters and to interface with the camera models
+  // for each camera
   // initial values for the camera model is from addStates multiFramePtr,
   // model info, covariance and fixed variables from the extrinsicsEstimationParametersVec_
   // during addStates or addCamera
@@ -604,6 +667,8 @@ class Estimator : public VioBackendInterface
   // and model info and fixed variables are from the imuParametersVec_
   // during addCamera
 
+  InitialPVandStd pvstd_;
+
   template<class GEOMETRY_TYPE>
   ::ceres::ResidualBlockId addPointFrameResidual(
       uint64_t landmarkId,
@@ -612,10 +677,15 @@ class Estimator : public VioBackendInterface
       const Eigen::Vector2d& measurement,
       const Eigen::Matrix2d& information,
       std::shared_ptr<const GEOMETRY_TYPE> cameraGeometry);
- public:
-  bool print(const std::string& dumpFile, const uint64_t poseId) const;
-  bool getFrameId(uint64_t poseId, int & frameIdInSource, bool & isKF) const;
 
+ public:
+
+  bool print(const std::string& dumpFile, const uint64_t poseId) const;
+  
+  bool getFrameId(uint64_t poseId, int & frameIdInSource, bool & isKF) const;
+  
+  // return number of observations for a landmark in the landmark map
+  size_t numObservations(uint64_t landmarkId) const;
 };
 
 /**
