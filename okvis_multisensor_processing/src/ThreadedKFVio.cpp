@@ -83,13 +83,14 @@ ThreadedKFVio::ThreadedKFVio(okvis::VioParameters& parameters)
       maxImuInputQueueSize_(
           2 * max_camera_input_queue_size * parameters.imu.rate
               / parameters.sensors_information.cameraRate) {
-  if (parameters.optimization.algorithm == 0) {
-    estimator_.reset(new okvis::Estimator());
-  } else if (parameters.optimization.algorithm == 2) {
-    estimator_.reset(new okvis::GeneralEstimator());
-  } else {
-    std::cerr << "The estimator algorithm " << parameters.optimization.algorithm
-              << " has not been implemented or incorporated.\n";
+  switch (parameters.optimization.algorithm) {
+    case 4:
+      estimator_.reset(new okvis::GeneralEstimator());
+      break;
+    case 0:
+    default:
+      estimator_.reset(new okvis::Estimator());
+      break;
   }
 
   setBlocking(false);
