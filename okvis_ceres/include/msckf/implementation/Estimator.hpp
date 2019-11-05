@@ -35,6 +35,21 @@ template<class GEOMETRY_TYPE>
                 CameraSensorStates::T_SCi).id));
     return retVal;
   } else {
+    std::shared_ptr<ceres::ReprojectionError<GEOMETRY_TYPE>> reprojectionError(
+        new ceres::ReprojectionError<GEOMETRY_TYPE>(cameraGeometry, camIdx,
+                                                    measurement, information));
+
+    ::ceres::ResidualBlockId retVal = mapPtr_->addResidualBlock(
+        reprojectionError,
+        cauchyLossFunctionPtr_ ? cauchyLossFunctionPtr_.get() : NULL,
+        mapPtr_->parameterBlockPtr(poseId),
+        mapPtr_->parameterBlockPtr(landmarkId),
+        mapPtr_->parameterBlockPtr(statesMap_.at(poseId)
+                                       .sensors.at(SensorStates::Camera)
+                                       .at(camIdx)
+                                       .at(CameraSensorStates::T_SCi)
+                                       .id));
+    return retVal;
     LOG(ERROR) << "Not implemented point residual factor!";
     return 0;
   }
