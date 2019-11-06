@@ -461,7 +461,10 @@ class Estimator : public VioBackendInterface
 
   virtual void setKeyframeRedundancyThresholds(double /*dist*/, double /*angle*/,
                                                double /*trackingRate*/,
-                                               size_t /*minTrackLength*/) {}
+                                               size_t minTrackLength) {
+    minTrackLength_ = minTrackLength;
+  }
+
   ///@}
 
   /**
