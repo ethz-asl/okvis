@@ -208,6 +208,13 @@ class ProbabilisticStereoTriangulator {
 };
 
 }  // namespace triangulation
+
+enum VisualConstraints {
+  OnlyReprojectionErrors = 0,
+  OnlyTwoViewConstraints,
+  TwoViewAndReprojection,
+};
+
 }  // namespace okvis
 
 #endif /* INCLUDE_OKVIS_TRIANGULATION_PROBABILISTICSTEREOTRIANGULATOR_HPP_ */

@@ -391,6 +391,13 @@ class Estimator : public VioBackendInterface
 
   virtual void printTrackLengthHistogram(std::ostream& /*stream*/) const {}
 
+  bool print(const std::string& dumpFile, const uint64_t poseId) const;
+
+  bool getFrameId(uint64_t poseId, int & frameIdInSource, bool & isKF) const;
+
+  // return number of observations for a landmark in the landmark map
+  size_t numObservations(uint64_t landmarkId) const;
+
   ///@}
   /// @name Setters
   ///@{
@@ -457,6 +464,38 @@ class Estimator : public VioBackendInterface
                                                size_t /*minTrackLength*/) {}
   ///@}
 
+  /**
+   * @brief for a landmark, remove its existing epipolar constraints,
+   *     add its observations as reprojection errors,
+   *     assuming no reprojection errors for the landmark have been added before.
+   *     thread unsafe, call it when the estimator is protected by the estimator_mutex_.
+   * @param lmId ID of landmark.
+   */
+  template <class GEOMETRY_TYPE>
+  bool replaceEpipolarWithReprojectionErrors(uint64_t lmId);
+
+  /**
+   * @brief for a landmark, add its current first and last observations
+   *     as an epipolar constraint.
+   *     thread unsafe, call it when the estimator is protected by the estimator_mutex_.
+   * @param lmId ID of landmark.
+   * @param removeExisting remove existing epipolar constraints for this landmark.
+   */
+  template <class GEOMETRY_TYPE>
+  bool addEpipolarConstraint(
+      uint64_t lmId, bool removeExisting=false);
+
+  /**
+   * @brief Add an observation to a landmark without adding
+   *    residual to the ceres solver
+   */
+  bool addLandmarkObservation(uint64_t landmarkId, uint64_t poseId,
+                              size_t camIdx, size_t keypointIdx);
+
+  template<class PARAMETER_BLOCK_T>
+  bool getSensorStateEstimateAs(uint64_t poseId, int sensorIdx, int sensorType,
+                                int stateType, typename PARAMETER_BLOCK_T::estimate_t & state) const;
+
   /// \brief SensorStates The sensor-internal states enumerated
   enum SensorStates
   {
@@ -491,10 +530,6 @@ class Estimator : public VioBackendInterface
     TS,               ///< g sensitivity
     TA                ///< accelerometer T_a, eg, SM or SMR_{AS}
   };
-
-  template<class PARAMETER_BLOCK_T>
-  bool getSensorStateEstimateAs(uint64_t poseId, int sensorIdx, int sensorType,
-                                int stateType, typename PARAMETER_BLOCK_T::estimate_t & state) const;
 
  protected:
 
@@ -669,6 +704,9 @@ class Estimator : public VioBackendInterface
 
   InitialPVandStd pvstd_;
 
+  // e.g., min observs to triang a landmark
+  size_t minTrackLength_;
+
   template<class GEOMETRY_TYPE>
   ::ceres::ResidualBlockId addPointFrameResidual(
       uint64_t landmarkId,
@@ -676,16 +714,8 @@ class Estimator : public VioBackendInterface
       size_t camIdx,
       const Eigen::Vector2d& measurement,
       const Eigen::Matrix2d& information,
-      std::shared_ptr<const GEOMETRY_TYPE> cameraGeometry);
+      std::shared_ptr<const GEOMETRY_TYPE> cameraGeometry);  
 
- public:
-
-  bool print(const std::string& dumpFile, const uint64_t poseId) const;
-  
-  bool getFrameId(uint64_t poseId, int & frameIdInSource, bool & isKF) const;
-  
-  // return number of observations for a landmark in the landmark map
-  size_t numObservations(uint64_t landmarkId) const;
 };
 
 /**

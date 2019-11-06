@@ -61,7 +61,8 @@ Estimator::Estimator(
       referencePoseId_(0),
       cauchyLossFunctionPtr_(new ::ceres::CauchyLoss(1)),
       huberLossFunctionPtr_(new ::ceres::HuberLoss(1)),
-      marginalizationResidualId_(0)
+      marginalizationResidualId_(0),
+      minTrackLength_(3u)
 {
 }
 
@@ -71,7 +72,8 @@ Estimator::Estimator()
       referencePoseId_(0),
       cauchyLossFunctionPtr_(new ::ceres::CauchyLoss(1)),
       huberLossFunctionPtr_(new ::ceres::HuberLoss(1)),
-      marginalizationResidualId_(0)
+      marginalizationResidualId_(0),
+      minTrackLength_(3u)
 {
 }
 
@@ -1399,6 +1401,24 @@ bool Estimator::getLandmarkHeadObs(uint64_t landmarkId,
     return false;
   }
   *kpId = lmIt->second.observations.begin()->first;
+  return true;
+}
+
+// Add an observation to a landmark without adding residual to the ceres solver
+bool Estimator::addLandmarkObservation(uint64_t landmarkId, uint64_t poseId,
+                                          size_t camIdx, size_t keypointIdx) {
+  OKVIS_ASSERT_TRUE_DBG(Exception, isLandmarkAdded(landmarkId),
+                        "landmark not added");
+  // avoid double observations
+  okvis::KeypointIdentifier kid(poseId, camIdx, keypointIdx);
+  if (landmarksMap_.at(landmarkId).observations.find(kid) !=
+      landmarksMap_.at(landmarkId).observations.end()) {
+    return false;
+  }
+
+  landmarksMap_.at(landmarkId)
+      .observations.insert(std::pair<okvis::KeypointIdentifier, uint64_t>(
+          kid, reinterpret_cast<uint64_t>(nullptr)));
   return true;
 }
 
