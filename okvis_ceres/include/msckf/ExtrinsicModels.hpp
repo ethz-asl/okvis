@@ -10,8 +10,8 @@ namespace okvis {
 class ExtrinsicFixed {
  public:
   static const int kModelId = 0;
-
-  static inline int getMinimalDim() { return 0; }
+  static const size_t kNumParams = 0;
+  static inline int getMinimalDim() { return kNumParams; }
   static inline Eigen::MatrixXd initCov(double /*sigma_translation*/,
                                         double /*sigma_orientation*/) {
     return Eigen::MatrixXd();
@@ -50,7 +50,8 @@ class Extrinsic_p_CS {
   // of T_SC only p_CS is variable
  public:
   static const int kModelId = 1;
-  static inline int getMinimalDim() { return 3; }
+  static const size_t kNumParams = 3;
+  static inline int getMinimalDim() { return kNumParams; }
   static inline Eigen::MatrixXd initCov(double sigma_translation,
                                         double /*sigma_orientation*/) {
     return Eigen::MatrixXd::Identity(3, 3) *
@@ -99,8 +100,8 @@ class Extrinsic_p_SC_q_SC {
   // T_SC is represented by p_SC and R_SC in the states
  public:
   static const int kModelId = 2;
-
-  static inline int getMinimalDim() { return 6; }
+  static const size_t kNumParams = 6;
+  static inline int getMinimalDim() { return kNumParams; }
   static inline Eigen::MatrixXd initCov(double sigma_translation,
                                         double sigma_orientation) {
     Eigen::Matrix<double, 6, 6> cov = Eigen::Matrix<double, 6, 6>::Identity();

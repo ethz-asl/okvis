@@ -8,7 +8,8 @@ namespace okvis {
 class ProjectionOptFixed {
  public:
   static const int kModelId = 0;
-  static int getMinimalDim() { return 0; }
+  static const size_t kNumParams = 0;
+  static inline int getMinimalDim() { return kNumParams; }
   static void kneadIntrinsicJacobian(Eigen::Matrix2Xd* intrinsicJacobian) {
       int resultCols = intrinsicJacobian->cols() - 4;
       intrinsicJacobian->block(0, 0, 2, resultCols) =
@@ -35,7 +36,9 @@ class ProjectionOptFixed {
 class ProjectionOptFXY_CXY {
  public:
   static const int kModelId = 1;
-  static int getMinimalDim() { return 4; }
+  static const size_t kNumParams = 4;
+  static inline int getMinimalDim() { return kNumParams; }
+
   static void localToGlobal(const Eigen::VectorXd& local_opt_params,
                             Eigen::VectorXd* global_proj_params) {
     global_proj_params->head<4>() = local_opt_params;
@@ -62,7 +65,9 @@ class ProjectionOptFXY_CXY {
 class ProjectionOptFX_CXY {
  public:
   static const int kModelId = 2;
-  static int getMinimalDim() { return 3; }
+  static const size_t kNumParams = 3;
+  static inline int getMinimalDim() { return kNumParams; }
+
   static void localToGlobal(const Eigen::VectorXd& local_opt_params,
                             Eigen::VectorXd* global_proj_params) {
     (*global_proj_params)(0) = local_opt_params[0];
@@ -98,7 +103,9 @@ class ProjectionOptFX_CXY {
 class ProjectionOptFX {
  public:
   static const int kModelId = 3;
-  static int getMinimalDim() { return 1; }
+  static const size_t kNumParams = 1;
+  static inline int getMinimalDim() { return kNumParams; }
+
   static void localToGlobal(const Eigen::VectorXd& local_opt_params,
                             Eigen::VectorXd* global_proj_params) {
     (*global_proj_params)[0] = local_opt_params[0];

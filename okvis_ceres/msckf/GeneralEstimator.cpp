@@ -99,12 +99,18 @@ bool GeneralEstimator::addStates(
   okvis::SpeedAndBias speedAndBias;
   if (statesMap_.empty()) {
     // in case this is the first frame ever, let's initialize the pose:
-    bool success0 = initPoseFromImu(imuMeasurements, T_WS);
-    OKVIS_ASSERT_TRUE_DBG(Exception, success0,
-        "pose could not be initialized from imu measurements.");
-    if (!success0)
-      return false;
+    if (pvstd_.initWithExternalSource_)
+      T_WS = okvis::kinematics::Transformation(pvstd_.p_WS, pvstd_.q_WS);
+    else {
+      bool success0 = initPoseFromImu(imuMeasurements, T_WS);
+      OKVIS_ASSERT_TRUE_DBG(
+          Exception, success0,
+          "pose could not be initialized from imu measurements.");
+      if (!success0) return false;
+      pvstd_.updatePose(T_WS, multiFrame->timestamp());
+    }
     speedAndBias.setZero();
+    speedAndBias.head<3>() = pvstd_.v_WS;
     speedAndBias.segment<3>(6) = imuParametersVec_.at(0).a0;
   } else {
     // get the previous states
