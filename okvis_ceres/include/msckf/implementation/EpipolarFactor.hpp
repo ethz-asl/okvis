@@ -134,7 +134,7 @@ bool EpipolarFactor<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
   // compute epipolar error with Jacobian and compute the measurement covariance
   // okvis::EpipolarJacobian epj();
   // residuals[0] = squareRootInformation_ * error;
-
+  // note weight both the residuals and the Jacobians with the measurement covariance
 
   // compute the Jacobians of relative pose relative to pose errors,
   // extrinsics and time offset, rolling shutter skew
@@ -158,7 +158,7 @@ void EpipolarFactor<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
     setJacobiansZero(double** jacobians, double** jacobiansMinimal) const {
   zeroJacobian<7, 6, 1>(0, jacobians, jacobiansMinimal);
   zeroJacobian<7, 6, 1>(1, jacobians, jacobiansMinimal);
-  zeroJacobian<7, EXTRINSIC_MODEL::kNumParams, 1>(2, jacobians, jacobiansMinimal);
+  zeroJacobian<EXTRINSIC_MODEL::kGlobalDim, EXTRINSIC_MODEL::kNumParams, 1>(2, jacobians, jacobiansMinimal);
   zeroJacobian<PROJ_INTRINSIC_MODEL::kNumParams,
                PROJ_INTRINSIC_MODEL::kNumParams, 1>(3, jacobians, jacobiansMinimal);
   zeroJacobian<kDistortionDim, kDistortionDim, 1>(4, jacobians, jacobiansMinimal);

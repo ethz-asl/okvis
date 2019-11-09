@@ -37,7 +37,7 @@ template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL, class EXTRINSIC_MODEL
 class EpipolarFactor
     : public ::ceres::SizedCostFunction<
           1 /* number of residuals */, 7 /* left pose */, 7 /* right pose */,
-          EXTRINSIC_MODEL::kNumParams /* variable dim of extrinsics */,
+          EXTRINSIC_MODEL::kGlobalDim /* variable dim of extrinsics */,
           PROJ_INTRINSIC_MODEL::kNumParams /* variable dim of proj intrinsics
                                               (e.g., f, cx, cy) */,
           GEOMETRY_TYPE::distortion_t::NumDistortionIntrinsics,
@@ -58,7 +58,7 @@ class EpipolarFactor
 
   /// \brief The base class type.
   typedef ::ceres::SizedCostFunction<
-      1, 7, 7, EXTRINSIC_MODEL::kNumParams, PROJ_INTRINSIC_MODEL::kNumParams,
+      1, 7, 7, EXTRINSIC_MODEL::kGlobalDim, PROJ_INTRINSIC_MODEL::kNumParams,
       kDistortionDim, 1, 1, 9, 9>
       base_t;
 

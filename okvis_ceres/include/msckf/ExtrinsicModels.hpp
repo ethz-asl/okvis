@@ -11,6 +11,7 @@ class ExtrinsicFixed {
  public:
   static const int kModelId = 0;
   static const size_t kNumParams = 0;
+  static const size_t kGlobalDim = 7;
   static inline int getMinimalDim() { return kNumParams; }
   static inline Eigen::MatrixXd initCov(double /*sigma_translation*/,
                                         double /*sigma_orientation*/) {
@@ -51,6 +52,7 @@ class Extrinsic_p_CS {
  public:
   static const int kModelId = 1;
   static const size_t kNumParams = 3;
+  static const size_t kGlobalDim = 7;
   static inline int getMinimalDim() { return kNumParams; }
   static inline Eigen::MatrixXd initCov(double sigma_translation,
                                         double /*sigma_orientation*/) {
@@ -101,6 +103,7 @@ class Extrinsic_p_SC_q_SC {
  public:
   static const int kModelId = 2;
   static const size_t kNumParams = 6;
+  static const size_t kGlobalDim = 7;
   static inline int getMinimalDim() { return kNumParams; }
   static inline Eigen::MatrixXd initCov(double sigma_translation,
                                         double sigma_orientation) {
