@@ -118,14 +118,6 @@ class EpipolarFactor
     cameraGeometryBase_ = std::make_shared<camera_geometry_t>(*cameraGeometry);
   }
 
-  // getters
-  /// \brief Get the information matrix.
-  /// \return The information (weight) matrix.
-  virtual const covariance_t& information() const
-  {
-    return information_;
-  }
-
   // error term and Jacobian implementation
   /**
    * @brief This evaluates the error term and additionally computes the Jacobians.
@@ -194,23 +186,26 @@ class EpipolarFactor
   std::vector<std::shared_ptr<const okvis::ImuMeasurementDeque>> imuMeasCanopy_;
 
   // weighting related, they will be computed along with the residual
-  double information_; ///< The information matrix.
-  double squareRootInformation_; ///< The square root information matrix.
+//  double information_; ///< The information matrix.
+  mutable double squareRootInformation_; ///< The square root information matrix.
 
   std::vector<okvis::Time> stateEpoch_; ///< The timestamp of the set of robot states related to this error term.
   std::vector<double> tdAtCreation_;
 
   const double gravityMag_; ///< gravity in the world frame is [0, 0, -gravityMag_].
-
+  double dtij_dtr_[2];  ///< kpN for left and right obs
   /**
-   * @brief computePoseAtExposure compute T_WS at the time of exposure
+   * @brief computePoseAndVelocityAtExposure compute T_WS at the time of exposure
    * @param[in/out] pairT_WS in order to avoid use of okvis::Transformation
+   * @param[in/out] velAndOmega records the linear and angular velocity compensated by the gyro bias
    * @param[in] parameters as used in Evaluate()
    * @param[in] index 0 for left camera, 1 for right
    */
-  void computePoseAtExposure(std::pair<Eigen::Quaternion<double>,
-                                       Eigen::Matrix<double, 3, 1>>* pairT_WS,
-                             double const* const* parameters, int index) const;
+  void computePoseAndVelocityAtExposure(
+      std::pair<Eigen::Quaternion<double>, Eigen::Matrix<double, 3, 1>>*
+          pairT_WS,
+      Eigen::Matrix<double, 6, 1>* velAndOmega,
+      double const* const* parameters, int index) const;
 };
 
 }  // namespace ceres
