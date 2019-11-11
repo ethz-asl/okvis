@@ -144,8 +144,8 @@ TEST(okvisTestSuite, Estimator) {
     }
 
     // add sensors
-    estimator.addCamera(extrinsicsEstimationParameters);
-    estimator.addCamera(extrinsicsEstimationParameters);
+    estimator.addCamera(extrinsicsEstimationParameters, 0.0);
+    estimator.addCamera(extrinsicsEstimationParameters, 0.0);
     estimator.addImu(imuParameters);
 
     const size_t K = 6;

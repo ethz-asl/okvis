@@ -86,26 +86,6 @@ class GeneralEstimator : public Estimator
   GeneralEstimator(std::shared_ptr<okvis::ceres::Map> mapPtr);
   virtual ~GeneralEstimator();
 
-  /// @name Sensor configuration related
-  ///@{
-  /**
-   * @brief Add a camera to the configuration. Sensors can only be added and never removed.
-   * @param extrinsicsEstimationParameters The parameters that tell how to estimate extrinsics.
-   * @return Index of new camera.
-   */
-  virtual int addCamera(
-      const okvis::ExtrinsicsEstimationParameters & extrinsicsEstimationParameters);
-
-  /**
-   * @brief Add an IMU to the configuration.
-   * @warning Currently there is only one IMU supported.
-   * @param imuParameters The IMU parameters.
-   * @return index of IMU.
-   */
-  virtual int addImu(const okvis::ImuParameters & imuParameters);
-
-  /// @}
-
   /**
    * @brief Add a pose to the state.
    * @param multiFrame Matched multiFrame.

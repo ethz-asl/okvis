@@ -42,7 +42,7 @@ TEST(OkvisVioInterfaces, testFrameSync)
     .Times(Between(3,6));
   EXPECT_CALL(dummy, setOptimizationTimeLimit(_,_))
     .Times(1);
-  EXPECT_CALL(dummy, addCamera(_))
+  EXPECT_CALL(dummy, addCamera(_,_))
     .Times(2);
   EXPECT_CALL(dummy, addImu(_))
     .Times(1);

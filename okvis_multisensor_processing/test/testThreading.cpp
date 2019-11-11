@@ -26,7 +26,7 @@ TEST(OkvisVioInterfaces, testConstructionDestruction)
     using namespace okvis;
 
     MockVioBackendInterface dummy;
-    EXPECT_CALL(dummy, addCamera(_))
+    EXPECT_CALL(dummy, addCamera(_,_))
       .Times(2);
     EXPECT_CALL(dummy, addImu(_))
       .Times(1);
@@ -101,7 +101,7 @@ TEST(OkvisVioInterfaces, testDestructionWithIMUData)
   using namespace okvis;
 
   MockVioBackendInterface dummy;
-  EXPECT_CALL(dummy, addCamera(_))
+  EXPECT_CALL(dummy, addCamera(_,_))
     .Times(2);
   EXPECT_CALL(dummy, addImu(_))
     .Times(1);

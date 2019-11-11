@@ -88,7 +88,8 @@ class VioBackendInterface {
    * @return Index of new camera.
    */
   virtual int addCamera(
-      const ExtrinsicsEstimationParameters & extrinsicsEstimationParameters) = 0;
+      const ExtrinsicsEstimationParameters& extrinsicsEstimationParameters,
+      double frameReadoutTime) = 0;
 
   /**
    * @brief Add an IMU to the configuration.

@@ -1,44 +1,13 @@
-/*********************************************************************************
- *  OKVIS - Open Keyframe-based Visual-Inertial SLAM
- *  Copyright (c) 2015, Autonomous Systems Lab / ETH Zurich
- *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are met:
- * 
- *   * Redistributions of source code must retain the above copyright notice,
- *     this list of conditions and the following disclaimer.
- *   * Redistributions in binary form must reproduce the above copyright notice,
- *     this list of conditions and the following disclaimer in the documentation
- *     and/or other materials provided with the distribution.
- *   * Neither the name of Autonomous Systems Lab / ETH Zurich nor the names of
- *     its contributors may be used to endorse or promote products derived from
- *     this software without specific prior written permission.
- *
- *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- *  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- *  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- *  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- *  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- *  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- *  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- *  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- *  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- *  POSSIBILITY OF SUCH DAMAGE.
- *
- *  Created on: Dec 30, 2014
- *      Author: Stefan Leutenegger (s.leutenegger@imperial.ac.uk)
- *    Modified: Andreas Forster (an.forster@gmail.com)
- *********************************************************************************/
-
 /**
  * @file GeneralEstimator.cpp
  * @brief Source file for the GeneralEstimator class.
  * @author Jianzhu Huai
  */
 
-#include <glog/logging.h>
+#include <msckf/EuclideanParamBlock.hpp>
 #include <msckf/GeneralEstimator.hpp>
+#include <msckf/CameraTimeParamBlock.hpp>
+
 #include <okvis/ceres/PoseParameterBlock.hpp>
 #include <okvis/ceres/ImuError.hpp>
 #include <okvis/ceres/PoseError.hpp>
@@ -68,25 +37,6 @@ GeneralEstimator::~GeneralEstimator()
 {
 }
 
-// Add a camera to the configuration. Sensors can only be added and never removed.
-int GeneralEstimator::addCamera(
-    const ExtrinsicsEstimationParameters & extrinsicsEstimationParameters)
-{
-  extrinsicsEstimationParametersVec_.push_back(extrinsicsEstimationParameters);
-  return extrinsicsEstimationParametersVec_.size() - 1;
-}
-
-// Add an IMU to the configuration.
-int GeneralEstimator::addImu(const ImuParameters & imuParameters)
-{
-  if(imuParametersVec_.size()>1){
-    LOG(ERROR) << "only one IMU currently supported";
-    return -1;
-  }
-  imuParametersVec_.push_back(imuParameters);
-  return imuParametersVec_.size() - 1;
-}
-
 // Add a pose to the state.
 bool GeneralEstimator::addStates(
     okvis::MultiFramePtr multiFrame,
@@ -97,41 +47,62 @@ bool GeneralEstimator::addStates(
   // TODO !!
   okvis::kinematics::Transformation T_WS;
   okvis::SpeedAndBias speedAndBias;
+  okvis::Duration tdEstimate;
+  okvis::Time correctedStateTime;  // time of current multiFrame corrected with
+                                   // current td estimate
+
   if (statesMap_.empty()) {
     // in case this is the first frame ever, let's initialize the pose:
-    if (pvstd_.initWithExternalSource_)
+    tdEstimate.fromSec(imuParametersVec_.at(0).td0);
+    correctedStateTime = multiFrame->timestamp() + tdEstimate;
+
+    if (pvstd_.initWithExternalSource_) {
       T_WS = okvis::kinematics::Transformation(pvstd_.p_WS, pvstd_.q_WS);
-    else {
+    } else {
       bool success0 = initPoseFromImu(imuMeasurements, T_WS);
       OKVIS_ASSERT_TRUE_DBG(
           Exception, success0,
           "pose could not be initialized from imu measurements.");
       if (!success0) return false;
-      pvstd_.updatePose(T_WS, multiFrame->timestamp());
+      pvstd_.updatePose(T_WS, correctedStateTime);
     }
     speedAndBias.setZero();
     speedAndBias.head<3>() = pvstd_.v_WS;
+    speedAndBias.segment<3>(3) = imuParametersVec_.at(0).g0;
     speedAndBias.segment<3>(6) = imuParametersVec_.at(0).a0;
   } else {
     // get the previous states
     uint64_t T_WS_id = statesMap_.rbegin()->second.id;
-    uint64_t speedAndBias_id = statesMap_.rbegin()->second.sensors.at(SensorStates::Imu)
-        .at(0).at(ImuSensorStates::SpeedAndBias).id;
-    OKVIS_ASSERT_TRUE_DBG(Exception, mapPtr_->parameterBlockExists(T_WS_id),
-                       "this is an okvis bug. previous pose does not exist.");
+    uint64_t speedAndBias_id = statesMap_.rbegin()
+                                   ->second.sensors.at(SensorStates::Imu)
+                                   .at(0)
+                                   .at(ImuSensorStates::SpeedAndBias)
+                                   .id;
+    OKVIS_ASSERT_TRUE_DBG(
+        Exception, mapPtr_->parameterBlockExists(T_WS_id),
+        "this is an okvis bug. previous pose does not exist.");
     T_WS = std::static_pointer_cast<ceres::PoseParameterBlock>(
         mapPtr_->parameterBlockPtr(T_WS_id))->estimate();
-    //OKVIS_ASSERT_TRUE_DBG(
-    //    Exception, speedAndBias_id,
-    //    "this is an okvis bug. previous speedAndBias does not exist.");
+
     speedAndBias =
         std::static_pointer_cast<ceres::SpeedAndBiasParameterBlock>(
             mapPtr_->parameterBlockPtr(speedAndBias_id))->estimate();
 
+    uint64_t td_id = statesMap_.rbegin()
+                         ->second.sensors.at(SensorStates::Camera)
+                         .at(0)
+                         .at(CameraSensorStates::TD)
+                         .id;  // one camera assumption
+    tdEstimate =
+        okvis::Duration(std::static_pointer_cast<ceres::CameraTimeParamBlock>(
+                            mapPtr_->parameterBlockPtr(td_id))
+                            ->estimate());
+    correctedStateTime = multiFrame->timestamp() + tdEstimate;
+
     // propagate pose and speedAndBias
     int numUsedImuMeasurements = ceres::ImuError::propagation(
         imuMeasurements, imuParametersVec_.at(0), T_WS, speedAndBias,
-        statesMap_.rbegin()->second.timestamp, multiFrame->timestamp());
+        statesMap_.rbegin()->second.timestamp, correctedStateTime);
     OKVIS_ASSERT_TRUE_DBG(Exception, numUsedImuMeasurements > 1,
                        "propagation failed");
     if (numUsedImuMeasurements < 1){
@@ -142,7 +113,7 @@ bool GeneralEstimator::addStates(
 
 
   // create a states object:
-  States states(asKeyframe, multiFrame->id(), multiFrame->timestamp());
+  States states(asKeyframe, multiFrame->id(), correctedStateTime, tdEstimate);
 
   // check if id was used before
   OKVIS_ASSERT_TRUE_DBG(Exception,
@@ -152,7 +123,7 @@ bool GeneralEstimator::addStates(
   // create global states
   std::shared_ptr<okvis::ceres::PoseParameterBlock> poseParameterBlock(
       new okvis::ceres::PoseParameterBlock(T_WS, states.id,
-                                           multiFrame->timestamp()));
+                                           correctedStateTime));
   states.global.at(GlobalStates::T_WS).exists = true;
   states.global.at(GlobalStates::T_WS).id = states.id;
 
@@ -179,26 +150,102 @@ bool GeneralEstimator::addStates(
   // initialize new sensor states
   // cameras:
   for (size_t i = 0; i < extrinsicsEstimationParametersVec_.size(); ++i) {
-
-    SpecificSensorStatesContainer cameraInfos(2);
+    SpecificSensorStatesContainer cameraInfos(5);
     cameraInfos.at(CameraSensorStates::T_SCi).exists=true;
-    cameraInfos.at(CameraSensorStates::Intrinsics).exists=false;
-    if(((extrinsicsEstimationParametersVec_.at(i).sigma_c_relative_translation<1e-12)||
-        (extrinsicsEstimationParametersVec_.at(i).sigma_c_relative_orientation<1e-12))&&
-        (statesMap_.size() > 1)){
+    cameraInfos.at(CameraSensorStates::Intrinsics).exists = true;
+    cameraInfos.at(CameraSensorStates::Distortion).exists = true;
+    cameraInfos.at(CameraSensorStates::TD).exists = true;
+    cameraInfos.at(CameraSensorStates::TR).exists = true;
+    if(statesMap_.size() > 1) {
       // use the same block...
       cameraInfos.at(CameraSensorStates::T_SCi).id =
           lastElementIterator->second.sensors.at(SensorStates::Camera).at(i).at(CameraSensorStates::T_SCi).id;
+      cameraInfos.at(CameraSensorStates::Intrinsics).exists =
+          lastElementIterator->second.sensors.at(SensorStates::Camera)
+              .at(i)
+              .at(CameraSensorStates::Intrinsics)
+              .exists;
+      cameraInfos.at(CameraSensorStates::Intrinsics).id =
+          lastElementIterator->second.sensors.at(SensorStates::Camera)
+              .at(i)
+              .at(CameraSensorStates::Intrinsics)
+              .id;
+      cameraInfos.at(CameraSensorStates::Distortion).id =
+          lastElementIterator->second.sensors.at(SensorStates::Camera)
+              .at(i)
+              .at(CameraSensorStates::Distortion)
+              .id;
+      cameraInfos.at(CameraSensorStates::TD).id =
+          lastElementIterator->second.sensors.at(SensorStates::Camera)
+              .at(i)
+              .at(CameraSensorStates::TD)
+              .id;
+      cameraInfos.at(CameraSensorStates::TR).id =
+          lastElementIterator->second.sensors.at(SensorStates::Camera)
+              .at(i)
+              .at(CameraSensorStates::TR)
+              .id;
     } else {
+      // initialize the camera geometry
+      const cameras::NCameraSystem& camSystem = multiFrame->GetCameraSystem();
+      camera_rig_.addCamera(multiFrame->T_SC(i), camSystem.cameraGeometry(i),
+                            imageReadoutTime_, tdEstimate.toSec(),
+                            camSystem.projOptRep(i),
+                            camSystem.extrinsicOptRep(i));
       const okvis::kinematics::Transformation T_SC = *multiFrame->T_SC(i);
       uint64_t id = IdProvider::instance().newId();
       std::shared_ptr<okvis::ceres::PoseParameterBlock> extrinsicsParameterBlockPtr(
           new okvis::ceres::PoseParameterBlock(T_SC, id,
-                                               multiFrame->timestamp()));
+                                               correctedStateTime));
       if(!mapPtr_->addParameterBlock(extrinsicsParameterBlockPtr,ceres::Map::Pose6d)){
         return false;
       }
       cameraInfos.at(CameraSensorStates::T_SCi).id = id;
+
+      Eigen::VectorXd allIntrinsics;
+      camera_rig_.getCameraGeometry(i)->getIntrinsics(allIntrinsics);
+      id = IdProvider::instance().newId();
+      int projOptModelId = camera_rig_.getProjectionOptMode(i);
+      const int minProjectionDim = camera_rig_.getMinimalProjectionDimen(i);
+      if (minProjectionDim > 0) {
+        Eigen::VectorXd optProjIntrinsics;
+        ProjectionOptGlobalToLocal(projOptModelId, allIntrinsics,
+                                   &optProjIntrinsics);
+        std::shared_ptr<okvis::ceres::EuclideanParamBlock>
+            projIntrinsicParamBlockPtr(new okvis::ceres::EuclideanParamBlock(
+                optProjIntrinsics, id, correctedStateTime, minProjectionDim));
+        mapPtr_->addParameterBlock(projIntrinsicParamBlockPtr,
+                                   ceres::Map::Parameterization::Trivial);
+        cameraInfos.at(CameraSensorStates::Intrinsics).id = id;
+      } else {
+        cameraInfos.at(CameraSensorStates::Intrinsics).exists = false;
+        cameraInfos.at(CameraSensorStates::Intrinsics).id = 0u;
+      }
+      id = IdProvider::instance().newId();
+      const int distortionDim = camera_rig_.getDistortionDimen(i);
+      std::shared_ptr<okvis::ceres::EuclideanParamBlock>
+          distortionParamBlockPtr(new okvis::ceres::EuclideanParamBlock(
+              allIntrinsics.tail(distortionDim), id, correctedStateTime,
+              distortionDim));
+      mapPtr_->addParameterBlock(distortionParamBlockPtr,
+                                 ceres::Map::Parameterization::Trivial);
+      cameraInfos.at(CameraSensorStates::Distortion).id = id;
+
+      id = IdProvider::instance().newId();
+      std::shared_ptr<okvis::ceres::CameraTimeParamBlock> tdParamBlockPtr(
+          new okvis::ceres::CameraTimeParamBlock(camera_rig_.getTimeDelay(i),
+                                                 id, correctedStateTime));
+      mapPtr_->addParameterBlock(tdParamBlockPtr,
+                                 ceres::Map::Parameterization::Trivial);
+      cameraInfos.at(CameraSensorStates::TD).id = id;
+
+      id = IdProvider::instance().newId();
+      std::shared_ptr<okvis::ceres::CameraTimeParamBlock> trParamBlockPtr(
+          new okvis::ceres::CameraTimeParamBlock(camera_rig_.getReadoutTime(i),
+                                                 id, correctedStateTime));
+      mapPtr_->addParameterBlock(trParamBlockPtr,
+                                 ceres::Map::Parameterization::Trivial);
+      cameraInfos.at(CameraSensorStates::TR).id = id;
     }
     // update the states info
     statesMap_.rbegin()->second.sensors.at(SensorStates::Camera).push_back(cameraInfos);
@@ -210,8 +257,9 @@ bool GeneralEstimator::addStates(
     SpecificSensorStatesContainer imuInfo(2);
     imuInfo.at(ImuSensorStates::SpeedAndBias).exists = true;
     uint64_t id = IdProvider::instance().newId();
-    std::shared_ptr<okvis::ceres::SpeedAndBiasParameterBlock> speedAndBiasParameterBlock(
-        new okvis::ceres::SpeedAndBiasParameterBlock(speedAndBias, id, multiFrame->timestamp()));
+    std::shared_ptr<okvis::ceres::SpeedAndBiasParameterBlock>
+        speedAndBiasParameterBlock(new okvis::ceres::SpeedAndBiasParameterBlock(
+            speedAndBias, id, correctedStateTime));
 
     if(!mapPtr_->addParameterBlock(speedAndBiasParameterBlock)){
       return false;
@@ -252,6 +300,30 @@ bool GeneralEstimator::addStates(
         mapPtr_->setParameterBlockConstant(
             states.sensors.at(SensorStates::Camera).at(i).at(CameraSensorStates::T_SCi).id);
       }
+
+      // TODO(jhuai): relax the cmaera characteristic parameter blocks
+      if (states.sensors.at(SensorStates::Camera)
+              .at(i)
+              .at(CameraSensorStates::Intrinsics)
+              .exists) {
+        mapPtr_->setParameterBlockConstant(
+            states.sensors.at(SensorStates::Camera)
+                .at(i)
+                .at(CameraSensorStates::Intrinsics)
+                .id);
+      }
+      mapPtr_->setParameterBlockConstant(states.sensors.at(SensorStates::Camera)
+                                             .at(i)
+                                             .at(CameraSensorStates::Distortion)
+                                             .id);
+      mapPtr_->setParameterBlockConstant(states.sensors.at(SensorStates::Camera)
+                                             .at(i)
+                                             .at(CameraSensorStates::TD)
+                                             .id);
+      mapPtr_->setParameterBlockConstant(states.sensors.at(SensorStates::Camera)
+                                             .at(i)
+                                             .at(CameraSensorStates::TR)
+                                             .id);
     }
     for (size_t i = 0; i < imuParametersVec_.size(); ++i) {
       Eigen::Matrix<double,6,1> variances;
@@ -269,8 +341,7 @@ bool GeneralEstimator::addStates(
               states.sensors.at(SensorStates::Imu).at(i).at(ImuSensorStates::SpeedAndBias).id));
       //mapPtr_->isJacobianCorrect(id,1.0e-6);
     }
-  }
-  else{
+  } else {
     // add IMU error terms
     for (size_t i = 0; i < imuParametersVec_.size(); ++i) {
       std::shared_ptr<ceres::ImuError> imuError(

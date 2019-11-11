@@ -83,9 +83,11 @@ Estimator::~Estimator()
 
 // Add a camera to the configuration. Sensors can only be added and never removed.
 int Estimator::addCamera(
-    const ExtrinsicsEstimationParameters & extrinsicsEstimationParameters)
+    const ExtrinsicsEstimationParameters & extrinsicsEstimationParameters,
+    double frameReadoutTime)
 {
   extrinsicsEstimationParametersVec_.push_back(extrinsicsEstimationParameters);
+  imageReadoutTime_ = frameReadoutTime;
   return extrinsicsEstimationParametersVec_.size() - 1;
 }
 

@@ -105,8 +105,9 @@ class Estimator : public VioBackendInterface
    * @param extrinsicsEstimationParameters The parameters that tell how to estimate extrinsics.
    * @return Index of new camera.
    */
-  virtual int addCamera(
-      const okvis::ExtrinsicsEstimationParameters & extrinsicsEstimationParameters);
+  virtual int addCamera(const okvis::ExtrinsicsEstimationParameters&
+                            extrinsicsEstimationParameters,
+                        double frameReadoutTime);
 
   /**
    * @brief Add an IMU to the configuration.
@@ -703,12 +704,14 @@ class Estimator : public VioBackendInterface
   okvis::ImuRig imu_rig_; // for the only imu
   // init values and uncertainties for the intrinsics, noise parameters,
   // and model info and fixed variables are from the imuParametersVec_
-  // during addCamera
+  // during addImu
 
   InitialPVandStd pvstd_;
 
   // e.g., min observs to triang a landmark
   size_t minTrackLength_;
+
+  double imageReadoutTime_;  // rolling shutter skew
 
   template<class GEOMETRY_TYPE>
   ::ceres::ResidualBlockId addPointFrameResidual(

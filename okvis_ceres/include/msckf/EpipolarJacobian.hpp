@@ -11,11 +11,12 @@ namespace okvis {
 /**
  * @brief obsDirectionJacobian compute the Jacobian of the obsDirection
  *     relative to the camera parameters and its covariance
- * @param obsDirection [x/z, y/z, 1] undistorted coordinates
+ * @param obsDirection [x/z, y/z, 1] backprojected undistorted coordinates.
  * @param cameraGeometry
  * @param pixelNoiseStd
  * @param dfj_dXcam
  * @param cov_fj
+ * @return false if backprojected direction failed to project onto image.
  */
 inline bool obsDirectionJacobian(
     const Eigen::Vector3d& obsDirection,
