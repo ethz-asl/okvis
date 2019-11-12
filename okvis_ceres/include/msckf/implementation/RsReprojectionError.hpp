@@ -39,7 +39,7 @@ RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
         std::shared_ptr<const camera_geometry_t> cameraGeometry,
         uint64_t cameraId, const measurement_t& measurement,
         const covariance_t& information,
-        std::shared_ptr<const okvis::ImuMeasurementDeque> imuMeasCanopy,
+        const okvis::ImuMeasurementDeque& imuMeasCanopy,
         const okvis::kinematics::Transformation& T_SC_base,
         okvis::Time stateEpoch, double tdAtCreation, double gravityMag)
     : T_SC_base_(T_SC_base),
@@ -122,10 +122,10 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
   okvis::Time t_end = stateEpoch_ + okvis::Duration(relativeFeatureTime);
   const double wedge = 5e-8;
   if (relativeFeatureTime >= wedge) {
-    okvis::ceres::predictStates(*imuMeasCanopy_, gravityMag_, pairT_WS,
+    okvis::ceres::predictStates(imuMeasCanopy_, gravityMag_, pairT_WS,
                                 speedBgBa, t_start, t_end);
   } else if (relativeFeatureTime <= -wedge) {
-    okvis::ceres::predictStatesBackward(*imuMeasCanopy_, gravityMag_, pairT_WS,
+    okvis::ceres::predictStatesBackward(imuMeasCanopy_, gravityMag_, pairT_WS,
                                         speedBgBa, t_start, t_end);
   }
 
@@ -210,7 +210,7 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
     dhC_deltaTSC.row(3).setZero();
 
     okvis::ImuMeasurement queryValue;
-    okvis::ceres::interpolateInertialData(*imuMeasCanopy_, t_end, queryValue);
+    okvis::ceres::interpolateInertialData(imuMeasCanopy_, t_end, queryValue);
     queryValue.measurement.gyroscopes -= speedBgBa.segment<3>(3);
     Eigen::Vector3d p =
         okvis::kinematics::crossMx(queryValue.measurement.gyroscopes) *
@@ -441,11 +441,11 @@ operator()(const Scalar* const T_WS, const Scalar* const php_W,
   Scalar t_start = (Scalar)stateEpoch_.toSec();
   Scalar t_end = t_start + relativeFeatureTime;
   okvis::GenericImuMeasurementDeque<Scalar> imuMeasurements;
-  for (size_t jack = 0; jack < imuMeasCanopy_->size(); ++jack) {
+  for (size_t jack = 0; jack < imuMeasCanopy_.size(); ++jack) {
     okvis::GenericImuMeasurement<Scalar> imuMeas(
-        (Scalar)(*imuMeasCanopy_)[jack].timeStamp.toSec(),
-        (*imuMeasCanopy_)[jack].measurement.gyroscopes.cast<Scalar>(),
-        (*imuMeasCanopy_)[jack].measurement.accelerometers.cast<Scalar>());
+        (Scalar)(imuMeasCanopy_[jack].timeStamp.toSec()),
+        imuMeasCanopy_[jack].measurement.gyroscopes.cast<Scalar>(),
+        imuMeasCanopy_[jack].measurement.accelerometers.cast<Scalar>());
     imuMeasurements.push_back(imuMeas);
   }
 

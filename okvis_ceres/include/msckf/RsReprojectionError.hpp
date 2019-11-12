@@ -83,7 +83,7 @@ class RsReprojectionError
       std::shared_ptr<const camera_geometry_t> cameraGeometry,
       uint64_t cameraId, const measurement_t& measurement,
       const covariance_t& information,
-      std::shared_ptr<const okvis::ImuMeasurementDeque> imuMeasCanopy,
+      const okvis::ImuMeasurementDeque& imuMeasCanopy,
       const okvis::kinematics::Transformation& T_SC_base,
       okvis::Time stateEpoch, double tdAtCreation, double gravityMag);
 
@@ -236,7 +236,7 @@ class RsReprojectionError
   // The reference extrinsic parameters in case the EXTRINSIC_MODEL is incomplete.
   mutable okvis::kinematics::Transformation T_SC_base_;
   // const after initialization
-  std::shared_ptr<const okvis::ImuMeasurementDeque> imuMeasCanopy_;
+  okvis::ImuMeasurementDeque imuMeasCanopy_;
   // weighting related
   covariance_t information_; ///< The 2x2 information matrix.
   covariance_t squareRootInformation_; ///< The 2x2 square root information matrix.

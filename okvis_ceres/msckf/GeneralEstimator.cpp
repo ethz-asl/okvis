@@ -8,6 +8,7 @@
 #include <msckf/GeneralEstimator.hpp>
 #include <msckf/CameraTimeParamBlock.hpp>
 
+#include <okvis/cameras/PinholeCamera.hpp>
 #include <okvis/ceres/PoseParameterBlock.hpp>
 #include <okvis/ceres/ImuError.hpp>
 #include <okvis/ceres/PoseError.hpp>
@@ -396,6 +397,8 @@ bool GeneralEstimator::addStates(
     // a term for global states as well as for the sensor-internal ones (i.e. biases).
     // TODO: magnetometer, pressure, ...
   }
+  // record the imu measurements between two consecutive states
+  inertialMeasForStates_.push_back(imuMeasurements);
 
   return true;
 }
@@ -525,6 +528,10 @@ bool GeneralEstimator::applyMarginalizationStrategy(
   }
   // marginalize ONLY pose now:
   bool reDoFixation = false;
+  // record two-view constraints associated to the removed frames, and
+  // they are expected to be unique
+  std::vector<::ceres::ResidualBlockId> twoViewResiduals;
+  twoViewResiduals.reserve(100);
   for(size_t k = 0; k<removeFrames.size(); ++k){
     std::map<uint64_t, States>::iterator it = statesMap_.find(removeFrames[k]);
 
@@ -552,6 +559,10 @@ bool GeneralEstimator::applyMarginalizationStrategy(
           residuals[r].errorInterfacePtr);
       if(!reprojectionError){   // we make sure no reprojection errors are yet included.
         marginalizationErrorPtr_->addResidualBlock(residuals[r].residualBlockId);
+      } else {
+        if (residuals[r].errorInterfacePtr->residualDim() == 1) {
+          twoViewResiduals.emplace_back(residuals[r].residualBlockId);
+        }
       }
     }
 
@@ -597,6 +608,12 @@ bool GeneralEstimator::applyMarginalizationStrategy(
           pit != landmarksMap_.end(); ){
 
         ceres::Map::ResidualBlockCollection residuals = mapPtr_->residuals(pit->first);
+
+        bool twoViewTerms = areTwoViewConstraints(pit->second, residuals.size());
+        if (twoViewTerms) { // we will handle these terms in the next code block
+          pit++;
+          continue;
+        }
 
         // first check if we can skip
         bool skipLandmark = true;
@@ -692,6 +709,53 @@ bool GeneralEstimator::applyMarginalizationStrategy(
         }
 
         pit++;
+      }
+    }
+
+    {
+      std::set<uint64_t> removeHeadObsLandmarks;
+      for (auto residualId : twoViewResiduals) {
+        uint64_t twoPoseIds[2] = {mapPtr_->parameters(residualId).at(0).first,
+                                  mapPtr_->parameters(residualId).at(1).first};
+        std::shared_ptr<okvis::ceres::ErrorInterface> errorPtr =
+            mapPtr_->errorInterfacePtr(residualId);
+
+        std::shared_ptr<okvis::ceres::ReprojectionErrorBase> epiFactor =
+            std::static_pointer_cast<okvis::ceres::ReprojectionErrorBase>(errorPtr);
+        uint64_t lmId = epiFactor->landmarkId();
+
+        okvis::KeypointIdentifier kpi = removeObservationOfLandmark(
+            residualId, lmId);  // remove residual block and obs from MapPoint
+        if (vectorContains(removeFrames, twoPoseIds[0])) {
+          // reset the id in the right multiframe
+          multiFrame(kpi.frameId)
+              ->setLandmarkId(kpi.cameraIndex, kpi.keypointIndex, 0);
+          removeHeadObsLandmarks.insert(lmId);
+          OKVIS_ASSERT_FALSE(Exception,
+                             vectorContains(removeFrames, twoPoseIds[1]),
+                             "This may violate the assumption that "
+                             "twoViewResiduals are unique");
+        }
+        //        if (vectorContains(removeFrames, twoPoseIds[1])) {
+        //          // no reset landmark Id needed because the multiframe will
+        //          be deleted
+        //        }
+      }
+      for (auto lmId : removeHeadObsLandmarks) {
+        removeObservationOfLandmark(0, lmId);
+        auto iterLandmark = landmarksMap_.find(lmId);
+        if (iterLandmark != landmarksMap_.end() &&
+            iterLandmark->second.observations.size() == 0) {
+          mapPtr_->removeParameterBlock(iterLandmark->first);
+          removedLandmarks.push_back(iterLandmark->second);
+          landmarksMap_.erase(iterLandmark);
+        } else {  // the landmark should have zero observations by now
+          std::cerr << "A landmark removing head obs has observations "
+                    << iterLandmark->second.observations.size() << std::endl;
+        }
+      }
+      if (it->second.isKeyframe) {
+        inertialMeasForStates_.pop_front(it->second.timestamp - half_window_);
       }
     }
 
@@ -809,4 +873,25 @@ void GeneralEstimator::optimize(size_t numIter, size_t /*numThreads*/,
   }
 }
 
+// Remove an observation from a landmark.
+okvis::KeypointIdentifier GeneralEstimator::removeObservationOfLandmark(
+    ::ceres::ResidualBlockId residualBlockId, uint64_t landmarkId) {
+  // remove in landmarksMap
+  MapPoint& mapPoint = landmarksMap_.at(landmarkId);
+  okvis::KeypointIdentifier kpi;
+  for (std::map<okvis::KeypointIdentifier, uint64_t>::iterator it =
+           mapPoint.observations.begin();
+       it != mapPoint.observations.end();) {
+    if (it->second == uint64_t(residualBlockId)) {
+      kpi = it->first;
+      it = mapPoint.observations.erase(it);
+      break;
+    } else {
+      it++;
+    }
+  }
+  // remove residual block
+  mapPtr_->removeResidualBlock(residualBlockId);
+  return kpi;
+}
 }  // namespace okvis

@@ -1424,6 +1424,8 @@ bool Estimator::addLandmarkObservation(uint64_t landmarkId, uint64_t poseId,
   return true;
 }
 
+const okvis::Duration Estimator::half_window_(2, 0);
+
 }  // namespace okvis
 
 

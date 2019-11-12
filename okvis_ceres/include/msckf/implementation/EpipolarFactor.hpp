@@ -20,33 +20,38 @@
 namespace okvis {
 namespace ceres {
 
-template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
-          class EXTRINSIC_MODEL>
-EpipolarFactor<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL,
-                    EXTRINSIC_MODEL>::EpipolarFactor()
+template <class GEOMETRY_TYPE, class EXTRINSIC_MODEL,
+          class PROJ_INTRINSIC_MODEL>
+EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL,
+               PROJ_INTRINSIC_MODEL>::EpipolarFactor()
     : gravityMag_(9.80665) {}
 
-template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
-          class EXTRINSIC_MODEL>
-EpipolarFactor<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
-    EpipolarFactor(std::shared_ptr<const camera_geometry_t> cameraGeometry,
-                   const std::vector<Eigen::Vector2d,
-                                     Eigen::aligned_allocator<Eigen::Vector2d>>&
-                       measurement12,
-                   const std::vector<Eigen::Matrix2d,
-                                     Eigen::aligned_allocator<Eigen::Matrix2d>>&
-                       covariance12,
-                   std::vector<std::shared_ptr<const okvis::ImuMeasurementDeque>> imuMeasCanopy,
-                   const okvis::kinematics::Transformation& T_SC_base,
-                   const std::vector<okvis::Time>& stateEpoch,
-                   const std::vector<double>& tdAtCreation, double gravityMag)
+template <class GEOMETRY_TYPE, class EXTRINSIC_MODEL,
+          class PROJ_INTRINSIC_MODEL>
+EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
+    EpipolarFactor(
+        std::shared_ptr<const camera_geometry_t> cameraGeometry,
+        uint64_t landmarkId,
+        const std::vector<Eigen::Vector2d,
+                          Eigen::aligned_allocator<Eigen::Vector2d>>&
+            measurement12,
+        const std::vector<Eigen::Matrix2d,
+                          Eigen::aligned_allocator<Eigen::Matrix2d>>&
+            covariance12,
+        const std::vector<okvis::ImuMeasurementDeque,
+                          Eigen::aligned_allocator<okvis::ImuMeasurementDeque>>&
+            imuMeasCanopy,
+        const okvis::kinematics::Transformation& T_SC_base,
+        const std::vector<okvis::Time>& stateEpoch,
+        const std::vector<double>& tdAtCreation, double gravityMag)
     : measurement_(measurement12),
       covariance_(covariance12),
-      T_SC_base_(T_SC_base),
       imuMeasCanopy_(imuMeasCanopy),
+      T_SC_base_(T_SC_base),
       stateEpoch_(stateEpoch),
       tdAtCreation_(tdAtCreation),
       gravityMag_(gravityMag) {
+  ReprojectionErrorBase::setLandmarkId(landmarkId);
   setCameraGeometry(cameraGeometry);
   int imageHeight = cameraGeometryBase_->imageHeight();
   for (int j = 0; j < 2; ++j) {
@@ -55,17 +60,17 @@ EpipolarFactor<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
   }
 }
 
-template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
-          class EXTRINSIC_MODEL>
-bool EpipolarFactor<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
+template <class GEOMETRY_TYPE, class EXTRINSIC_MODEL,
+          class PROJ_INTRINSIC_MODEL>
+bool EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
     Evaluate(double const* const* parameters, double* residuals,
              double** jacobians) const {
   return EvaluateWithMinimalJacobians(parameters, residuals, jacobians, NULL);
 }
 
-template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
-          class EXTRINSIC_MODEL>
-void EpipolarFactor<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
+template <class GEOMETRY_TYPE, class EXTRINSIC_MODEL,
+          class PROJ_INTRINSIC_MODEL>
+void EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
     computePoseAndVelocityAtExposure(
         std::pair<Eigen::Quaternion<double>, Eigen::Matrix<double, 3, 1>>*
             pair_T_WS,
@@ -83,22 +88,22 @@ void EpipolarFactor<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
   okvis::Time t_end = stateEpoch_[index] + okvis::Duration(relativeFeatureTime);
   const double wedge = 5e-8;
   if (relativeFeatureTime >= wedge) {
-    okvis::ceres::predictStates(*imuMeasCanopy_[index], gravityMag_, *pair_T_WS,
+    okvis::ceres::predictStates(imuMeasCanopy_[index], gravityMag_, *pair_T_WS,
                                 speedBgBa, t_start, t_end);
   } else if (relativeFeatureTime <= -wedge) {
-    okvis::ceres::predictStatesBackward(*imuMeasCanopy_[index], gravityMag_,
+    okvis::ceres::predictStatesBackward(imuMeasCanopy_[index], gravityMag_,
                                         *pair_T_WS, speedBgBa, t_start, t_end);
   }
   velAndOmega->head<3>() = speedBgBa.head<3>();
   okvis::ImuMeasurement queryValue;
-  okvis::ceres::interpolateInertialData(*imuMeasCanopy_[index], t_end, queryValue);
+  okvis::ceres::interpolateInertialData(imuMeasCanopy_[index], t_end, queryValue);
   queryValue.measurement.gyroscopes -= speedBgBa.segment<3>(3);
   velAndOmega->tail<3>() = queryValue.measurement.gyroscopes;
 }
 
-template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
-          class EXTRINSIC_MODEL>
-bool EpipolarFactor<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
+template <class GEOMETRY_TYPE, class EXTRINSIC_MODEL,
+          class PROJ_INTRINSIC_MODEL>
+bool EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
     EvaluateWithMinimalJacobians(double const* const* parameters,
                                  double* residuals, double** jacobians,
                                  double** jacobiansMinimal) const {
@@ -120,7 +125,7 @@ bool EpipolarFactor<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
   const Eigen::Quaterniond q_SC(parameters[2][6], parameters[2][3],
                                 parameters[2][4], parameters[2][5]);
 
-  Eigen::VectorXd intrinsics(GEOMETRY_TYPE::NumIntrinsics);
+  Eigen::VectorXd intrinsics(4 + kDistortionDim);
   if (PROJ_INTRINSIC_MODEL::kNumParams) {
     Eigen::Map<const Eigen::Matrix<double, PROJ_INTRINSIC_MODEL::kNumParams, 1>>
         projIntrinsics(parameters[3]);
@@ -400,9 +405,9 @@ bool EpipolarFactor<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
   return true;
 }
 
-template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
-          class EXTRINSIC_MODEL>
-void EpipolarFactor<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
+template <class GEOMETRY_TYPE, class EXTRINSIC_MODEL,
+          class PROJ_INTRINSIC_MODEL>
+void EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
     setJacobiansZero(double** jacobians, double** jacobiansMinimal) const {
   zeroJacobian<7, 6, 1>(0, jacobians, jacobiansMinimal);
   zeroJacobian<7, 6, 1>(1, jacobians, jacobiansMinimal);

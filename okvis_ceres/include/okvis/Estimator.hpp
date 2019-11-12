@@ -62,6 +62,7 @@
 #include <okvis/ceres/ReprojectionError.hpp>
 #include <okvis/ceres/CeresIterationCallback.hpp>
 
+#include <msckf/BoundedImuDeque.hpp>
 #include <msckf/CameraRig.hpp>
 #include <msckf/InitialPVandStd.hpp>
 #include <msckf/ImuRig.hpp>
@@ -469,29 +470,34 @@ class Estimator : public VioBackendInterface
   ///@}
 
   /**
-   * @brief for a landmark, remove its existing epipolar constraints,
-   *     add its observations as reprojection errors,
-   *     assuming no reprojection errors for the landmark have been added before.
-   *     thread unsafe, call it when the estimator is protected by the estimator_mutex_.
+   * @brief for a landmark, remove its existing epipolar constraints, add all
+   * its observations as reprojection errors.
+   *   The head tail two view constraint scheme is assumed.
+   * So each observation except for the head obs records the matching
+   * residual block Id. The head obs has a residual block Id 0.
+   *   thread unsafe, call it when the estimator is protected by the estimator_mutex_.
    * @param lmId ID of landmark.
    */
   template <class GEOMETRY_TYPE>
   bool replaceEpipolarWithReprojectionErrors(uint64_t lmId);
 
   /**
-   * @brief for a landmark, add its current first and last observations
-   *     as an epipolar constraint.
-   *     thread unsafe, call it when the estimator is protected by the estimator_mutex_.
+   * @brief add the input keypoint as an observation to the landmark and add an
+   * epipolar constraint between the input keypoint and its first obs. Assume
+   * the same camIdx for the two keypoints. thread unsafe, call it when the
+   * estimator is protected by the estimator_mutex_.
    * @param lmId ID of landmark.
-   * @param removeExisting remove existing epipolar constraints for this landmark.
+   * @param removeExisting remove existing epipolar constraints for this
+   * landmark.
    */
   template <class GEOMETRY_TYPE>
-  bool addEpipolarConstraint(
-      uint64_t lmId, bool removeExisting=false);
+  bool addEpipolarConstraint(uint64_t landmarkId, uint64_t poseId,
+                             size_t camIdx, size_t keypointIdx,
+                             bool removeExisting = false);
 
   /**
-   * @brief Add an observation to a landmark without adding
-   *    residual to the ceres solver
+   * @brief Add an observation to a landmark without adding residual, ONLY used
+   * when adding the head observation for two view constraints
    */
   bool addLandmarkObservation(uint64_t landmarkId, uint64_t poseId,
                               size_t camIdx, size_t keypointIdx);
@@ -534,6 +540,13 @@ class Estimator : public VioBackendInterface
     TS,               ///< g sensitivity
     TA                ///< accelerometer T_a, eg, SM or SMR_{AS}
   };
+
+  // The window centered at a stateEpoch for retrieving the inertial data
+  // which is used for propagating the camera pose to epochs in the window,
+  // i.e., timestamps of observations in a rolling shutter image.
+  // A value greater than (t_d + t_r)/2 is recommended.
+  // Note camera observations in MSCKF will not occur at the latest frame.
+  static const okvis::Duration half_window_;
 
  protected:
 
@@ -705,6 +718,9 @@ class Estimator : public VioBackendInterface
   // init values and uncertainties for the intrinsics, noise parameters,
   // and model info and fixed variables are from the imuParametersVec_
   // during addImu
+
+  // sequential imu measurements covering states in the estimator
+  okvis::BoundedImuDeque inertialMeasForStates_;
 
   InitialPVandStd pvstd_;
 

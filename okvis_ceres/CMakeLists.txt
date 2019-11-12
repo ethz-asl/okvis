@@ -25,6 +25,7 @@ add_library(${PROJECT_NAME}
   include/okvis/Estimator.hpp
   include/okvis/ceres/CeresIterationCallback.hpp
 
+  msckf/BoundedImuDeque.cpp
   msckf/CameraRig.cpp
   msckf/CameraTimeParamBlock.cpp
   msckf/GeneralEstimator.cpp

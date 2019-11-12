@@ -48,9 +48,7 @@ namespace ceres {
 
 /// \brief Reprojection error base class.
 class ReprojectionErrorBase :
-    public ::ceres::SizedCostFunction<2 /* number of residuals */,
-        7 /* size of first parameter */, 4 /* size of second parameter */, 7 /* size of third parameter (camera extrinsics) */>,
-    public ErrorInterface {
+   public ErrorInterface {
  public:
 
   /// \brief Camera ID.
@@ -64,11 +62,25 @@ class ReprojectionErrorBase :
     cameraId_ = cameraId;
   }
 
+  uint64_t landmarkId() {
+    return landmarkId_;
+  }
+
+  void setLandmarkId(uint64_t landmarkId) {
+    landmarkId_ = landmarkId;
+  }
+
+  uint64_t landmarkId_; ////< ID of the landmark.
   uint64_t cameraId_; ///< ID of the camera.
 };
 
 /// \brief 2D keypoint reprojection error base class.
-class ReprojectionError2dBase : public ReprojectionErrorBase {
+class ReprojectionError2dBase
+    : public ::ceres::SizedCostFunction<
+          2 /* number of residuals */, 7 /* size of first parameter */,
+          4 /* size of second parameter */,
+          7 /* size of third parameter (camera extrinsics) */>,
+      public ReprojectionErrorBase {
  public:
 
   /// \brief Measurement type (2D).

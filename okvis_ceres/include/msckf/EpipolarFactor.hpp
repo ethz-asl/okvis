@@ -18,8 +18,9 @@
 #include <okvis/Measurements.hpp>
 
 #include <okvis/assert_macros.hpp>
-#include <okvis/ceres/PoseLocalParameterization.hpp>
 #include <okvis/ceres/ErrorInterface.hpp>
+#include <okvis/ceres/PoseLocalParameterization.hpp>
+#include <okvis/ceres/ReprojectionErrorBase.hpp>
 
 namespace okvis {
 namespace ceres {
@@ -33,20 +34,25 @@ namespace ceres {
  * The variable params will be passed to the evaluate function as scalar
  * pointers so they can be stored as vector<scalar> or Eigen::Vector.
  */
-template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL, class EXTRINSIC_MODEL>
+template <class GEOMETRY_TYPE, class EXTRINSIC_MODEL,
+          class PROJ_INTRINSIC_MODEL>
 class EpipolarFactor
     : public ::ceres::SizedCostFunction<
           1 /* number of residuals */, 7 /* left pose */, 7 /* right pose */,
           EXTRINSIC_MODEL::kGlobalDim /* variable dim of extrinsics */,
           PROJ_INTRINSIC_MODEL::kNumParams /* variable dim of proj intrinsics
-                                              (e.g., f, cx, cy) */,
+                                              (e.g., f, cx, cy) */
+          ,
           GEOMETRY_TYPE::distortion_t::NumDistortionIntrinsics,
           1 /* frame readout time */,
           1 /* time offset between visual and inertial data */,
           9 /* velocity and biases for left pose */,
           9 /* velocity and biases for right pose */
           >,
-      public ErrorInterface {
+      public ReprojectionErrorBase /* use this base to simplify handling visual
+                                      constraints in marginalization.
+                                    */
+{
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   OKVIS_DEFINE_EXCEPTION(Exception,std::runtime_error)
@@ -93,13 +99,16 @@ class EpipolarFactor
    */
   EpipolarFactor(
       std::shared_ptr<const camera_geometry_t> cameraGeometry,
+      uint64_t landmarkId,
       const std::vector<Eigen::Vector2d,
                         Eigen::aligned_allocator<Eigen::Vector2d>>&
           measurement12,
       const std::vector<Eigen::Matrix2d,
                         Eigen::aligned_allocator<Eigen::Matrix2d>>&
           covariance12,
-      std::vector<std::shared_ptr<const okvis::ImuMeasurementDeque>> imuMeasCanopy,
+      const std::vector<okvis::ImuMeasurementDeque,
+                        Eigen::aligned_allocator<okvis::ImuMeasurementDeque>>&
+          imuMeasCanopy,
       const okvis::kinematics::Transformation& T_SC_base,
       const std::vector<okvis::Time>& stateEpoch,
       const std::vector<double>& tdAtCreation, double gravityMag);
@@ -173,17 +182,22 @@ class EpipolarFactor
   }
 
  protected:
-  std::vector<Eigen::Vector2d, Eigen::aligned_allocator<Eigen::Vector2d>> measurement_;
-  std::vector<Eigen::Matrix2d, Eigen::aligned_allocator<Eigen::Matrix2d>> covariance_;
 
   // An independent copy of the camera model from other EpipolarFactor's copies.
   // The camera model is volatile and updated in every Evaluate() step.
   mutable std::shared_ptr<camera_geometry_t> cameraGeometryBase_;
+
+  std::vector<Eigen::Vector2d, Eigen::aligned_allocator<Eigen::Vector2d>> measurement_;
+  std::vector<Eigen::Matrix2d, Eigen::aligned_allocator<Eigen::Matrix2d>> covariance_;
+
+  // const after initialization
+  std::vector<okvis::ImuMeasurementDeque,
+              Eigen::aligned_allocator<okvis::ImuMeasurementDeque>>
+      imuMeasCanopy_;
+
   // T_SC_base_ is volatile and updated in every Evaluate() step.
   // assume the two measurements are made by the same camera
   mutable okvis::kinematics::Transformation T_SC_base_;
-  // const after initialization
-  std::vector<std::shared_ptr<const okvis::ImuMeasurementDeque>> imuMeasCanopy_;
 
   // weighting related, they will be computed along with the residual
 //  double information_; ///< The information matrix.
@@ -194,6 +208,7 @@ class EpipolarFactor
 
   const double gravityMag_; ///< gravity in the world frame is [0, 0, -gravityMag_].
   double dtij_dtr_[2];  ///< kpN for left and right obs
+
   /**
    * @brief computePoseAndVelocityAtExposure compute T_WS at the time of exposure
    * @param[in/out] pairT_WS in order to avoid use of okvis::Transformation

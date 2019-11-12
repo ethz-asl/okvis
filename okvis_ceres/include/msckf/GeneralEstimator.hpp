@@ -119,7 +119,20 @@ class GeneralEstimator : public Estimator
    */
   virtual void optimize(size_t numIter, size_t numThreads = 1, bool verbose = false);
 
+  /**
+   * @brief Remove an observation from a landmark.
+   * @param residualBlockId Residual ID for this landmark.
+   * @return the removed keypoint if successful, default keypoint if failed.
+   */
+  okvis::KeypointIdentifier removeObservationOfLandmark(
+      ::ceres::ResidualBlockId residualBlockId, uint64_t landmarkId);
 };
+
+inline bool areTwoViewConstraints(const MapPoint& mp,
+                                  size_t numLandmarkResiduals) {
+  return mp.observations.begin()->second == 0u &&
+         numLandmarkResiduals == 0u;
+}
 
 }  // namespace okvis
 
