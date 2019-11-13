@@ -669,6 +669,7 @@ bool GeneralEstimator::applyMarginalizationStrategy(
             uint64_t poseId = mapPtr_->parameters(residuals[r].residualBlockId).at(0).first;
             if((vectorContains(removeFrames,poseId) && hasNewObservations) ||
                 (!vectorContains(allLinearizedFrames,poseId) && marginalize)){
+              // TODO(jhuai): how come a observation satisfy the second condition?
               // ok, let's ignore the observation.
               removeObservation(residuals[r].residualBlockId);
               residuals.erase(residuals.begin() + r);
@@ -713,7 +714,6 @@ bool GeneralEstimator::applyMarginalizationStrategy(
     }
 
     {
-      std::set<uint64_t> removeHeadObsLandmarks;
       for (auto residualId : twoViewResiduals) {
         uint64_t twoPoseIds[2] = {mapPtr_->parameters(residualId).at(0).first,
                                   mapPtr_->parameters(residualId).at(1).first};
@@ -723,14 +723,13 @@ bool GeneralEstimator::applyMarginalizationStrategy(
         std::shared_ptr<okvis::ceres::ReprojectionErrorBase> epiFactor =
             std::static_pointer_cast<okvis::ceres::ReprojectionErrorBase>(errorPtr);
         uint64_t lmId = epiFactor->landmarkId();
-
-        okvis::KeypointIdentifier kpi = removeObservationOfLandmark(
-            residualId, lmId);  // remove residual block and obs from MapPoint
+        okvis::KeypointIdentifier kpi =
+            removeObservationOfLandmark(residualId, lmId);
+        mapPtr_->removeResidualBlock(residualId);
         if (vectorContains(removeFrames, twoPoseIds[0])) {
           // reset the id in the right multiframe
           multiFrame(kpi.frameId)
               ->setLandmarkId(kpi.cameraIndex, kpi.keypointIndex, 0);
-          removeHeadObsLandmarks.insert(lmId);
           OKVIS_ASSERT_FALSE(Exception,
                              vectorContains(removeFrames, twoPoseIds[1]),
                              "This may violate the assumption that "
@@ -741,19 +740,30 @@ bool GeneralEstimator::applyMarginalizationStrategy(
         //          be deleted
         //        }
       }
-      for (auto lmId : removeHeadObsLandmarks) {
-        removeObservationOfLandmark(0, lmId);
-        auto iterLandmark = landmarksMap_.find(lmId);
-        if (iterLandmark != landmarksMap_.end() &&
-            iterLandmark->second.observations.size() == 0) {
-          mapPtr_->removeParameterBlock(iterLandmark->first);
-          removedLandmarks.push_back(iterLandmark->second);
-          landmarksMap_.erase(iterLandmark);
-        } else {  // the landmark should have zero observations by now
-          std::cerr << "A landmark removing head obs has observations "
-                    << iterLandmark->second.observations.size() << std::endl;
+
+      // for every landmark, remove its observations in removeFrames,
+      // This is needed because some obs are added without associated residuals
+      for (PointMap::iterator pit = landmarksMap_.begin();
+           pit != landmarksMap_.end();) {
+        for (auto obsIter = pit->second.observations.begin();
+             obsIter != pit->second.observations.end();) {
+          if (vectorContains(removeFrames, obsIter->first.frameId)) {
+            OKVIS_ASSERT_EQ(Exception, obsIter->second, 0u,
+                            "Landmark residual should have been removed");
+            obsIter = pit->second.observations.erase(obsIter);
+          } else {
+            ++obsIter;
+          }
+        }
+        if (pit->second.observations.size() == 0) {
+          mapPtr_->removeParameterBlock(pit->first);
+          removedLandmarks.push_back(pit->second);
+          pit = landmarksMap_.erase(pit);
+        } else {
+          ++pit;
         }
       }
+
       if (it->second.isKeyframe) {
         inertialMeasForStates_.pop_front(it->second.timestamp - half_window_);
       }
@@ -890,8 +900,6 @@ okvis::KeypointIdentifier GeneralEstimator::removeObservationOfLandmark(
       it++;
     }
   }
-  // remove residual block
-  mapPtr_->removeResidualBlock(residualBlockId);
   return kpi;
 }
 }  // namespace okvis

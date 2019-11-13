@@ -400,6 +400,8 @@ class Estimator : public VioBackendInterface
   // return number of observations for a landmark in the landmark map
   size_t numObservations(uint64_t landmarkId) const;
 
+  size_t minTrackLength() const { return minTrackLength_; }
+
   ///@}
   /// @name Setters
   ///@{
@@ -493,7 +495,7 @@ class Estimator : public VioBackendInterface
   template <class GEOMETRY_TYPE>
   bool addEpipolarConstraint(uint64_t landmarkId, uint64_t poseId,
                              size_t camIdx, size_t keypointIdx,
-                             bool removeExisting = false);
+                             bool removeExisting);
 
   /**
    * @brief Add an observation to a landmark without adding residual, ONLY used

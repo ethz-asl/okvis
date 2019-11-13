@@ -43,13 +43,19 @@ EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
             imuMeasCanopy,
         const okvis::kinematics::Transformation& T_SC_base,
         const std::vector<okvis::Time>& stateEpoch,
-        const std::vector<double>& tdAtCreation, double gravityMag)
+        const std::vector<double>& tdAtCreation,
+        const std::vector<
+            Eigen::Matrix<double, 9, 1>,
+            Eigen::aligned_allocator<Eigen::Matrix<double, 9, 1>>>&
+            speedAndBiases,
+        double gravityMag)
     : measurement_(measurement12),
       covariance_(covariance12),
       imuMeasCanopy_(imuMeasCanopy),
       T_SC_base_(T_SC_base),
       stateEpoch_(stateEpoch),
       tdAtCreation_(tdAtCreation),
+      speedAndBiases_(speedAndBiases),
       gravityMag_(gravityMag) {
   ReprojectionErrorBase::setLandmarkId(landmarkId);
   setCameraGeometry(cameraGeometry);
@@ -78,8 +84,7 @@ void EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
         double const* const* parameters, int index) const {
   double trLatestEstimate = parameters[5][0];
   double tdLatestEstimate = parameters[6][0];
-  Eigen::Matrix<double, 9, 1> speedBgBa =
-      Eigen::Map<const Eigen::Matrix<double, 9, 1>>(parameters[7 + index]);
+  Eigen::Matrix<double, 9, 1> speedBgBa = speedAndBiases_[index];
 
   double relativeFeatureTime =
       tdLatestEstimate + trLatestEstimate * dtij_dtr_[index] - tdAtCreation_[index];
@@ -124,7 +129,8 @@ bool EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
   Eigen::Map<const Eigen::Vector3d> t_SC_S(parameters[2]);
   const Eigen::Quaterniond q_SC(parameters[2][6], parameters[2][3],
                                 parameters[2][4], parameters[2][5]);
-
+  // TODO(jhuai): use GEOMETRY_TYPE::NumIntrinsics will lead to undefined
+  // reference to NumIntrinsics of 4 instantiated PinholeCamera template class.
   Eigen::VectorXd intrinsics(4 + kDistortionDim);
   if (PROJ_INTRINSIC_MODEL::kNumParams) {
     Eigen::Map<const Eigen::Matrix<double, PROJ_INTRINSIC_MODEL::kNumParams, 1>>
@@ -158,7 +164,6 @@ bool EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
         cameraGeometryBase_->backProject(measurement_[j], &xy1[j]);
     if (!validDirection) {
       backProjectOk = false;
-      break;
     }
   }
 
@@ -178,7 +183,6 @@ bool EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
                              pixelNoiseStd, &dfj_dXcam[j], &cov_fj[j]);
     if (!projectOk) {
       directionJacOk = false;
-      break;
     }
   }
 
@@ -202,10 +206,11 @@ bool EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
                  de_dfj[1] * cov_fj[1] * de_dfj[1].transpose();
   bool covOk = cov_e[0] > 1e-8;
   squareRootInformation_ = std::sqrt(1.0 / cov_e[0]);
-  // implicit observation is 0
-  *residuals = squareRootInformation_ * epj.evaluate();
 
   bool valid = backProjectOk && directionJacOk && covOk;
+  // implicit observation is 0
+  residuals[0] = valid ? squareRootInformation_ * epj.evaluate() : 0.0;
+
   if (jacobians != NULL) {
     if (!valid) {
       setJacobiansZero(jacobians, jacobiansMinimal);
@@ -384,23 +389,6 @@ bool EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
         jacobiansMinimal[6][0] = squareRootInformation_ * de_dtd;
       }
     }
-    // sb1, sb2
-    // TODO(jhuai): let imu propagation provides the Jacobians for bg and ba
-    for (int index = 0; index < 2; ++index) {
-      if (jacobians[7 + index]) {
-        Eigen::Map<Eigen::Matrix<double, kNumResiduals, 9, Eigen::RowMajor>>
-            jacMapped(jacobians[7 + index]);
-        jacMapped.setZero();
-        jacMapped.head<3>() = squareRootInformation_ * de_dv_GBtj[index];
-        if (jacobiansMinimal && jacobiansMinimal[7 + index]) {
-          Eigen::Map<Eigen::Matrix<double, kNumResiduals, 9, Eigen::RowMajor>>
-              jacMinimalMapped(jacobiansMinimal[7 + index]);
-          jacMinimalMapped.setZero();
-          jacMinimalMapped.head<3>() =
-              squareRootInformation_ * de_dv_GBtj[index];
-        }
-      }
-    }
   }
   return true;
 }
@@ -417,8 +405,6 @@ void EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
   zeroJacobian<kDistortionDim, kDistortionDim, 1>(4, jacobians, jacobiansMinimal);
   zeroJacobianOne<1>(5, jacobians, jacobiansMinimal);
   zeroJacobianOne<1>(6, jacobians, jacobiansMinimal);
-  zeroJacobian<9, 9, 1>(7, jacobians, jacobiansMinimal);
-  zeroJacobian<9, 9, 1>(8, jacobians, jacobiansMinimal);
 }
 
 }  // namespace ceres

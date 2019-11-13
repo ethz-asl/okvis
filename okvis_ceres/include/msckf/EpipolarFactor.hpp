@@ -45,9 +45,7 @@ class EpipolarFactor
           ,
           GEOMETRY_TYPE::distortion_t::NumDistortionIntrinsics,
           1 /* frame readout time */,
-          1 /* time offset between visual and inertial data */,
-          9 /* velocity and biases for left pose */,
-          9 /* velocity and biases for right pose */
+          1 /* time offset between visual and inertial data */
           >,
       public ReprojectionErrorBase /* use this base to simplify handling visual
                                       constraints in marginalization.
@@ -65,7 +63,7 @@ class EpipolarFactor
   /// \brief The base class type.
   typedef ::ceres::SizedCostFunction<
       1, 7, 7, EXTRINSIC_MODEL::kGlobalDim, PROJ_INTRINSIC_MODEL::kNumParams,
-      kDistortionDim, 1, 1, 9, 9>
+      kDistortionDim, 1, 1>
       base_t;
 
   /// \brief Number of residuals (2)
@@ -111,7 +109,11 @@ class EpipolarFactor
           imuMeasCanopy,
       const okvis::kinematics::Transformation& T_SC_base,
       const std::vector<okvis::Time>& stateEpoch,
-      const std::vector<double>& tdAtCreation, double gravityMag);
+      const std::vector<double>& tdAtCreation,
+      const std::vector<Eigen::Matrix<double, 9, 1>,
+                        Eigen::aligned_allocator<Eigen::Matrix<double, 9, 1>>>&
+          speedAndBiases,
+      double gravityMag);
 
   /// \brief Trivial destructor.
   virtual ~EpipolarFactor()
@@ -205,7 +207,11 @@ class EpipolarFactor
 
   std::vector<okvis::Time> stateEpoch_; ///< The timestamp of the set of robot states related to this error term.
   std::vector<double> tdAtCreation_;
-
+  ///< To avoid complication in marginalizing speed and biases, first estimates
+  ///  of speed and biases are used for computing pose at exposure.
+  std::vector<Eigen::Matrix<double, 9, 1>,
+              Eigen::aligned_allocator<Eigen::Matrix<double, 9, 1>>>
+      speedAndBiases_;
   const double gravityMag_; ///< gravity in the world frame is [0, 0, -gravityMag_].
   double dtij_dtr_[2];  ///< kpN for left and right obs
 

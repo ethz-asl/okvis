@@ -149,6 +149,32 @@ bool Estimator::addEpipolarConstraint(uint64_t landmarkId, uint64_t poseId,
 
   std::vector<double> tdAtCreation = {stateLeft.tdAtCreation.toSec(),
                                       stateRight.tdAtCreation.toSec()};
+
+  std::vector<okvis::SpeedAndBias,
+              Eigen::aligned_allocator<okvis::SpeedAndBias>>
+      speedAndBias12(2);
+  // The below speed and bias block may not exist because marginalization step
+  // may marginalize speed and biases without removing poses.
+  // TODO(jhuai): fix this issue by always marg speed and bias along with
+  // keyframes or discard them along with frames as in VINS-Mono
+//  uint64_t sbId = stateLeft.sensors.at(SensorStates::Imu)
+//                      .at(0)
+//                      .at(ImuSensorStates::SpeedAndBias)
+//                      .id;
+//  speedAndBias12[0] =
+//      std::static_pointer_cast<ceres::SpeedAndBiasParameterBlock>(
+//          mapPtr_->parameterBlockPtr(sbId))
+//          ->estimate();
+  uint64_t sbId = stateRight.sensors.at(SensorStates::Imu)
+             .at(0)
+             .at(ImuSensorStates::SpeedAndBias)
+             .id;
+  speedAndBias12[1] =
+      std::static_pointer_cast<ceres::SpeedAndBiasParameterBlock>(
+          mapPtr_->parameterBlockPtr(sbId))
+          ->estimate();
+  speedAndBias12[0] = speedAndBias12[1];
+
   double gravityMag = imuParametersVec_.at(0).g;
 
   std::shared_ptr<ceres::EpipolarFactor<CAMERA_GEOMETRY_T, Extrinsic_p_SC_q_SC,
@@ -157,7 +183,9 @@ bool Estimator::addEpipolarConstraint(uint64_t landmarkId, uint64_t poseId,
           new ceres::EpipolarFactor<CAMERA_GEOMETRY_T, Extrinsic_p_SC_q_SC,
                                     ProjectionOptFXY_CXY>(
               argCameraGeometry, landmarkId, measurement12, covariance12,
-              imuMeasCanopy, T_SC_base, stateEpoch, tdAtCreation, gravityMag));
+              imuMeasCanopy, T_SC_base, stateEpoch, tdAtCreation,
+              speedAndBias12, gravityMag));
+
 
   ::ceres::ResidualBlockId retVal = mapPtr_->addResidualBlock(
       twoViewError,
@@ -183,14 +211,6 @@ bool Estimator::addEpipolarConstraint(uint64_t landmarkId, uint64_t poseId,
       mapPtr_->parameterBlockPtr(stateRight.sensors.at(SensorStates::Camera)
                                      .at(camIdx)
                                      .at(CameraSensorStates::TD)
-                                     .id),
-      mapPtr_->parameterBlockPtr(stateLeft.sensors.at(SensorStates::Imu)
-                                     .at(0)
-                                     .at(ImuSensorStates::SpeedAndBias)
-                                     .id),
-      mapPtr_->parameterBlockPtr(stateRight.sensors.at(SensorStates::Imu)
-                                     .at(0)
-                                     .at(ImuSensorStates::SpeedAndBias)
                                      .id));
 
   if (removeExisting) {
@@ -199,6 +219,7 @@ bool Estimator::addEpipolarConstraint(uint64_t landmarkId, uint64_t poseId,
       if (obsIter->second != 0) {
         mapPtr_->removeResidualBlock(
             reinterpret_cast<::ceres::ResidualBlockId>(obsIter->second));
+        obsIter->second = 0;
       }
     }
   }
