@@ -67,9 +67,9 @@ Eigen::Vector4d triangulateFast(const Eigen::Vector3d & p1,
 
 /**
  * @brief hasLowDisparity
- * @param e1 ray in frame A expressed in frame A
- * @param e2 ray in frame B expressed in frame B
- * @param e3 ray in frame B expressed in frame A, rotation compensated
+ * @param e1 unit ray in frame A expressed in frame A
+ * @param e2 unit ray in frame B expressed in frame B
+ * @param e3 unit ray in frame B expressed in frame A, rotation compensated
  * @param sigma raySigma
  * @return
  */

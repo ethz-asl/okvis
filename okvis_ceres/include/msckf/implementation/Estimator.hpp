@@ -79,9 +79,9 @@ bool Estimator::getSensorStateEstimateAs(
 }
 
 template <class CAMERA_GEOMETRY_T>
-bool Estimator::replaceEpipolarWithReprojectionErrors(uint64_t lmId) {
-  PointMap::iterator it = landmarksMap_.find(lmId);
-  std::map<okvis::KeypointIdentifier, uint64_t>& obsMap = it->second.observations;
+bool Estimator::replaceEpipolarWithReprojectionErrors(uint64_t /*lmId*/) {
+//  PointMap::iterator it = landmarksMap_.find(lmId);
+//  std::map<okvis::KeypointIdentifier, uint64_t>& obsMap = it->second.observations;
   // remove all previous (epipolar constraint) residual blocks for
   // this landmark if exist, use the ResidualBlockId which is the map value
 
