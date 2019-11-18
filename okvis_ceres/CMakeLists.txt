@@ -31,6 +31,7 @@ add_library(${PROJECT_NAME}
   msckf/GeneralEstimator.cpp
   msckf/ImuRig.cpp
   msckf/InitialPVandStd.cpp
+  msckf/PriorlessEstimator.cpp
   msckf/checkSensorRig.cpp
 )
 

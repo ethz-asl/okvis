@@ -209,6 +209,8 @@ class ExtrinsicObserver {
     for (auto T_SC : vT_SCi) {
       Eigen::Vector3d r = T_SC.r();
       output_stream_ << " " << r[0] << " " << r[1] << " " << r[2];
+      Eigen::Vector4d q = T_SC.q().coeffs();
+      output_stream_ << " " << q[0] << " " << q[1] << " " << q[2] << " " << q[3];
     }
     output_stream_ << std::endl;
   }

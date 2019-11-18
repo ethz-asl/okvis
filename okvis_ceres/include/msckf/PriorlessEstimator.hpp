@@ -1,12 +1,12 @@
 
 /**
- * @file msckf/GeneralEstimator.hpp
- * @brief Header file for the GeneralEstimator class. This does all the backend work.
+ * @file msckf/PriorlessEstimator.hpp
+ * @brief Header file for the PriorlessEstimator class. This does all the backend work.
  * @author Jianzhu Huai
  */
 
-#ifndef INCLUDE_MSCKF_GENERAL_ESTIMATOR_HPP_
-#define INCLUDE_MSCKF_GENERAL_ESTIMATOR_HPP_
+#ifndef INCLUDE_MSCKF_PRIORLESS_ESTIMATOR_HPP_
+#define INCLUDE_MSCKF_PRIORLESS_ESTIMATOR_HPP_
 
 #include <memory>
 #include <mutex>
@@ -34,7 +34,7 @@
 
 /// \brief okvis Main namespace of this package.
 namespace okvis {
-class GeneralEstimator : public Estimator
+class PriorlessEstimator : public Estimator
 {
  public:
   OKVIS_DEFINE_EXCEPTION(Exception, std::runtime_error)
@@ -43,14 +43,14 @@ class GeneralEstimator : public Estimator
   /**
    * @brief The default constructor.
    */
-  GeneralEstimator();
+  PriorlessEstimator();
 
   /**
    * @brief Constructor if a ceres map is already available.
    * @param mapPtr Shared pointer to ceres map.
    */
-  GeneralEstimator(std::shared_ptr<okvis::ceres::Map> mapPtr);
-  virtual ~GeneralEstimator();
+  PriorlessEstimator(std::shared_ptr<okvis::ceres::Map> mapPtr);
+  virtual ~PriorlessEstimator();
 
   /**
    * @brief Add a pose to the state.
@@ -85,21 +85,7 @@ class GeneralEstimator : public Estimator
    */
   virtual void optimize(size_t numIter, size_t numThreads = 1, bool verbose = false);
 
-  /**
-   * @brief Remove an observation from a landmark.
-   * @param residualBlockId Residual ID for this landmark.
-   * @return the removed keypoint if successful, default keypoint if failed.
-   */
-  okvis::KeypointIdentifier removeObservationOfLandmark(
-      ::ceres::ResidualBlockId residualBlockId, uint64_t landmarkId);
 };
-
-inline bool areTwoViewConstraints(const MapPoint& mp,
-                                  size_t numLandmarkResiduals) {
-  return mp.observations.begin()->second == 0u &&
-         numLandmarkResiduals == 0u;
-}
-
 }  // namespace okvis
 
-#endif /* #ifndef INCLUDE_MSCKF_GENERAL_ESTIMATOR_HPP_ */
+#endif /* #ifndef INCLUDE_MSCKF_PRIORLESS_ESTIMATOR_HPP_ */

@@ -46,6 +46,7 @@
 #include <okvis/assert_macros.hpp>
 #include <okvis/ceres/ImuError.hpp>
 #include <msckf/GeneralEstimator.hpp>
+#include <msckf/PriorlessEstimator.hpp>
 
 /// \brief okvis Main namespace of this package.
 namespace okvis {
@@ -84,8 +85,11 @@ ThreadedKFVio::ThreadedKFVio(okvis::VioParameters& parameters)
           2 * max_camera_input_queue_size * parameters.imu.rate
               / parameters.sensors_information.cameraRate) {
   switch (parameters.optimization.algorithm) {
-    case 4:
+    case 1:
       estimator_.reset(new okvis::GeneralEstimator());
+      break;
+    case 2:
+      estimator_.reset(new okvis::PriorlessEstimator());
       break;
     case 0:
     default:
