@@ -273,6 +273,8 @@ bool PriorlessEstimator::addStates(
     // a term for global states as well as for the sensor-internal ones (i.e. biases).
     // TODO: magnetometer, pressure, ...
   }
+  // record the imu measurements between two consecutive states
+  inertialMeasForStates_.push_back(imuMeasurements);
 
   return true;
 }
@@ -313,19 +315,77 @@ bool PriorlessEstimator::applyMarginalizationStrategy(
   }
 
   // distinguish if we marginalize everything or everything but pose
-  std::vector<uint64_t> removeFrames;
+  std::vector<uint64_t> removeKeyframes;
+  std::vector<uint64_t> removeRegularFrames; // pose and replace sensor state factors
   std::vector<uint64_t> removeAllButPose;
   std::vector<uint64_t> allLinearizedFrames;
   size_t countedKeyframes = 0;
   while (rit != statesMap_.rend()) {
-    if (!rit->second.isKeyframe || countedKeyframes >= numKeyframes) {
-      removeFrames.push_back(rit->second.id);
+    if (!rit->second.isKeyframe) {
+      removeRegularFrames.push_back(rit->second.id);
     } else {
+      if (countedKeyframes >= numKeyframes) {
+        removeKeyframes.push_back(rit->second.id);
+        removeAllButPose.push_back(rit->second.id);
+      }
       countedKeyframes++;
     }
-    removeAllButPose.push_back(rit->second.id);
     allLinearizedFrames.push_back(rit->second.id);
     ++rit;// check the next frame
+  }
+
+  // In the case that only the pose of a regular frame will be marginalized
+  // without the sensor states, replace its two IMU factors with one IMU factor.
+  for (size_t index = 0; index < removeRegularFrames.size(); ++index) {
+    std::map<uint64_t, States>::iterator it =
+        statesMap_.find(removeRegularFrames[index]);
+    // delete the old ImuError
+    size_t i = SensorStates::Imu;
+    for (size_t j = 0; j < it->second.sensors[i].size(); ++j) {
+      size_t k = ImuSensorStates::SpeedAndBias;
+      OKVIS_ASSERT_TRUE(
+          Exception, it->second.sensors[i][j][k].exists,
+          "Speed and bias params do not exist for a regular frame!");
+      it->second.sensors[i][j][k].exists = false;  // remember we removed
+      ceres::Map::ResidualBlockCollection residuals =
+          mapPtr_->residuals(it->second.sensors[i][j][k].id);
+      OKVIS_ASSERT_EQ(Exception, residuals.size(), 2u,
+                      "Except for the very first one, each speed and bias "
+                      "param block should have 2 residuals!");
+      mapPtr_->removeParameterBlock(it->second.sensors[i][j][k].id);
+    }
+    mapPtr_->removeParameterBlock(it->second.id);
+
+    // add an alternate ImuError
+    // TODO(jhuai): do we cap the time range, e.g., 10 sec as in VINS Mono?
+    std::map<uint64_t, States>::iterator previt = it;
+    --previt;
+    std::map<uint64_t, States>::iterator nextit = it;
+    ++nextit;
+    okvis::ImuMeasurementDeque imuMeasurements = inertialMeasForStates_.find(
+        previt->second.timestamp, nextit->second.timestamp);
+    OKVIS_ASSERT_GE(Exception, imuMeasurements.size(), 1, "None imu data found!");
+    for (size_t i = 0; i < imuParametersVec_.size(); ++i) {
+      std::shared_ptr<ceres::ImuError> imuError(new ceres::ImuError(
+          imuMeasurements, imuParametersVec_.at(i), previt->second.timestamp,
+          nextit->second.timestamp));
+      mapPtr_->addResidualBlock(imuError, NULL,
+                                mapPtr_->parameterBlockPtr(previt->second.id),
+                                mapPtr_->parameterBlockPtr(
+                                    previt->second.sensors.at(SensorStates::Imu)
+                                        .at(i)
+                                        .at(ImuSensorStates::SpeedAndBias)
+                                        .id),
+                                mapPtr_->parameterBlockPtr(nextit->second.id),
+                                mapPtr_->parameterBlockPtr(
+                                    nextit->second.sensors.at(SensorStates::Imu)
+                                        .at(i)
+                                        .at(ImuSensorStates::SpeedAndBias)
+                                        .id));
+    }
+
+    multiFramePtrMap_.erase(it->second.id);
+    statesMap_.erase(it);
   }
 
   // marginalize everything but pose:
@@ -402,8 +462,8 @@ bool PriorlessEstimator::applyMarginalizationStrategy(
   }
   // marginalize ONLY pose now:
 //  bool reDoFixation = false;
-  for(size_t k = 0; k<removeFrames.size(); ++k){
-    std::map<uint64_t, States>::iterator it = statesMap_.find(removeFrames[k]);
+  for(size_t k = 0; k<removeKeyframes.size(); ++k){
+    std::map<uint64_t, States>::iterator it = statesMap_.find(removeKeyframes[k]);
 
     // schedule removal - but always keep the very first frame.
     //if(it != statesMap_.begin()){
@@ -494,7 +554,7 @@ bool PriorlessEstimator::applyMarginalizationStrategy(
             // if(vectorContains(allLinearizedFrames,poseId)){ ...
             //   if (error.transpose() * error > 6.0) { ... removeObservation ... }
             // }
-            if(vectorContains(removeFrames,poseId)){
+            if(vectorContains(removeKeyframes,poseId)){
               skipLandmark = false;
             }
             if(poseId>=currentKfId){
@@ -527,7 +587,7 @@ bool PriorlessEstimator::applyMarginalizationStrategy(
                   residuals[r].errorInterfacePtr);
           if (reprojectionError) {
             uint64_t poseId = mapPtr_->parameters(residuals[r].residualBlockId).at(0).first;
-            if((vectorContains(removeFrames,poseId) && hasNewObservations) ||
+            if((vectorContains(removeKeyframes,poseId) && hasNewObservations) ||
                 (!vectorContains(allLinearizedFrames,poseId) && marginalize)){
               // ok, let's ignore the observation.
               removeObservation(residuals[r].residualBlockId);
@@ -570,6 +630,10 @@ bool PriorlessEstimator::applyMarginalizationStrategy(
 
         pit++;
       }
+    }
+
+    if (it->second.isKeyframe) {
+      inertialMeasForStates_.pop_front(it->second.timestamp - half_window_);
     }
 
     // update book-keeping and go to the next frame
