@@ -1419,8 +1419,8 @@ bool Estimator::addLandmarkObservation(uint64_t landmarkId, uint64_t poseId,
   }
 
   landmarksMap_.at(landmarkId)
-      .observations.insert(std::pair<okvis::KeypointIdentifier, uint64_t>(
-          kid, reinterpret_cast<uint64_t>(nullptr)));
+      .observations.emplace(
+          kid, 0u);
   return true;
 }
 

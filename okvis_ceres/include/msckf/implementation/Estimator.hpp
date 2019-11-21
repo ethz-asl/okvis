@@ -79,13 +79,35 @@ bool Estimator::getSensorStateEstimateAs(
 }
 
 template <class CAMERA_GEOMETRY_T>
-bool Estimator::replaceEpipolarWithReprojectionErrors(uint64_t /*lmId*/) {
-//  PointMap::iterator it = landmarksMap_.find(lmId);
-//  std::map<okvis::KeypointIdentifier, uint64_t>& obsMap = it->second.observations;
-  // remove all previous (epipolar constraint) residual blocks for
-  // this landmark if exist, use the ResidualBlockId which is the map value
+bool Estimator::replaceEpipolarWithReprojectionErrors(uint64_t lmId) {
+  PointMap::iterator lmIt = landmarksMap_.find(lmId);
+  std::map<okvis::KeypointIdentifier, uint64_t>& obsMap =
+      lmIt->second.observations;
+  for (std::map<okvis::KeypointIdentifier, uint64_t>::iterator obsIter = obsMap.begin();
+       obsIter != obsMap.end(); ++obsIter) {
+    if (obsIter->second != 0u) {
+      mapPtr_->removeResidualBlock(
+          reinterpret_cast<::ceres::ResidualBlockId>(obsIter->second));
+    }
+    const KeypointIdentifier& kpi = obsIter->first;
+    // get the keypoint measurement
+    okvis::MultiFramePtr multiFramePtr = multiFramePtrMap_.at(kpi.frameId);
+    Eigen::Vector2d measurement;
+    multiFramePtr->getKeypoint(kpi.cameraIndex, kpi.keypointIndex, measurement);
+    Eigen::Matrix2d information = Eigen::Matrix2d::Identity();
+    double size = 1.0;
+    multiFramePtr->getKeypointSize(kpi.cameraIndex, kpi.keypointIndex, size);
+    information *= 64.0 / (size * size);
 
-  // add all observations as reprojection errors
+    std::shared_ptr<okvis::cameras::CameraBase> baseCameraGeometry =
+        camera_rig_.getCameraGeometry(kpi.cameraIndex);
+    std::shared_ptr<const CAMERA_GEOMETRY_T> argCameraGeometry =
+        std::static_pointer_cast<const CAMERA_GEOMETRY_T>(baseCameraGeometry);
+    ::ceres::ResidualBlockId retVal = addPointFrameResidual(
+        lmId, kpi.frameId, kpi.cameraIndex,
+        measurement, information, argCameraGeometry);
+    obsIter->second = reinterpret_cast<uint64_t>(retVal);
+  }
   return true;
 }
 
