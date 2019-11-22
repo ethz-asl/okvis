@@ -59,6 +59,12 @@
 /// \brief okvis Main namespace of this package.
 namespace okvis {
 
+enum RelativeMotionType {
+  UNCERTAIN_MOTION = 0,
+  RELATIVE_POSE,
+  ROTATION_ONLY,
+};
+
 /// \class Frame
 /// \brief A single camera frame equipped with keypoint detector / extractor.
 class Frame
@@ -187,8 +193,23 @@ class Frame
   /// \return The number of keypoints.
   inline size_t numKeypoints() const;
 
+  inline void setRelativeMotion(uint64_t relativeFrameId,
+                                RelativeMotionType relativeMotionType) {
+    relativeFrameId_ = relativeFrameId;
+    relativeMotionType_ = relativeMotionType;
+  }
+
+  inline void getRelativeMotion(uint64_t* relativeFrameId,
+                                RelativeMotionType* relativeMotionType) const {
+    *relativeFrameId = relativeFrameId_;
+    *relativeMotionType = relativeMotionType_;
+  }
+
+  cv::Mat getFrame() const {
+    return image_;
+  }
+
  protected:
- public:// Huai made public
   cv::Mat image_;  ///< the image as OpenCV's matrix
   std::shared_ptr<const cameras::CameraBase> cameraGeometry_;  ///< the camera geometry
   std::shared_ptr<cv::FeatureDetector> detector_;  ///< the detector
@@ -196,6 +217,8 @@ class Frame
   std::vector<cv::KeyPoint> keypoints_;  ///< we store keypoints using OpenCV's struct
   cv::Mat descriptors_;  ///< we store the descriptors using OpenCV's matrices
   std::vector<uint64_t> landmarkIds_;  ///< landmark Id, if associated -- 0 otherwise
+  uint64_t relativeFrameId_;
+  RelativeMotionType relativeMotionType_;
 };
 
 }  // namespace okvis

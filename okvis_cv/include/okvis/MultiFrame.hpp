@@ -272,12 +272,16 @@ public:
   cameras::NCameraSystem& GetCameraSystem() {
       return cameraSystem_;
   }
-  cv::Mat getDescriptors(size_t cameraIdx) {
-    OKVIS_ASSERT_TRUE_DBG(Exception, cameraIdx < frames_.size(), "Out of range");
-    return frames_[cameraIdx].descriptors_;
-  }
   cv::Mat getFrame(size_t cameraIdx) {
-      return frames_[cameraIdx].image_;
+      return frames_[cameraIdx].getFrame();
+  }
+  void getRelativeMotion(size_t cameraIdx, uint64_t* relativeFrameId,
+                         RelativeMotionType* rmt) const {
+    frames_[cameraIdx].getRelativeMotion(relativeFrameId, rmt);
+  }
+  void setRelativeMotion(size_t cameraIdx, uint64_t relativeFrameId,
+                         RelativeMotionType rmt) {
+    frames_[cameraIdx].setRelativeMotion(relativeFrameId, rmt);
   }
 
   int idInSource; /// (0 based) id of the frame within the video or the image folder
