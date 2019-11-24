@@ -337,3 +337,52 @@ double opengv::relative_pose::FrameRelativeAdapter::getSigmaAngle2(
     size_t index) {
   return sigmaAngles2_[matches_[index].idxB];
 }
+
+void opengv::relative_pose::FrameRelativeAdapter::computeMatchStats(
+    std::shared_ptr<okvis::MultiFrame> frameBPtr, size_t camIdx,
+    double* overlap, double* matchingRatio) const {
+  *overlap = 0;
+  *matchingRatio = 0;
+  // get the hull of all keypoints in current frame
+  std::vector<cv::Point2f> frameBPoints, frameBHull;
+  std::vector<cv::Point2f> frameBMatches, frameBMatchesHull;
+
+  const size_t numB = frameBPtr->numKeypoints(camIdx);
+  frameBPoints.reserve(numB);
+  frameBMatches.reserve(matches_.size());
+
+  for (size_t k = 0; k < numB; ++k) {
+    Eigen::Vector2d keypoint;
+    frameBPtr->getKeypoint(camIdx, k, keypoint);
+    frameBPoints.push_back(cv::Point2f(keypoint[0], keypoint[1]));
+  }
+  for (size_t k = 0; k < matches_.size(); ++k) {
+    const size_t idx2 = matches_[k].idxB;
+    Eigen::Vector2d keypoint;
+    frameBPtr->getKeypoint(camIdx, idx2, keypoint);
+    frameBMatches.push_back(cv::Point2f(keypoint[0], keypoint[1]));
+  }
+
+  if (frameBPoints.size() < 3) return;
+  cv::convexHull(frameBPoints, frameBHull);
+  if (frameBMatches.size() < 3) return;
+  cv::convexHull(frameBMatches, frameBMatchesHull);
+
+  // areas
+  double frameBArea = cv::contourArea(frameBHull);
+  double frameBMatchesArea = cv::contourArea(frameBMatchesHull);
+
+  // overlap area
+  *overlap = frameBMatchesArea / frameBArea;
+  // matching ratio inside overlap area: count
+  int pointsInFrameBMatchesArea = 0;
+  if (frameBMatchesHull.size() > 2) {
+    for (size_t k = 0; k < frameBPoints.size(); ++k) {
+      if (cv::pointPolygonTest(frameBMatchesHull, frameBPoints[k], false) > 0) {
+        pointsInFrameBMatchesArea++;
+      }
+    }
+  }
+  *matchingRatio = static_cast<double>(frameBMatches.size()) /
+                   static_cast<double>(pointsInFrameBMatchesArea);
+}

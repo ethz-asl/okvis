@@ -179,6 +179,10 @@ class FrameRelativeAdapter : public RelativeAdapterBase {
     return 1.0;
   }  // TODO : figure out, if this is needed
 
+  void computeMatchStats(std::shared_ptr<okvis::MultiFrame> frameBPtr,
+                         size_t camIdx, double* overlap,
+                         double* matchRatio) const;
+
  private:
   /// The bearing vectors of the correspondences in frame 1.
   opengv::bearingVectors_t bearingVectors1_;
