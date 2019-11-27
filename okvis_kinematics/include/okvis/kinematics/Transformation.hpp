@@ -183,7 +183,7 @@ class Transformation
   /// \brief Transform a direction as v_A = C_AB*v_B (with rhs = hp_B)..
   /// \warning This only applies the rotation!
   /// @param[in] rhs The right-hand side direction for this to be multiplied with.
-  Eigen::Vector3d operator*(const Eigen::Vector3d & rhs) const;
+//  Eigen::Vector3d operator*(const Eigen::Vector3d & rhs) const;
 
   /// \brief Transform a homogenous point as hp_B = T_AB*hp_B (with rhs = hp_B).
   /// @param[in] rhs The right-hand side direction for this to be multiplied with.

@@ -216,10 +216,10 @@ inline Transformation Transformation::operator*(
     const Transformation & rhs) const {
   return Transformation(C_ * rhs.r_ + r_, q_ * rhs.q_);
 }
-inline Eigen::Vector3d Transformation::operator*(
-    const Eigen::Vector3d & rhs) const {
-  return C_ * rhs;
-}
+//inline Eigen::Vector3d Transformation::operator*(
+//    const Eigen::Vector3d & rhs) const {
+//  return C_ * rhs;
+//}
 inline Eigen::Vector4d Transformation::operator*(
     const Eigen::Vector4d & rhs) const {
   const double s = rhs[3];
