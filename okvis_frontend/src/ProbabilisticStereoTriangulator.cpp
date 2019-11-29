@@ -209,10 +209,11 @@ bool ProbabilisticStereoTriangulator<CAMERA_GEOMETRY_T>::stereoTriangulate(
 
   Eigen::Vector3d rayA_inA = backProjectionDirectionA_inA.normalized();
   Eigen::Vector3d rayB_inA = backProjectionDirectionB_inA.normalized();
+  bool flipped = false;
   Eigen::Vector4d hpA = triangulateFast(
       Eigen::Vector3d(0, 0, 0),  // center of A in A coordinates (0,0,0)
       rayA_inA, T_AB_.r(),  // center of B in A coordinates
-      rayB_inA, sigmaR, isValid, isParallel);
+      rayB_inA, sigmaR, isValid, isParallel, flipped);
 
   if (disparityCheck) {
     isParallel = isParallel || hasLowDisparity(rayA_inA, rayB_inB, rayB_inA, sigmaR);

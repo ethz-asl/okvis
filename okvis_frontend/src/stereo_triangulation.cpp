@@ -52,7 +52,7 @@ Eigen::Vector4d triangulateFast(const Eigen::Vector3d& p1,
                                 const Eigen::Vector3d& e1,
                                 const Eigen::Vector3d& p2,
                                 const Eigen::Vector3d& e2, double sigma,
-                                bool& isValid, bool& isParallel) {
+                                bool& isValid, bool& isParallel, bool& flipped) {
   isParallel = false; // This should be the default.
   // But parallel and invalid is not the same. Points at infinity are valid and parallel.
   isValid = false; // hopefully this will be reset to true.
@@ -114,9 +114,11 @@ Eigen::Vector4d triangulateFast(const Eigen::Vector3d& p1,
     isValid = false;  // reject large chi2-errors
   }
 
-  // flip if necessary
+  // flip if necessary. This may be needed during straightforward motion.
+  flipped = false;
   if (diff.dot(e1) < 0) {
     midpoint = (p1 + 0.5 * t12) - diff;
+    flipped = true;
   }
 
   return Eigen::Vector4d(midpoint[0], midpoint[1], midpoint[2], 1.0).normalized();
