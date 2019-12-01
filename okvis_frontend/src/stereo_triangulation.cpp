@@ -47,6 +47,9 @@ namespace okvis {
 /// \brief triangulation A namespace for operations related to triangulation.
 namespace triangulation {
 
+const double kMaxDepth = 1e3;
+const double kMinInvDepth = 1.0 / kMaxDepth;
+
 // Triangulate the intersection of two rays.
 Eigen::Vector4d triangulateFast(const Eigen::Vector3d& p1,
                                 const Eigen::Vector3d& e1,
@@ -96,7 +99,7 @@ Eigen::Vector4d triangulateFast(const Eigen::Vector3d& p1,
        isValid = true;  // check parallel
     }
     return (Eigen::Vector4d((e1[0] + e2[0]) / 2.0, (e1[1] + e2[1]) / 2.0,
-                            (e1[2] + e2[2]) / 2.0, 1e-3).normalized());
+                            (e1[2] + e2[2]) / 2.0, kMinInvDepth).normalized());
   }
 
   Eigen::Vector3d xm = lambda[0] * e1 + p1;
