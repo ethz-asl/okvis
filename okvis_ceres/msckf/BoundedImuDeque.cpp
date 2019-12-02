@@ -64,8 +64,6 @@ const okvis::ImuMeasurementDeque& BoundedImuDeque::getAllImuMeasurements()
   return imu_meas_;
 }
 
-// Get a subset of the recorded IMU measurements.
-// std::lower_bound for deque O(log N)
 okvis::ImuMeasurementDeque getImuMeasurements(
     const okvis::Time& imuDataBeginTime, const okvis::Time& imuDataEndTime,
     const okvis::ImuMeasurementDeque& imuMeasurements_,

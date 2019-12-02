@@ -27,7 +27,16 @@ class BoundedImuDeque {
   okvis::ImuMeasurementDeque imu_meas_;
 };
 
-// Get a subset of the recorded IMU measurements.
+/**
+ * @brief getImuMeasurements Get a subset of IMU readings falling into
+ *     BeginTime and EndTime. If possible, extend the IMU readings
+ *     by one on each side.
+ * @param imuDataBeginTime
+ * @param imuDataEndTime
+ * @param imuMeasurements_
+ * @param imuMeasurements_mutex_
+ * @return empty if no IMU readings fall into BeginTime and EndTime.
+ */
 okvis::ImuMeasurementDeque getImuMeasurements(
     const okvis::Time& imuDataBeginTime, const okvis::Time& imuDataEndTime,
     const okvis::ImuMeasurementDeque& imuMeasurements_,
