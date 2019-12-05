@@ -240,6 +240,14 @@ void parseOptimizationParameters(cv::FileNode optNode,
   }
   LOG(INFO) << "Translation threshold for feature triangulation is set to "
             << optParams->triangulationTranslationThreshold;
+  if (optNode["triangulationMaxDepth"].isReal()) {
+    optNode["triangulationMaxDepth"] >>
+        optParams->triangulationMaxDepth;
+  } else {
+    optParams->triangulationMaxDepth = 1000.0;
+  }
+  LOG(INFO) << "Max depth in triangulation is set to "
+            << optParams->triangulationMaxDepth;
   if (optNode["numClonedStates"].isInt()) {
     optParams->numClonedStates = static_cast<int>(optNode["numClonedStates"]);
     optParams->numKeyframes = 0;
