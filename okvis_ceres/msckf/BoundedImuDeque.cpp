@@ -19,7 +19,7 @@ int BoundedImuDeque::push_back(const okvis::ImuMeasurementDeque& imu_segment) {
     imu_meas_.insert(iter, imu_segment.begin(), imu_segment.end());
     return imu_segment.size();
   } else {
-    assert(iter->timeStamp == imu_segment.front().timeStamp);
+    CHECK_EQ(iter->timeStamp, imu_segment.front().timeStamp);
     if (imu_meas_.back().timeStamp < imu_segment.back().timeStamp) {
       size_t erased = imu_meas_.end() - iter;
       imu_meas_.erase(iter, imu_meas_.end());
