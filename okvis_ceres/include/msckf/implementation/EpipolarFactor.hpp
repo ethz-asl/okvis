@@ -132,11 +132,11 @@ bool EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
   // TODO(jhuai): use GEOMETRY_TYPE::NumIntrinsics will lead to undefined
   // reference to NumIntrinsics of 4 instantiated PinholeCamera template class.
   Eigen::VectorXd intrinsics(4 + kDistortionDim);
-  if (PROJ_INTRINSIC_MODEL::kNumParams) {
-    Eigen::Map<const Eigen::Matrix<double, PROJ_INTRINSIC_MODEL::kNumParams, 1>>
-        projIntrinsics(parameters[3]);
-    PROJ_INTRINSIC_MODEL::localToGlobal(projIntrinsics, &intrinsics);
-  }
+
+  Eigen::Map<const Eigen::Matrix<double, PROJ_INTRINSIC_MODEL::kNumParams, 1>>
+      projIntrinsics(parameters[3]);
+  PROJ_INTRINSIC_MODEL::localToGlobal(projIntrinsics, &intrinsics);
+
   Eigen::Map<const Eigen::Matrix<double, kDistortionDim, 1>>
       distortionIntrinsics(parameters[4]);
   intrinsics.tail<kDistortionDim>() = distortionIntrinsics;

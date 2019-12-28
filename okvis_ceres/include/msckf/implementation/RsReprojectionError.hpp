@@ -96,11 +96,11 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
   const Eigen::Quaterniond q_SC(parameters[2][6], parameters[2][3],
                                 parameters[2][4], parameters[2][5]);
   Eigen::VectorXd intrinsics(GEOMETRY_TYPE::NumIntrinsics);
-  if (PROJ_INTRINSIC_MODEL::kNumParams) {
-    Eigen::Map<const Eigen::Matrix<double, PROJ_INTRINSIC_MODEL::kNumParams, 1>>
-        projIntrinsics(parameters[3]);
-    PROJ_INTRINSIC_MODEL::localToGlobal(projIntrinsics, &intrinsics);
-  }
+
+  Eigen::Map<const Eigen::Matrix<double, PROJ_INTRINSIC_MODEL::kNumParams, 1>>
+      projIntrinsics(parameters[3]);
+  PROJ_INTRINSIC_MODEL::localToGlobal(projIntrinsics, &intrinsics);
+
   Eigen::Map<const Eigen::Matrix<double, kDistortionDim, 1>>
       distortionIntrinsics(parameters[4]);
   intrinsics.tail<kDistortionDim>() = distortionIntrinsics;
@@ -324,21 +324,17 @@ void RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
 
   // camera intrinsics
   if (jacobians[3] != NULL) {
-    if (PROJ_INTRINSIC_MODEL::kNumParams) {
-      Eigen::Map<Eigen::Matrix<double, 2, PROJ_INTRINSIC_MODEL::kNumParams,
-                               Eigen::RowMajor>>
-          J1(jacobians[3]);
-      Eigen::Matrix<double, 2, Eigen::Dynamic> Jpi_weighted_copy = Jpi_weighted;
-      PROJ_INTRINSIC_MODEL::kneadIntrinsicJacobian(&Jpi_weighted_copy);
-      J1 = -Jpi_weighted_copy
-                .template topLeftCorner<2, PROJ_INTRINSIC_MODEL::kNumParams>();
-      if (jacobiansMinimal != NULL) {
-        if (jacobiansMinimal[3] != NULL) {
-          Eigen::Map<Eigen::Matrix<double, 2, PROJ_INTRINSIC_MODEL::kNumParams,
-                                   Eigen::RowMajor>>
-              J1_minimal_mapped(jacobiansMinimal[3]);
-          J1_minimal_mapped = J1;
-        }
+    Eigen::Map<Eigen::Matrix<double, 2, PROJ_INTRINSIC_MODEL::kNumParams,
+        Eigen::RowMajor>> J1(jacobians[3]);
+    Eigen::Matrix<double, 2, Eigen::Dynamic> Jpi_weighted_copy = Jpi_weighted;
+    PROJ_INTRINSIC_MODEL::kneadIntrinsicJacobian(&Jpi_weighted_copy);
+    J1 = -Jpi_weighted_copy
+        .template topLeftCorner<2, PROJ_INTRINSIC_MODEL::kNumParams>();
+    if (jacobiansMinimal != NULL) {
+      if (jacobiansMinimal[3] != NULL) {
+        Eigen::Map<Eigen::Matrix<double, 2, PROJ_INTRINSIC_MODEL::kNumParams,
+            Eigen::RowMajor>> J1_minimal_mapped(jacobiansMinimal[3]);
+        J1_minimal_mapped = J1;
       }
     }
   }
@@ -533,11 +529,11 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
     std::cerr << "Potentially wrong Jacobians in autodiff " << std::endl;
 
   Eigen::VectorXd intrinsics(GEOMETRY_TYPE::NumIntrinsics);
-  if (PROJ_INTRINSIC_MODEL::kNumParams) {
-    Eigen::Map<const Eigen::Matrix<double, PROJ_INTRINSIC_MODEL::kNumParams, 1>>
-        projIntrinsics(parameters[3]);
-    PROJ_INTRINSIC_MODEL::localToGlobal(projIntrinsics, &intrinsics);
-  }
+
+  Eigen::Map<const Eigen::Matrix<double, PROJ_INTRINSIC_MODEL::kNumParams, 1>>
+      projIntrinsics(parameters[3]);
+  PROJ_INTRINSIC_MODEL::localToGlobal(projIntrinsics, &intrinsics);
+
   Eigen::Map<const Eigen::Matrix<double, kDistortionDim, 1>>
       distortionIntrinsics(parameters[4]);
   intrinsics.tail<kDistortionDim>() = distortionIntrinsics;

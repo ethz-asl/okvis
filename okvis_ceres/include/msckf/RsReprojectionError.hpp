@@ -23,6 +23,8 @@ namespace ceres {
 /// \brief The 2D keypoint reprojection error accounting for rolling shutter
 ///     skew and time offset and variable camera intrinsics.
 /// \tparam GEOMETRY_TYPE The camera gemetry type.
+/// \tparam PROJ_INTRINSIC_MODEL Its kNumParams should not be zero.
+/// \tparam EXTRINSIC_MODEL Its kNumParams should not be zero.
 template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL, class EXTRINSIC_MODEL>
 class RsReprojectionError
     : public ::ceres::SizedCostFunction<

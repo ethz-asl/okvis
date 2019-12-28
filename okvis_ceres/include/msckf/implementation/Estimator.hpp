@@ -199,15 +199,33 @@ bool Estimator::addEpipolarConstraint(uint64_t landmarkId, uint64_t poseId,
 
   double gravityMag = imuParametersVec_.at(0).g;
 
-  std::shared_ptr<ceres::EpipolarFactor<CAMERA_GEOMETRY_T, Extrinsic_p_SC_q_SC,
-                                        ProjectionOptFXY_CXY>>
-      twoViewError(
-          new ceres::EpipolarFactor<CAMERA_GEOMETRY_T, Extrinsic_p_SC_q_SC,
-                                    ProjectionOptFXY_CXY>(
-              argCameraGeometry, landmarkId, measurement12, covariance12,
-              imuMeasCanopy, T_SC_base, stateEpoch, tdAtCreation,
-              speedAndBias12, gravityMag));
-
+  std::shared_ptr<::ceres::CostFunction> twoViewError;
+  switch (camera_rig_.getProjectionOptMode(camIdx)) {
+  case ProjectionOptFixed::kModelId:
+  case ProjectionOptFXY_CXY::kModelId:
+      twoViewError.reset(new ceres::EpipolarFactor<CAMERA_GEOMETRY_T, Extrinsic_p_SC_q_SC,
+                         ProjectionOptFXY_CXY>(
+                             argCameraGeometry, landmarkId, measurement12, covariance12,
+                             imuMeasCanopy, T_SC_base, stateEpoch, tdAtCreation,
+                             speedAndBias12, gravityMag));
+      break;
+  case ProjectionOptFX_CXY::kModelId:
+      twoViewError.reset(new ceres::EpipolarFactor<CAMERA_GEOMETRY_T, Extrinsic_p_SC_q_SC,
+                         ProjectionOptFX_CXY>(
+                             argCameraGeometry, landmarkId, measurement12, covariance12,
+                             imuMeasCanopy, T_SC_base, stateEpoch, tdAtCreation,
+                             speedAndBias12, gravityMag));
+      break;
+  case ProjectionOptFX::kModelId:
+      twoViewError.reset(new ceres::EpipolarFactor<CAMERA_GEOMETRY_T, Extrinsic_p_SC_q_SC,
+                         ProjectionOptFX>(
+                             argCameraGeometry, landmarkId, measurement12, covariance12,
+                             imuMeasCanopy, T_SC_base, stateEpoch, tdAtCreation,
+                             speedAndBias12, gravityMag));
+      break;
+  default:
+      break;
+  }
 
   ::ceres::ResidualBlockId retVal = mapPtr_->addResidualBlock(
       twoViewError,
