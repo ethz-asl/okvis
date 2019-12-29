@@ -20,6 +20,9 @@
 namespace okvis {
 namespace ceres {
 
+template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL, class EXTRINSIC_MODEL>
+class RsReprojectionErrorAutoDiff;
+
 /// \brief The 2D keypoint reprojection error accounting for rolling shutter
 ///     skew and time offset and variable camera intrinsics.
 /// \tparam GEOMETRY_TYPE The camera gemetry type.
@@ -166,17 +169,6 @@ class RsReprojectionError
                                             double** jacobians,
                                             double** jacobiansMinimal) const;
 
-  template<typename Scalar>
-  bool operator()(
-      const Scalar* const T_WS,  const Scalar* const hp_W,
-      const Scalar* const extrinsic,
-      const Scalar* const t_r,
-      const Scalar* const t_d,
-      const Scalar* const speedAndBiases,
-      const Scalar* const deltaT_WS,
-      const Scalar* const deltaExtrinsic,
-      Scalar* hp_C) const;
-
   void assignJacobians(
       double const* const* parameters, double** jacobians,
       double** jacobiansMinimal, const Eigen::Matrix<double, 2, 4>& Jh_weighted,
@@ -227,8 +219,8 @@ class RsReprojectionError
     cameraId_ = cameraId;
   }
 
+  friend class RsReprojectionErrorAutoDiff<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>;
  protected:
-  
   uint64_t cameraId_; ///< ID of the camera.
   measurement_t measurement_; ///< The (2D) measurement.
 
@@ -247,6 +239,28 @@ class RsReprojectionError
   okvis::Time stateEpoch_; ///< The timestamp of the set of robot states related to this error term.
   double tdAtCreation_; /// time offset at the creation of the states
   const double gravityMag_; ///< gravity in the world frame is [0, 0, -gravityMag_].
+};
+
+// AutoDifferentiate will invoke Evaluate() if the Functor is a ceres::CostFunction
+// see ceres-solver/include/ceres/internal/variadic_evaluate.h
+// so we have to separate operator() from Evaluate()
+template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL, class EXTRINSIC_MODEL>
+class RsReprojectionErrorAutoDiff {
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    RsReprojectionErrorAutoDiff(const RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>& rsre);
+    template<typename Scalar>
+    bool operator()(
+        const Scalar* const T_WS,  const Scalar* const hp_W,
+        const Scalar* const extrinsic,
+        const Scalar* const t_r,
+        const Scalar* const t_d,
+        const Scalar* const speedAndBiases,
+        const Scalar* const deltaT_WS,
+        const Scalar* const deltaExtrinsic,
+        Scalar* hp_C) const;
+private:
+    const RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>& rsre_;
 };
 
 }  // namespace ceres

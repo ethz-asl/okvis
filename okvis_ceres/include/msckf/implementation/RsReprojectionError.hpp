@@ -20,14 +20,6 @@ namespace ceres {
 
 template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
           class EXTRINSIC_MODEL>
-using CameraFramePointAutoDiff = ::ceres::internal::AutoDiff<
-    okvis::ceres::RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL,
-                                      EXTRINSIC_MODEL>,
-    double, 7, 4, EXTRINSIC_MODEL::kGlobalDim, 1, 1, 9, 6,
-    EXTRINSIC_MODEL::kNumParams>;
-
-template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
-          class EXTRINSIC_MODEL>
 RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL,
                     EXTRINSIC_MODEL>::RsReprojectionError()
     : gravityMag_(9.80665) {}
@@ -391,92 +383,6 @@ void RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
   }
 }
 
-template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
-          class EXTRINSIC_MODEL>
-template <typename Scalar>
-bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
-operator()(const Scalar* const T_WS, const Scalar* const php_W,
-           const Scalar* const T_SC,
-           const Scalar* const t_r,
-           const Scalar* const t_d, const Scalar* const speedAndBiases,
-           const Scalar* const deltaT_WS, const Scalar* const deltaT_SC,
-           Scalar residuals[4]) const {
-  Eigen::Map<const Eigen::Matrix<Scalar, 3, 1>> t_WS_W0(T_WS);
-  const Eigen::Quaternion<Scalar> q_WS0(T_WS[6], T_WS[3], T_WS[4], T_WS[5]);
-  Eigen::Map<const Eigen::Matrix<Scalar, 6, 1>> deltaT_WSe(deltaT_WS);
-  Eigen::Matrix<Scalar, 3, 1> t_WS_W = t_WS_W0 + deltaT_WSe.template head<3>();
-  Eigen::Matrix<Scalar, 3, 1> omega = deltaT_WSe.template tail<3>();
-  Eigen::Quaternion<Scalar> dqWS = okvis::ceres::expAndTheta(omega);
-  Eigen::Quaternion<Scalar> q_WS = dqWS * q_WS0;
-  // q_WS.normalize();
-
-  Eigen::Map<const Eigen::Matrix<Scalar, 4, 1>> hp_W(php_W);
-
-  Eigen::Map<const Eigen::Matrix<Scalar, 3, 1>> t_SC_S0(T_SC);
-  const Eigen::Quaternion<Scalar> q_SC0(T_SC[6], T_SC[3], T_SC[4], T_SC[5]);
-  Eigen::Map<const Eigen::Matrix<Scalar, 6, 1>> deltaT_SCe(deltaT_SC);
-  Eigen::Matrix<Scalar, 3, 1> t_SC_S = t_SC_S0 + deltaT_SCe.template head<3>();
-  omega = deltaT_SCe.template tail<3>();
-  Eigen::Quaternion<Scalar> dqSC = okvis::ceres::expAndTheta(omega);
-  Eigen::Quaternion<Scalar> q_SC = dqSC * q_SC0;
-
-  Scalar trLatestEstimate = t_r[0];
-
-  uint32_t height = cameraGeometryBase_->imageHeight();
-  double ypixel(measurement_[1]);
-  Scalar kpN = (Scalar)(ypixel / height - 0.5);
-  Scalar tdLatestEstimate = t_d[0];
-  Scalar relativeFeatureTime =
-      tdLatestEstimate + trLatestEstimate * kpN - (Scalar)tdAtCreation_;
-
-  std::pair<Eigen::Quaternion<Scalar>, Eigen::Matrix<Scalar, 3, 1>> pairT_WS(
-      q_WS, t_WS_W);
-  Eigen::Matrix<Scalar, 9, 1> speedBgBa =
-      Eigen::Map<const Eigen::Matrix<Scalar, 9, 1>>(speedAndBiases);
-
-  Scalar t_start = (Scalar)stateEpoch_.toSec();
-  Scalar t_end = t_start + relativeFeatureTime;
-  okvis::GenericImuMeasurementDeque<Scalar> imuMeasurements;
-  for (size_t jack = 0; jack < imuMeasCanopy_.size(); ++jack) {
-    okvis::GenericImuMeasurement<Scalar> imuMeas(
-        (Scalar)(imuMeasCanopy_[jack].timeStamp.toSec()),
-        imuMeasCanopy_[jack].measurement.gyroscopes.cast<Scalar>(),
-        imuMeasCanopy_[jack].measurement.accelerometers.cast<Scalar>());
-    imuMeasurements.push_back(imuMeas);
-  }
-
-  if (relativeFeatureTime >= Scalar(5e-8)) {
-    okvis::ceres::predictStates(imuMeasurements, (Scalar)gravityMag_, pairT_WS,
-                                speedBgBa, t_start, t_end);
-  } else if (relativeFeatureTime <= Scalar(-5e-8)) {
-    okvis::ceres::predictStatesBackward(imuMeasurements, (Scalar)gravityMag_,
-                                        pairT_WS, speedBgBa, t_start, t_end);
-  }
-
-  q_WS = pairT_WS.first;
-  t_WS_W = pairT_WS.second;
-
-  // transform the point into the camera:
-  Eigen::Matrix<Scalar, 3, 3> C_SC = q_SC.toRotationMatrix();
-  Eigen::Matrix<Scalar, 3, 3> C_CS = C_SC.transpose();
-  Eigen::Matrix<Scalar, 4, 4> T_CS = Eigen::Matrix<Scalar, 4, 4>::Identity();
-  T_CS.template topLeftCorner<3, 3>() = C_CS;
-  T_CS.template topRightCorner<3, 1>() = -C_CS * t_SC_S;
-  Eigen::Matrix<Scalar, 3, 3> C_WS = q_WS.toRotationMatrix();
-  Eigen::Matrix<Scalar, 3, 3> C_SW = C_WS.transpose();
-  Eigen::Matrix<Scalar, 4, 4> T_SW = Eigen::Matrix<Scalar, 4, 4>::Identity();
-  T_SW.template topLeftCorner<3, 3>() = C_SW;
-  T_SW.template topRightCorner<3, 1>() = -C_SW * t_WS_W;
-  Eigen::Matrix<Scalar, 4, 1> hp_S = T_SW * hp_W;
-  Eigen::Matrix<Scalar, 4, 1> hp_C = T_CS * hp_S;
-
-  residuals[0] = hp_C[0];
-  residuals[1] = hp_C[1];
-  residuals[2] = hp_C[2];
-  residuals[3] = hp_C[3];
-
-  return true;
-}
 
 // This evaluates the error term and additionally computes
 // the Jacobians in the minimal internal representation via autodiff
@@ -518,13 +424,12 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
                             dhC_sb.data(),
                             dhC_deltaTWS.data(),
                             dhC_deltaTSC.data()};
+  RsReprojectionErrorAutoDiff<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL> rsre(*this);
   bool diffState =
-      CameraFramePointAutoDiff<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL,
-                               EXTRINSIC_MODEL>::Differentiate(*this,
-                                                               expandedParams,
-                                                               numOutputs,
-                                                               php_C,
-                                                               dpC_deltaAll);
+          ::ceres::internal::AutoDifferentiate<
+              ::ceres::internal::StaticParameterDims<7, 4, EXTRINSIC_MODEL::kGlobalDim, 1, 1, 9, 6,
+              EXTRINSIC_MODEL::kNumParams>
+             >(rsre, expandedParams, numOutputs, php_C, dpC_deltaAll);
   if (!diffState)
     std::cerr << "Potentially wrong Jacobians in autodiff " << std::endl;
 
@@ -588,6 +493,101 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
                     Jpi_weighted, dhC_deltaTWS, dhC_deltahpW, dhC_deltaTSC,
                     dhC_td, kpN, dhC_sb);
   }
+  return true;
+}
+
+template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
+          class EXTRINSIC_MODEL>
+RsReprojectionErrorAutoDiff<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
+RsReprojectionErrorAutoDiff(const RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>& rsre) :
+    rsre_(rsre) {
+
+}
+
+template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
+          class EXTRINSIC_MODEL>
+template <typename Scalar>
+bool RsReprojectionErrorAutoDiff<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
+operator()(const Scalar* const T_WS, const Scalar* const php_W,
+           const Scalar* const T_SC,
+           const Scalar* const t_r,
+           const Scalar* const t_d, const Scalar* const speedAndBiases,
+           const Scalar* const deltaT_WS, const Scalar* const deltaT_SC,
+           Scalar residuals[4]) const {
+  Eigen::Map<const Eigen::Matrix<Scalar, 3, 1>> t_WS_W0(T_WS);
+  const Eigen::Quaternion<Scalar> q_WS0(T_WS[6], T_WS[3], T_WS[4], T_WS[5]);
+  Eigen::Map<const Eigen::Matrix<Scalar, 6, 1>> deltaT_WSe(deltaT_WS);
+  Eigen::Matrix<Scalar, 3, 1> t_WS_W = t_WS_W0 + deltaT_WSe.template head<3>();
+  Eigen::Matrix<Scalar, 3, 1> omega = deltaT_WSe.template tail<3>();
+  Eigen::Quaternion<Scalar> dqWS = okvis::ceres::expAndTheta(omega);
+  Eigen::Quaternion<Scalar> q_WS = dqWS * q_WS0;
+  // q_WS.normalize();
+
+  Eigen::Map<const Eigen::Matrix<Scalar, 4, 1>> hp_W(php_W);
+
+  Eigen::Map<const Eigen::Matrix<Scalar, 3, 1>> t_SC_S0(T_SC);
+  const Eigen::Quaternion<Scalar> q_SC0(T_SC[6], T_SC[3], T_SC[4], T_SC[5]);
+  Eigen::Map<const Eigen::Matrix<Scalar, 6, 1>> deltaT_SCe(deltaT_SC);
+  Eigen::Matrix<Scalar, 3, 1> t_SC_S = t_SC_S0 + deltaT_SCe.template head<3>();
+  omega = deltaT_SCe.template tail<3>();
+  Eigen::Quaternion<Scalar> dqSC = okvis::ceres::expAndTheta(omega);
+  Eigen::Quaternion<Scalar> q_SC = dqSC * q_SC0;
+
+  Scalar trLatestEstimate = t_r[0];
+
+  uint32_t height = rsre_.cameraGeometryBase_->imageHeight();
+  double ypixel(rsre_.measurement_[1]);
+  Scalar kpN = (Scalar)(ypixel / height - 0.5);
+  Scalar tdLatestEstimate = t_d[0];
+  Scalar relativeFeatureTime =
+      tdLatestEstimate + trLatestEstimate * kpN - (Scalar)rsre_.tdAtCreation_;
+
+  std::pair<Eigen::Quaternion<Scalar>, Eigen::Matrix<Scalar, 3, 1>> pairT_WS(
+      q_WS, t_WS_W);
+  Eigen::Matrix<Scalar, 9, 1> speedBgBa =
+      Eigen::Map<const Eigen::Matrix<Scalar, 9, 1>>(speedAndBiases);
+
+  Scalar t_start = (Scalar)rsre_.stateEpoch_.toSec();
+  Scalar t_end = t_start + relativeFeatureTime;
+  okvis::GenericImuMeasurementDeque<Scalar> imuMeasurements;
+  for (size_t jack = 0; jack < rsre_.imuMeasCanopy_.size(); ++jack) {
+    okvis::GenericImuMeasurement<Scalar> imuMeas(
+        (Scalar)(rsre_.imuMeasCanopy_[jack].timeStamp.toSec()),
+        rsre_.imuMeasCanopy_[jack].measurement.gyroscopes.template cast<Scalar>(),
+        rsre_.imuMeasCanopy_[jack].measurement.accelerometers.template cast<Scalar>());
+    imuMeasurements.push_back(imuMeas);
+  }
+
+  if (relativeFeatureTime >= Scalar(5e-8)) {
+    okvis::ceres::predictStates(imuMeasurements, (Scalar)rsre_.gravityMag_, pairT_WS,
+                                speedBgBa, t_start, t_end);
+  } else if (relativeFeatureTime <= Scalar(-5e-8)) {
+    okvis::ceres::predictStatesBackward(imuMeasurements, (Scalar)rsre_.gravityMag_,
+                                        pairT_WS, speedBgBa, t_start, t_end);
+  }
+
+  q_WS = pairT_WS.first;
+  t_WS_W = pairT_WS.second;
+
+  // transform the point into the camera:
+  Eigen::Matrix<Scalar, 3, 3> C_SC = q_SC.toRotationMatrix();
+  Eigen::Matrix<Scalar, 3, 3> C_CS = C_SC.transpose();
+  Eigen::Matrix<Scalar, 4, 4> T_CS = Eigen::Matrix<Scalar, 4, 4>::Identity();
+  T_CS.template topLeftCorner<3, 3>() = C_CS;
+  T_CS.template topRightCorner<3, 1>() = -C_CS * t_SC_S;
+  Eigen::Matrix<Scalar, 3, 3> C_WS = q_WS.toRotationMatrix();
+  Eigen::Matrix<Scalar, 3, 3> C_SW = C_WS.transpose();
+  Eigen::Matrix<Scalar, 4, 4> T_SW = Eigen::Matrix<Scalar, 4, 4>::Identity();
+  T_SW.template topLeftCorner<3, 3>() = C_SW;
+  T_SW.template topRightCorner<3, 1>() = -C_SW * t_WS_W;
+  Eigen::Matrix<Scalar, 4, 1> hp_S = T_SW * hp_W;
+  Eigen::Matrix<Scalar, 4, 1> hp_C = T_CS * hp_S;
+
+  residuals[0] = hp_C[0];
+  residuals[1] = hp_C[1];
+  residuals[2] = hp_C[2];
+  residuals[3] = hp_C[3];
+
   return true;
 }
 

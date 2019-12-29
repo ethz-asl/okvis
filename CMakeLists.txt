@@ -146,8 +146,8 @@ if(${USE_SYSTEM_CERES})
   include_directories(BEFORE ${CERES_INCLUDE_DIRS})
   message(STATUS "Using system Ceres.")
 else()
-  set(CERES_VERSION 1.9.0)
-  set(CERES_TAG 7c57de5080c9f5a4f067e2d20b5f33bad5b1ade6) #version 1.9. Newer ones would need adaptation with ceres::ParameterBlock
+  set(CERES_VERSION 1.14.0)
+  set(CERES_TAG a60136b7aa2c1ab97558a74b271eee16ca1365c4)
   ExternalProject_Add(ceres_external
     GIT_REPOSITORY https://github.com/ceres-solver/ceres-solver
     GIT_TAG ${CERES_TAG}
@@ -247,32 +247,37 @@ install(DIRECTORY ${CMAKE_BINARY_DIR}/lib/CMake/opengv/
 if(${BUILD_TESTS})
   # gmock
   # http://stackoverflow.com/questions/9689183/cmake-googletest
-  ExternalProject_Add(
-    googlemock
-    URL file://${PROJECT_SOURCE_DIR}/external_libs/gmock-1.7.0.zip
-    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/gmock
-    CMAKE_ARGS -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS} -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
-    BUILD_COMMAND make -j${N_CORES}
-    INSTALL_COMMAND ""
-  )
-  ExternalProject_Get_Property(googlemock source_dir)
-  set(GMOCK_INCLUDE_DIR ${source_dir}/include)
-  set(GTEST_INCLUDE_DIR ${source_dir}/gtest/include)
+#  ExternalProject_Add(
+#    googlemock
+#    URL file://${PROJECT_SOURCE_DIR}/external_libs/gmock-1.7.0.zip
+#    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/gmock
+#    CMAKE_ARGS -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS} -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+#    BUILD_COMMAND make -j${N_CORES}
+#    INSTALL_COMMAND ""
+#  )
+#  ExternalProject_Get_Property(googlemock source_dir)
+#  set(GMOCK_INCLUDE_DIR ${source_dir}/include)
+#  set(GTEST_INCLUDE_DIR ${source_dir}/gtest/include)
+  set(GMOCK_INCLUDE_DIR /usr/include)
+  set(GTEST_INCLUDE_DIR /usr/include)
   include_directories(BEFORE ${GMOCK_INCLUDE_DIR})
   include_directories(BEFORE ${GTEST_INCLUDE_DIR})
-  ExternalProject_Get_Property(googlemock binary_dir)
-  set(GMOCK_LIBRARY_PATH ${binary_dir}/${CMAKE_FIND_LIBRARY_PREFIXES}gmock.a)
+#  ExternalProject_Get_Property(googlemock binary_dir)
+#  set(GMOCK_LIBRARY_PATH ${binary_dir}/${CMAKE_FIND_LIBRARY_PREFIXES}gmock.a)
+  set(GMOCK_LIBRARY_PATH /usr/lib/libgmock.a)
   set(GMOCK_LIBRARY gmock)
-  add_library(${GMOCK_LIBRARY} UNKNOWN IMPORTED)
-  set_property(TARGET ${GMOCK_LIBRARY} PROPERTY IMPORTED_LOCATION
-                  ${GMOCK_LIBRARY_PATH} )
-  add_dependencies(${GMOCK_LIBRARY} googlemock)
-  set(GTEST_LIBRARY_PATH ${binary_dir}/gtest/${CMAKE_FIND_LIBRARY_PREFIXES}gtest.a)
-  set(GTEST_LIBRARY gtestlocal)
-  add_library(${GTEST_LIBRARY} UNKNOWN IMPORTED)
-  set_property(TARGET ${GTEST_LIBRARY} PROPERTY IMPORTED_LOCATION
-                  ${GTEST_LIBRARY_PATH})
-  add_dependencies(${GTEST_LIBRARY} googlemock)
+#  add_library(${GMOCK_LIBRARY} UNKNOWN IMPORTED)
+#  set_property(TARGET ${GMOCK_LIBRARY} PROPERTY IMPORTED_LOCATION
+#                  ${GMOCK_LIBRARY_PATH} )
+#  add_dependencies(${GMOCK_LIBRARY} googlemock)
+#  set(GTEST_LIBRARY_PATH ${binary_dir}/gtest/${CMAKE_FIND_LIBRARY_PREFIXES}gtest.a)
+#  set(GTEST_LIBRARY gtestlocal)
+  set(GTEST_LIBRARY_PATH /usr/lib/libgtest.a)
+  set(GTEST_LIBRARY gtest)
+#  add_library(${GTEST_LIBRARY} UNKNOWN IMPORTED)
+#  set_property(TARGET ${GTEST_LIBRARY} PROPERTY IMPORTED_LOCATION
+#                  ${GTEST_LIBRARY_PATH})
+#  add_dependencies(${GTEST_LIBRARY} googlemock)
 endif()
 
 # BUILD LOCAL DEPENDENCIES
