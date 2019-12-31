@@ -86,7 +86,7 @@ class CameraRig {
       int camera_id) const {
     return *(T_SC_[camera_id]);
   }
-  inline std::shared_ptr<cameras::CameraBase> getCameraGeometry(
+  inline std::shared_ptr<const cameras::CameraBase> getCameraGeometry(
       int camera_id) const {
     return camera_geometries_[camera_id];
   }

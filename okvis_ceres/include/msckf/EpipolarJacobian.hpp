@@ -20,7 +20,7 @@ namespace okvis {
  */
 inline bool obsDirectionJacobian(
     const Eigen::Vector3d& obsDirection,
-    const std::shared_ptr<okvis::cameras::CameraBase> cameraGeometry,
+    std::shared_ptr<const okvis::cameras::CameraBase> cameraGeometry,
     int projOptModelId, double pixelNoiseStd,
     Eigen::Matrix<double, 3, Eigen::Dynamic>* dfj_dXcam,
     Eigen::Matrix3d* cov_fj) {

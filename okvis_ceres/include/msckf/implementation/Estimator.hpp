@@ -99,7 +99,7 @@ bool Estimator::replaceEpipolarWithReprojectionErrors(uint64_t lmId) {
     multiFramePtr->getKeypointSize(kpi.cameraIndex, kpi.keypointIndex, size);
     information *= 64.0 / (size * size);
 
-    std::shared_ptr<okvis::cameras::CameraBase> baseCameraGeometry =
+    std::shared_ptr<const okvis::cameras::CameraBase> baseCameraGeometry =
         camera_rig_.getCameraGeometry(kpi.cameraIndex);
     std::shared_ptr<const CAMERA_GEOMETRY_T> argCameraGeometry =
         std::static_pointer_cast<const CAMERA_GEOMETRY_T>(baseCameraGeometry);
@@ -151,7 +151,7 @@ bool Estimator::addEpipolarConstraint(uint64_t landmarkId, uint64_t poseId,
   multiFramePtr->getKeypointSize(camIdx, keypointIdx, size);
   covariance12[1] *= (size * size) / 64.0;
 
-  std::shared_ptr<okvis::cameras::CameraBase> baseCameraGeometry =
+  std::shared_ptr<const okvis::cameras::CameraBase> baseCameraGeometry =
       camera_rig_.getCameraGeometry(camIdx);
   std::shared_ptr<const CAMERA_GEOMETRY_T> argCameraGeometry =
       std::static_pointer_cast<const CAMERA_GEOMETRY_T>(baseCameraGeometry);
