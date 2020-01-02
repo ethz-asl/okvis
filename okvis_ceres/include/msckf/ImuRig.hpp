@@ -1,102 +1,115 @@
 #ifndef INCLUDE_MSCKF_IMU_RIG_HPP_
 #define INCLUDE_MSCKF_IMU_RIG_HPP_
 
-#include <okvis/kinematics/Transformation.hpp>
+#include <memory>
+
+#include <Eigen/Core>
+#include <Eigen/StdVector>
+
+#include <msckf/ImuModels.hpp>
+#include <okvis/Parameters.hpp>
 
 namespace okvis {
 
-// TODO(jhuai): put the enum members as kModelId into each IMU model
-enum ImuModelType {
-  BG_BA = 0,
-  BG_BA_TG_TS_TA = 1,
-  BG_BA_SMRG_SMA = 2,
+class ImuModel {
+public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  /**
+   * @brief ImuModel
+   * @param modelId
+   * @param euclideanParams
+   * @param q_gyro_i quaternion from the accelerometer triad frame to the gyro triad frame
+   */
+  ImuModel(int modelId, const Eigen::VectorXd& euclideanParams, const Eigen::Quaterniond& q_gyro_i) :
+    modelId_(modelId), euclideanParams_(euclideanParams), rotationParams_(q_gyro_i) {
+
+  }
+
+  inline Eigen::VectorXd getImuAugmentedEuclideanParams() const {
+    return euclideanParams_.tail(ImuModelGetAugmentedEuclideanDim(modelId_));
+  }
+
+  inline void setParams(const Eigen::Matrix<double, Eigen::Dynamic, 1>& params) {
+
+  }
+
+  inline void setAugmentedParams(const Eigen::Matrix<double, Eigen::Dynamic, 1>& extra_params) {
+
+  }
+
+  inline void setBgBa(const Eigen::Matrix<double, 6, 1>& bg_ba) {
+
+  }
+
+  inline void correct() {
+
+  }
+
+  inline int augmentedParamDim() const {
+      return 0;
+  }
+
+  inline int paramDim() const {
+      return 0;
+  }
+
+  inline int modelId() const {
+    return modelId_;
+  }
+
+  Eigen::VectorXd computeImuAugmentedParamsError() const {
+    return ImuModelComputeAugmentedParamsError(modelId_, euclideanParams_, rotationParams_);
+  }
+
+  inline void setImuAugmentedEuclideanParams(const Eigen::VectorXd& euclideanParams) {
+    euclideanParams_.tail(ImuModelGetAugmentedEuclideanDim(modelId_)) = euclideanParams;
+  }
+
+private:
+  int modelId_;
+  Eigen::VectorXd euclideanParams_; // bg ba and extra Euclidean params
+  Eigen::Quaterniond rotationParams_; // usually q_gyro_accelerometer
 };
 
 class ImuRig {
-  std::vector<int> model_type_;
-
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   inline ImuRig() {}
-
-  inline int getModelType(int index) {
-    if ((int)model_type_.size() > index) {
-      return model_type_[index];
+  inline int getModelId(int index) const {
+    if ((int)imus_.size() > index) {
+      return imus_[index].modelId();
     } else {
       return -1;
     }
   }
 
-  inline int addImu() {
-    model_type_.push_back(BG_BA);
-    return static_cast<int>(model_type_.size()) - 1;
+  int addImu(const okvis::ImuParameters& imuParams);
+
+  inline int getImuParamsMinimalDim(int imu_id=0) const {
+    return ImuModelGetMinimalDim(imus_[imu_id].modelId());
   }
 
-  inline int getMinimalImuParamDimen(int imu_id=0) {
-      switch (model_type_[imu_id]) {
-      case BG_BA:
-          return 6;
-      case BG_BA_TG_TS_TA:
-          return 6 + 27;
-      case BG_BA_SMRG_SMA:
-          return 6 + 9 + 6;
-      default:
-          return 6;
-      }
+  inline Eigen::VectorXd getImuAugmentedEuclideanParams(int imu_id=0) const {
+    return imus_.at(imu_id).getImuAugmentedEuclideanParams();
   }
+
+  inline Eigen::VectorXd computeImuAugmentedParamsError(int imu_id=0) const {
+    return imus_.at(imu_id).computeImuAugmentedParamsError();
+  }
+
+  inline void setImuAugmentedEuclideanParams(int imu_id, const Eigen::VectorXd& euclideanParams) {
+    imus_.at(imu_id).setImuAugmentedEuclideanParams(euclideanParams);
+  }
+
+  inline int getAugmentedMinimalDim(int imu_id) const {
+    return ImuModelGetAugmentedMinimalDim(imus_[imu_id].modelId());
+  }
+
+  inline int getAugmentedDim(int imu_id) const {
+    return ImuModelGetAugmentedDim(imus_[imu_id].modelId());
+  }
+private:
+  std::vector<ImuModel> imus_;
 };
-
-inline ImuModelType ImuModelNameToId(std::string imu_model) {
-  std::transform(imu_model.begin(), imu_model.end(),
-                 imu_model.begin(),
-                 [](unsigned char c) { return std::toupper(c); });
-  if (imu_model.compare("BG_BA") == 0) {
-    return BG_BA;
-  } else if (imu_model.compare("BG_BA_TG_TS_TA") == 0) {
-    return BG_BA_TG_TS_TA;
-  } else if (imu_model.compare("BG_BA_SMRG_SMA") == 0) {
-    return BG_BA_SMRG_SMA;
-  } else {
-    return BG_BA;
-  }
-}
-
-inline void ImuModelToFormatString(const ImuModelType imu_model,
-                                const std::string delimiter,
-                                std::string* format_string) {
-  std::stringstream stream;
-  stream << "b_g_x[rad/s]" << delimiter << "b_g_y" << delimiter << "b_g_z"
-         << delimiter << "b_a_x[m/s^2]" << delimiter << "b_a_y" << delimiter
-         << "b_a_z";
-  switch (imu_model) {
-    case BG_BA_TG_TS_TA:
-      stream << delimiter << "Tg_1" << delimiter << "Tg_2" << delimiter
-             << "Tg_3" << delimiter << "Tg_4" << delimiter << "Tg_5"
-             << delimiter << "Tg_6" << delimiter << "Tg_7" << delimiter
-             << "Tg_8" << delimiter << "Tg_9" << delimiter << "Ts_1"
-             << delimiter << "Ts_2" << delimiter << "Ts_3" << delimiter
-             << "Ts_4" << delimiter << "Ts_5" << delimiter << "Ts_6"
-             << delimiter << "Ts_7" << delimiter << "Ts_8" << delimiter
-             << "Ts_9" << delimiter << "Ta_1" << delimiter << "Ta_2"
-             << delimiter << "Ta_3" << delimiter << "Ta_4" << delimiter
-             << "Ta_5" << delimiter << "Ta_6" << delimiter << "Ta_7"
-             << delimiter << "Ta_8" << delimiter << "Ta_9";
-      break;
-    case BG_BA_SMRG_SMA:
-      stream << delimiter << "Sg_x" << delimiter << "Sg_y" << delimiter
-             << "Sg_z" << delimiter << "Mg_xy" << delimiter << "Mg_xz"
-             << delimiter << "Mg_yz" << delimiter << "Rg_x" << delimiter
-             << "Rg_y" << delimiter << "Rg_z" << delimiter << "Rg_w"
-             << delimiter << "Sa_x" << delimiter << "Sa_y" << delimiter
-             << "Sa_z" << delimiter << "Ma_xy" << delimiter << "Ma_xz"
-             << delimiter << "Ma_yz";
-      break;
-    case BG_BA:
-    default:
-      break;
-  }
-  *format_string = stream.str();
-}
-
 }  // namespace okvis
 #endif  // INCLUDE_MSCKF_IMU_RIG_HPP_

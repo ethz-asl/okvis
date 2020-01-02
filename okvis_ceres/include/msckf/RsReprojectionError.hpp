@@ -24,10 +24,19 @@ template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL, class EXTRINSIC_MODEL
 class RsReprojectionErrorAutoDiff;
 
 /// \brief The 2D keypoint reprojection error accounting for rolling shutter
-///     skew and time offset and variable camera intrinsics.
+///     skew and time offset and camera intrinsics.
 /// \tparam GEOMETRY_TYPE The camera gemetry type.
-/// \tparam PROJ_INTRINSIC_MODEL Its kNumParams should not be zero.
-/// \tparam EXTRINSIC_MODEL Its kNumParams should not be zero.
+/// \tparam PROJ_INTRINSIC_MODEL describes which subset of the projection
+///     intrinsic parameters of the camera geometry model is represented and
+///     optimized in the ceres solver.
+///     It maps the subset to the full projection intrinsic parameters
+///     using additional constant values from a provided camera geometry.
+///     Its kNumParams should not be zero.
+/// \tparam EXTRINSIC_MODEL describes which subset of the extrinsic parameters,
+///     is represented and optimized in the ceres solver.
+///     It maps the subset to the full extrinsic parameters using additional
+///     constant values from a provided extrinsic entity, e.g., T_SC.
+///     Its kNumParams should not be zero.
 template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL, class EXTRINSIC_MODEL>
 class RsReprojectionError
     : public ::ceres::SizedCostFunction<

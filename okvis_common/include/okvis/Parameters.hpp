@@ -134,7 +134,7 @@ struct ImuParameters{
   Eigen::Matrix<double, 9, 1> Ta0;
   double td0;  // initial image delay with respect to imu data after
                // compensating imageDelay. TODO: move td0 to NCameraModel's CameraBase
-  std::string model_type; // 0 bg ba, 1 bg ba Tg Ts Ta, 2, bg ba Tg Ts SMa
+  std::string model_type; // 0 bg_ba, 1 bg_ba_Tg_Ts_Ta, 2, scaledmisaligned
   ImuParameters() {
       g0.setZero();
       a0.setZero();

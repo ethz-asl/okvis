@@ -508,6 +508,8 @@ class Estimator : public VioBackendInterface
   bool getSensorStateEstimateAs(uint64_t poseId, int sensorIdx, int sensorType,
                                 int stateType, typename PARAMETER_BLOCK_T::estimate_t & state) const;
 
+  Eigen::Matrix<double, Eigen::Dynamic, 1> computeImuAugmentedParamsError() const;
+
   /// \brief SensorStates The sensor-internal states enumerated
   enum SensorStates
   {

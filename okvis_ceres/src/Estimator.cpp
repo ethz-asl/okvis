@@ -94,11 +94,12 @@ int Estimator::addCamera(
 // Add an IMU to the configuration.
 int Estimator::addImu(const ImuParameters & imuParameters)
 {
-  if(imuParametersVec_.size()>1){
+  if(imuParametersVec_.size()>0u){
     LOG(ERROR) << "only one IMU currently supported";
     return -1;
   }
   imuParametersVec_.push_back(imuParameters);
+  imu_rig_.addImu(imuParameters);
   return imuParametersVec_.size() - 1;
 }
 
@@ -1422,6 +1423,10 @@ bool Estimator::addLandmarkObservation(uint64_t landmarkId, uint64_t poseId,
       .observations.emplace(
           kid, 0u);
   return true;
+}
+
+Eigen::Matrix<double, Eigen::Dynamic, 1> Estimator::computeImuAugmentedParamsError() const {
+  return imu_rig_.computeImuAugmentedParamsError(0);
 }
 
 const okvis::Duration Estimator::half_window_(2, 0);

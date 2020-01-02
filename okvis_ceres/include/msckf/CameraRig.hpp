@@ -117,7 +117,7 @@ class CameraRig {
     return ProjectionOptGetMinimalDim(proj_opt_rep_[camera_id]);
   }
 
-  inline int getCameraParamsMininalDimen(int camera_id) const {
+  inline int getCameraParamsMinimalDim(int camera_id) const {
     std::shared_ptr<okvis::cameras::CameraBase> camera =
         camera_geometries_[camera_id];
     return getMinimalExtrinsicDimen(camera_id) +
