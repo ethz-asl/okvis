@@ -188,7 +188,7 @@ bool GeneralEstimator::addStates(
               .at(CameraSensorStates::TR)
               .id;
     } else {
-      const okvis::kinematics::Transformation T_SC = *multiFrame->T_SC(i);
+      const okvis::kinematics::Transformation T_SC = camera_rig_.getCameraExtrinsic(i);
       uint64_t id = IdProvider::instance().newId();
       std::shared_ptr<okvis::ceres::PoseParameterBlock> extrinsicsParameterBlockPtr(
           new okvis::ceres::PoseParameterBlock(T_SC, id,
@@ -286,7 +286,7 @@ bool GeneralEstimator::addStates(
       double rotationStdev = extrinsicsEstimationParametersVec_.at(i).sigma_absolute_orientation;
       double rotationVariance = rotationStdev*rotationStdev;
       if(translationVariance>1.0e-16 && rotationVariance>1.0e-16){
-        const okvis::kinematics::Transformation T_SC = *multiFrame->T_SC(i);
+        const okvis::kinematics::Transformation T_SC = camera_rig_.getCameraExtrinsic(i);
         std::shared_ptr<ceres::PoseError > cameraPoseError(
               new ceres::PoseError(T_SC, translationVariance, rotationVariance));
         // add to map
