@@ -33,6 +33,7 @@ std::shared_ptr<cameras::CameraBase> cloneCameraGeometry(
                   intrinsic_vec[distortion_start_index + 1],
                   intrinsic_vec[distortion_start_index + 2],
                   intrinsic_vec[distortion_start_index + 3]),
+              cameraGeometry->imageDelay(), cameraGeometry->readoutTime(),
               id));
 
     } else if (strcmp(distortionType.c_str(), "RadialTangentialDistortion") ==
@@ -48,6 +49,7 @@ std::shared_ptr<cameras::CameraBase> cloneCameraGeometry(
                   intrinsic_vec[distortion_start_index + 1],
                   intrinsic_vec[distortion_start_index + 2],
                   intrinsic_vec[distortion_start_index + 3]),
+              cameraGeometry->imageDelay(), cameraGeometry->readoutTime(),
               id));
 
     } else if (strcmp(distortionType.c_str(), "RadialTangentialDistortion8") ==
@@ -67,13 +69,16 @@ std::shared_ptr<cameras::CameraBase> cloneCameraGeometry(
                   intrinsic_vec[distortion_start_index + 5],
                   intrinsic_vec[distortion_start_index + 6],
                   intrinsic_vec[distortion_start_index + 7]),
+              cameraGeometry->imageDelay(), cameraGeometry->readoutTime(),
               id));
     } else if (strcmp(distortionType.c_str(), "NoDistortion") == 0) {
       return std::shared_ptr<okvis::cameras::CameraBase>(
           new okvis::cameras::PinholeCamera<okvis::cameras::NoDistortion>(
               cameraGeometry->imageWidth(), cameraGeometry->imageHeight(),
               intrinsic_vec[0], intrinsic_vec[1], intrinsic_vec[2],
-              intrinsic_vec[3], okvis::cameras::NoDistortion(), id));
+              intrinsic_vec[3], okvis::cameras::NoDistortion(),
+              cameraGeometry->imageDelay(), cameraGeometry->readoutTime(),
+              id));
     } else if (strcmp(distortionType.c_str(), "FovDistortion") == 0) {
       return std::shared_ptr<okvis::cameras::CameraBase>(
           new okvis::cameras::PinholeCamera<
@@ -83,6 +88,7 @@ std::shared_ptr<cameras::CameraBase> cloneCameraGeometry(
               intrinsic_vec[3],
               okvis::cameras::FovDistortion(
                   intrinsic_vec[distortion_start_index]),
+              cameraGeometry->imageDelay(), cameraGeometry->readoutTime(),
               id));
     } else {
       LOG(ERROR) << "unrecognized distortion type " << distortionType;

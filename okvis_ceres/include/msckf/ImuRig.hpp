@@ -29,18 +29,6 @@ public:
     return euclideanParams_.tail(ImuModelGetAugmentedEuclideanDim(modelId_));
   }
 
-  inline void setParams(const Eigen::Matrix<double, Eigen::Dynamic, 1>& params) {
-
-  }
-
-  inline void setAugmentedParams(const Eigen::Matrix<double, Eigen::Dynamic, 1>& extra_params) {
-
-  }
-
-  inline void setBgBa(const Eigen::Matrix<double, 6, 1>& bg_ba) {
-
-  }
-
   inline void correct() {
 
   }

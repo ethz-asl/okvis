@@ -493,8 +493,10 @@ inline int ImuModelNameToId(std::string imu_error_model_descrip) {
     return ScaledMisalignedImu::kModelId;
   } else if (imu_error_model_descrip.compare("BG_BA_TG_TS_TA") == 0) {
     return Imu_BG_BA_TG_TS_TA::kModelId;
-  } else {
+  } else if (imu_error_model_descrip.compare("BG_BA") == 0) {
     return Imu_BG_BA::kModelId;
+  } else {
+    return Imu_BG_BA_TG_TS_TA::kModelId;
   }
 }
 

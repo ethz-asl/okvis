@@ -82,13 +82,19 @@ Estimator::~Estimator()
 }
 
 // Add a camera to the configuration. Sensors can only be added and never removed.
-int Estimator::addCamera(
-    const ExtrinsicsEstimationParameters & extrinsicsEstimationParameters,
-    double frameReadoutTime)
+int Estimator::addCameraParameterStds(
+    const ExtrinsicsEstimationParameters & extrinsicsEstimationParameters)
 {
   extrinsicsEstimationParametersVec_.push_back(extrinsicsEstimationParameters);
-  imageReadoutTime_ = frameReadoutTime;
   return extrinsicsEstimationParametersVec_.size() - 1;
+}
+
+void Estimator::addCameraSystem(const okvis::cameras::NCameraSystem& cameras) {
+  camera_rig_.clear();
+  for (size_t i = 0; i < cameras.numCameras(); ++i) {
+    camera_rig_.addCamera(cameras.T_SC(i), cameras.cameraGeometry(i),
+                          cameras.projOptRep(i), cameras.extrinsicOptRep(i));
+  }
 }
 
 // Add an IMU to the configuration.

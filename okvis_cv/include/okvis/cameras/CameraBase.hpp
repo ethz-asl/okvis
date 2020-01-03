@@ -77,17 +77,24 @@ class CameraBase
   inline CameraBase()
       : imageWidth_(0),
         imageHeight_(0),
+        imageDelaySecs_(0.0),
+        readoutTimeSecs_(0.0),
         id_(0)
   {
   }
 
   /// \brief Constructor for width, height and Id
-  inline CameraBase(int imageWidth, int imageHeight, uint64_t id = 0)
+  inline CameraBase(int imageWidth, int imageHeight,
+                    double imageDelay = 0,
+                    double readoutTime = 0,
+                    uint64_t id = 0)
         : imageWidth_(imageWidth),
           imageHeight_(imageHeight),
+          imageDelaySecs_(imageDelay),
+          readoutTimeSecs_(readoutTime),
           id_(id)
-    {
-    }
+  {
+  }
 
   /// \brief Destructor -- does nothing
   inline virtual ~CameraBase()
@@ -143,6 +150,22 @@ class CameraBase
   inline uint32_t imageHeight() const
   {
     return imageHeight_;
+  }
+
+  inline double readoutTime() const {
+    return readoutTimeSecs_;
+  }
+
+  inline double imageDelay() const {
+    return imageDelaySecs_;
+  }
+
+  inline void setReadoutTime(double readoutTime) {
+    readoutTimeSecs_ = readoutTime;
+  }
+
+  inline void setImageDelay(double imageDelay) {
+    imageDelaySecs_ = imageDelay;
   }
 
   /// \brief obtain all intrinsics
@@ -351,9 +374,11 @@ class CameraBase
 
   int imageWidth_;  ///< image width in pixels
   int imageHeight_;  ///< image height in pixels
+  ///< at the same actual epoch, timestamp by camera_clock + image_delay = timestamp by a reference clock.
+  double imageDelaySecs_;
+  ///< time in secs to read out a frame for a rolling shutter camera.
+  double readoutTimeSecs_;
   uint64_t id_;  ///< an Id
-  uint64_t frameReadoutTimeNanos_;
-  bool staggerInWidth_; ///< if true, read line by line along the width
 };
 
 }  // namespace cameras

@@ -78,7 +78,9 @@ class PinholeCamera : public CameraBase
   /// @param[in] id Assign a generic ID, if desired.
   PinholeCamera(int imageWidth, int imageHeight, double focalLengthU,
                 double focalLengthV, double imageCenterU, double imageCenterV,
-                const distortion_t & distortion, uint64_t id=-1);
+                const distortion_t & distortion,
+                double delayTime=0.0, double readoutTime=0.0,
+                uint64_t id=-1);
 
   /// \brief Destructor.
   ~PinholeCamera()

@@ -96,9 +96,10 @@ struct ExtrinsicsEstimationParameters
   // relative (temporal)
   double sigma_c_relative_translation; ///< Relative translation noise density. [m/sqrt(Hz)]
   double sigma_c_relative_orientation; ///< Relative orientation noise density. [rad/sqrt(Hz)]
+
   double sigma_focal_length;
   double sigma_principal_point;
-  Eigen::Matrix<double, 5, 1> sigma_distortion;  ///< k1, k2, p1, p2, [k3]
+  std::vector<double> sigma_distortion;  ///< e.g., k1, k2, p1, p2, [k3]
   double sigma_td;
   double sigma_tr;
 };
@@ -132,8 +133,6 @@ struct ImuParameters{
   Eigen::Matrix<double, 9, 1> Tg0;  // initial Tg estimate
   Eigen::Matrix<double, 9, 1> Ts0;
   Eigen::Matrix<double, 9, 1> Ta0;
-  double td0;  // initial image delay with respect to imu data after
-               // compensating imageDelay. TODO: move td0 to NCameraModel's CameraBase
   std::string model_type; // 0 bg_ba, 1 bg_ba_Tg_Ts_Ta, 2, scaledmisaligned
   ImuParameters() {
       g0.setZero();
@@ -292,7 +291,6 @@ struct SensorsInformation {
   double imageDelay;  ///< Camera image delay. [s]
   int imuIdx;         ///< IMU index. Anything other than 0 will probably not work.
   double frameTimestampTolerance; ///< Time tolerance between frames to accept them as stereo frames. [s]
-  double imageReadoutTime;  /// time to read out one image, for rolling shutter cameras
 };
 
 /// @brief Some visualization settings.

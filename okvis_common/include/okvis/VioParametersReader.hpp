@@ -109,8 +109,24 @@ class VioParametersReader{
     Eigen::Vector2d focalLength;              ///< Focal length.
     Eigen::Vector2d principalPoint;           ///< Principal point.
     std::string distortionType;               ///< Distortion type. ('radialtangential' 'plumb_bob' 'equdistant')
+    double imageDelaySecs;                    ///< Remaining image delay after compensating for SensorsInformation.imageDelay
+    double readoutTimeSecs;
     std::string projOptMode;
     std::string extrinsicOptMode;
+    std::string toString() const {
+      std::stringstream ss;
+      ss << "T_SC\n" << T_SC.T3x4()
+         << "\nimage dimension after downscale "
+         << imageDimension.transpose() << " distortion type "
+         << distortionType.c_str()
+         << "\ndistortion " << distortionCoefficients.transpose()
+         << "\nfocal " << focalLength.transpose()
+         << " principalpoint " << principalPoint.transpose()
+         << "\nimageDelay " << imageDelaySecs << " secs readoutTime "
+         << readoutTimeSecs << " secs\n" << "projectionIntrinsicOptMode "
+         << projOptMode << " extrinsicOptMode " << extrinsicOptMode;
+      return ss.str();
+    }
   };
 
   /// If readConfigFile() has been called at least once this is true

@@ -54,7 +54,8 @@ bool GeneralEstimator::addStates(
 
   if (statesMap_.empty()) {
     // in case this is the first frame ever, let's initialize the pose:
-    tdEstimate.fromSec(imuParametersVec_.at(0).td0);
+    const int camIdx = 0;
+    tdEstimate.fromSec(camera_rig_.getImageDelay(camIdx));
     correctedStateTime = multiFrame->timestamp() + tdEstimate;
 
     if (pvstd_.initWithExternalSource_) {
@@ -187,12 +188,6 @@ bool GeneralEstimator::addStates(
               .at(CameraSensorStates::TR)
               .id;
     } else {
-      // initialize the camera geometry
-      const cameras::NCameraSystem& camSystem = multiFrame->GetCameraSystem();
-      camera_rig_.addCamera(multiFrame->T_SC(i), camSystem.cameraGeometry(i),
-                            imageReadoutTime_, tdEstimate.toSec(),
-                            camSystem.projOptRep(i),
-                            camSystem.extrinsicOptRep(i));
       const okvis::kinematics::Transformation T_SC = *multiFrame->T_SC(i);
       uint64_t id = IdProvider::instance().newId();
       std::shared_ptr<okvis::ceres::PoseParameterBlock> extrinsicsParameterBlockPtr(
@@ -239,7 +234,7 @@ bool GeneralEstimator::addStates(
 
       id = IdProvider::instance().newId();
       std::shared_ptr<okvis::ceres::CameraTimeParamBlock> tdParamBlockPtr(
-          new okvis::ceres::CameraTimeParamBlock(camera_rig_.getTimeDelay(i),
+          new okvis::ceres::CameraTimeParamBlock(camera_rig_.getImageDelay(i),
                                                  id, correctedStateTime));
       mapPtr_->addParameterBlock(tdParamBlockPtr,
                                  ceres::Map::Parameterization::Trivial);

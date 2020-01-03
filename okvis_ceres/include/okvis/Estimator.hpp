@@ -106,9 +106,14 @@ class Estimator : public VioBackendInterface
    * @param extrinsicsEstimationParameters The parameters that tell how to estimate extrinsics.
    * @return Index of new camera.
    */
-  virtual int addCamera(const okvis::ExtrinsicsEstimationParameters&
-                            extrinsicsEstimationParameters,
-                        double frameReadoutTime);
+  virtual int addCameraParameterStds(const okvis::ExtrinsicsEstimationParameters&
+                                     extrinsicsEstimationParameters);
+  /**
+   * @brief addCameraSystem add the cameraSystem to the estimator which
+   *     uses it for calculating Jacobians and updates it after optimization.
+   * @param cameras
+   */
+  virtual void addCameraSystem(const okvis::cameras::NCameraSystem& cameras);
 
   /**
    * @brief Add an IMU to the configuration.
@@ -655,10 +660,10 @@ class Estimator : public VioBackendInterface
   /// here t_{j_0} is the raw timestamp of image j,
   /// t_{d_j} is the current estimated time offset between the visual and
   /// inertial data, after correcting the initial time offset
-  /// imageDelay. Therefore, t_{d_j} is set 0 at the beginning t_j is the
-  /// timestamp of the state, remains constant after initialization t_{f_i} =
-  /// t_j - t_{d_j} + t_d + (v-N/2)t_r/N here t_d and t_r are the true time
-  /// offset and image readout time t_{f_i} is the time feature i is observed
+  /// imageDelay. Therefore, t_{d_j} is usually 0 at the beginning of the algorithm.
+  /// t_j is the timestamp of the state, remains constant after initialization.
+  /// t_{f_i} = t_j - t_{d_j} + t_d + (v-N/2)t_r/N here t_d and t_r are the time
+  /// offset and image readout time, t_{f_i} is the time feature i is observed.
   struct States {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     States() : isKeyframe(false), id(0), tdAtCreation(0) {}
@@ -709,29 +714,22 @@ class Estimator : public VioBackendInterface
   // ceres iteration callback object
   std::unique_ptr<okvis::ceres::CeresIterationCallback> ceresCallback_; ///< Maybe there was a callback registered, store it here.
 
-
+  // An evolving camera rig to store the optimized camera
+  // parameters and interface with the camera models.
   okvis::cameras::CameraRig camera_rig_; 
-  // an evolving camera rig to temporarily store the optimized camera
-  // raw parameters and to interface with the camera models
-  // for each camera
-  // initial values for the camera model is from addStates multiFramePtr,
-  // model info, covariance and fixed variables from the extrinsicsEstimationParametersVec_
-  // during addStates or addCamera
 
-  okvis::ImuRig imu_rig_; // for the only imu
-  // init values and uncertainties for the intrinsics, noise parameters,
-  // and model info and fixed variables are from the imuParametersVec_
-  // during addImu
+  // An evolving imu rig to store the optimized imu parameters and
+  // interface with the IMU models.
+  okvis::ImuRig imu_rig_;
 
   // sequential imu measurements covering states in the estimator
   okvis::BoundedImuDeque inertialMeasForStates_;
 
+  // initial nav state, (position, orientation, and velocity), and their stds.
   InitialPVandStd pvstd_;
 
   // e.g., min observs to triang a landmark
   size_t minTrackLength_;
-
-  double imageReadoutTime_;  // rolling shutter skew
 
   template<class GEOMETRY_TYPE>
   ::ceres::ResidualBlockId addPointFrameResidual(

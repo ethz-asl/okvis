@@ -39,7 +39,7 @@ TEST(OkvisVioInterfaces, testDataFlow)
     .Times(Between(5, 10));
   EXPECT_CALL(dummy, get_T_WS(_,_))
     .Times(Between(12, 21));        // 1 per matching, 1 per optimization and in destructor
-  EXPECT_CALL(dummy, addCamera(_,_))
+  EXPECT_CALL(dummy, addCameraParameterStds(_))
     .Times(2);
   EXPECT_CALL(dummy, addImu(_))
     .Times(1);

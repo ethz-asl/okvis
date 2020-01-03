@@ -56,25 +56,26 @@ class CameraRig {
   ///< Camera geometries
   std::vector<std::shared_ptr<cameras::CameraBase>> camera_geometries_;
 
-  ///< time in secs to read out a frame, applies to rolling shutter cameras
-  std::vector<double> frame_readout_time_;
-  ///< at the same epoch, timestamp by camera_clock + time_delay =
-  ///  timestamp by IMU clock
-  std::vector<double> time_delay_;
-
+  ///< which subset of the extrinsic parameters are variable in estimation.
   std::vector<int> extrinsic_opt_rep_;
 
-  // representation of the projection params involved in optimization
+  ///< which subset of the projection intrinsic parameters are variable in estimation.
   std::vector<int> proj_opt_rep_;
 
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   inline CameraRig() {}
-  inline double getTimeDelay(int camera_id) const {
-    return time_delay_[camera_id];
+  inline void clear() {
+    T_SC_.clear();
+    camera_geometries_.clear();
+    extrinsic_opt_rep_.clear();
+    proj_opt_rep_.clear();
+  }
+  inline double getImageDelay(int camera_id) const {
+    return camera_geometries_[camera_id]->imageDelay();
   }
   inline double getReadoutTime(int camera_id) const {
-    return frame_readout_time_[camera_id];
+    return camera_geometries_[camera_id]->readoutTime();
   }
   inline uint32_t getImageWidth(int camera_id) const {
     return camera_geometries_[camera_id]->imageWidth();
@@ -90,11 +91,9 @@ class CameraRig {
       int camera_id) const {
     return camera_geometries_[camera_id];
   }
-
   inline int getIntrinsicDimen(int camera_id) const {
     return camera_geometries_[camera_id]->noIntrinsicsParameters();
   }
-
   inline int getProjectionOptMode(int camera_id) const {
     if (camera_id >= static_cast<int>(proj_opt_rep_.size())) {
       return ProjectionOptFixed::kModelId;
@@ -108,15 +107,12 @@ class CameraRig {
   inline int getDistortionDimen(int camera_id) const {
     return camera_geometries_[camera_id]->noDistortionParameters();
   }
-
   inline int getMinimalExtrinsicDimen(int camera_id) const {
     return ExtrinsicModelGetMinimalDim(extrinsic_opt_rep_[camera_id]);
   }
-
   inline int getMinimalProjectionDimen(int camera_id) const {
     return ProjectionOptGetMinimalDim(proj_opt_rep_[camera_id]);
   }
-
   inline int getCameraParamsMinimalDim(int camera_id) const {
     std::shared_ptr<okvis::cameras::CameraBase> camera =
         camera_geometries_[camera_id];
@@ -124,33 +120,26 @@ class CameraRig {
            getMinimalProjectionDimen(camera_id) +
            camera->noDistortionParameters() + 2;  // 2 for td and tr
   }
-
-  inline void setTimeDelay(int camera_id, double td) {
-    time_delay_[camera_id] = td;
+  inline void setImageDelay(int camera_id, double td) {
+    camera_geometries_[camera_id]->setImageDelay(td);
   }
-
   inline void setReadoutTime(int camera_id, double tr) {
-    frame_readout_time_[camera_id] = tr;
+    camera_geometries_[camera_id]->setReadoutTime(tr);
   }
-
   inline void setCameraExtrinsic(
       int camera_id, const okvis::kinematics::Transformation& T_SC) {
     *(T_SC_[camera_id]) = T_SC;
   }
-
   inline void setProjectionOptMode(int opt_mode, int camera_id) {
     proj_opt_rep_[camera_id] = opt_mode;
   }
-
   inline void setExtrinsicOptMode(int opt_mode, int camera_id) {
     extrinsic_opt_rep_[camera_id] = opt_mode;
   }
-
   inline void setCameraIntrinsics(int camera_id,
                                   const Eigen::VectorXd& intrinsic_vec) {
     camera_geometries_[camera_id]->setIntrinsics(intrinsic_vec);
   }
-
   inline void setCameraIntrinsics(int camera_id,
                                   const Eigen::VectorXd& projection_vec,
                                   const Eigen::VectorXd& distortion_vec) {
@@ -164,17 +153,13 @@ class CameraRig {
 
     camera_geometries_[camera_id]->setIntrinsics(intrinsicParameters);
   }
-
   inline int addCamera(
       std::shared_ptr<const okvis::kinematics::Transformation> T_SC,
-      std::shared_ptr<const cameras::CameraBase> cameraGeometry, double tr,
-      double td, std::string pinhole_opt_rep, std::string extrinsic_opt_rep) {
+      std::shared_ptr<const cameras::CameraBase> cameraGeometry,
+      std::string pinhole_opt_rep, std::string extrinsic_opt_rep) {
     T_SC_.emplace_back(
         std::make_shared<okvis::kinematics::Transformation>(*T_SC));
     camera_geometries_.emplace_back(cloneCameraGeometry(cameraGeometry));
-    frame_readout_time_.emplace_back(tr);
-    time_delay_.emplace_back(td);
-
     proj_opt_rep_.emplace_back(ProjectionOptNameToId(pinhole_opt_rep));
     LOG(INFO) << "added proj opt rep " << pinhole_opt_rep << " of id "
               << proj_opt_rep_.back();

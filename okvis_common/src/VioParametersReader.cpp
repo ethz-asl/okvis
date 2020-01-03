@@ -94,11 +94,12 @@ static void parseExpandedCameraParamSigmas(
         << "Setting to default 0.0";
   }
   cv::FileNode a0Node = cameraParamNode["sigma_distortion"];
-  camera_extrinsics->sigma_distortion.setZero();
+  camera_extrinsics->sigma_distortion.clear();
+  camera_extrinsics->sigma_distortion.reserve(5);
   if (a0Node.isSeq()) {
     for (size_t jack = 0; jack < a0Node.size(); ++jack)
-      camera_extrinsics->sigma_distortion[jack] =
-          static_cast<double>(a0Node[jack]);
+      camera_extrinsics->sigma_distortion.push_back(
+          static_cast<double>(a0Node[jack]));
   } else {
     LOG(WARNING) << "camera_params: sigma_distortion parameter not provided. "
                  << "Setting to default 0.0";
@@ -379,26 +380,6 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
   file["camera_params"]["camera_rate"]
       >> vioParameters_.sensors_information.cameraRate;
 
-  if (file["camera_params"]["image_readout_time"].isReal()) {
-    file["camera_params"]["image_readout_time"] >>
-        vioParameters_.sensors_information.imageReadoutTime;
-    const double upper = 1.0;  // sec
-    const double lower = 0.0;
-    OKVIS_ASSERT_LE(Exception,
-                    vioParameters_.sensors_information.imageReadoutTime, upper,
-                    "image_readout_time should be no more than " +
-                        std::to_string(upper) + " sec");
-    OKVIS_ASSERT_GE(Exception,
-                    vioParameters_.sensors_information.imageReadoutTime, lower,
-                    "image_readout_time should be no less than " +
-                        std::to_string(lower) + " sec");
-  } else {
-    vioParameters_.sensors_information.imageReadoutTime = 0.0;
-    LOG(WARNING) << "'camera_params: image_readout_time' parameter "
-                    "missing in configuration file. Setting to "
-                 << vioParameters_.sensors_information.imageReadoutTime;
-  }
-
   // timestamp tolerance
   if (file["camera_params"]["timestamp_tolerance"].isReal()) {
     file["camera_params"]["timestamp_tolerance"]
@@ -558,7 +539,9 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
                     calibrations[i].distortionCoefficients[0],
                     calibrations[i].distortionCoefficients[1],
                     calibrations[i].distortionCoefficients[2],
-                    calibrations[i].distortionCoefficients[3])/*, id ?*/)),
+                    calibrations[i].distortionCoefficients[3]),
+                  calibrations[i].imageDelaySecs, calibrations[i].readoutTimeSecs
+                  /*, id ?*/)),
           okvis::cameras::NCameraSystem::Equidistant,
           calibrations[i].projOptMode, calibrations[i].extrinsicOptMode
           /*, computeOverlaps ?*/);
@@ -583,7 +566,9 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
                     calibrations[i].distortionCoefficients[0],
                     calibrations[i].distortionCoefficients[1],
                     calibrations[i].distortionCoefficients[2],
-                    calibrations[i].distortionCoefficients[3])/*, id ?*/)),
+                    calibrations[i].distortionCoefficients[3]),
+                  calibrations[i].imageDelaySecs, calibrations[i].readoutTimeSecs
+                  /*, id ?*/)),
           okvis::cameras::NCameraSystem::RadialTangential,
           calibrations[i].projOptMode, calibrations[i].extrinsicOptMode
           /*, computeOverlaps ?*/);
@@ -612,7 +597,9 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
                     calibrations[i].distortionCoefficients[4],
                     calibrations[i].distortionCoefficients[5],
                     calibrations[i].distortionCoefficients[6],
-                    calibrations[i].distortionCoefficients[7])/*, id ?*/)),
+                    calibrations[i].distortionCoefficients[7]),
+                  calibrations[i].imageDelaySecs, calibrations[i].readoutTimeSecs
+                  /*, id ?*/)),
           okvis::cameras::NCameraSystem::RadialTangential8,
           calibrations[i].projOptMode, calibrations[i].extrinsicOptMode
           /*, computeOverlaps ?*/);
@@ -631,7 +618,9 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
                   calibrations[i].principalPoint[0],
                   calibrations[i].principalPoint[1],
                   okvis::cameras::FovDistortion(
-                      calibrations[i].distortionCoefficients[0])/*, id ?*/));
+                      calibrations[i].distortionCoefficients[0]),
+                  calibrations[i].imageDelaySecs, calibrations[i].readoutTimeSecs
+                  /*, id ?*/));
       Eigen::VectorXd intrin(5);
       intrin[0] = calibrations[i].focalLength[0];
       intrin[1] = calibrations[i].focalLength[1];
@@ -798,7 +787,6 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
   s.str(std::string());
   s << vioParameters_.imu.Ta0.transpose();
   LOG(INFO) << "IMU with Ta0=" << s.str();
-  vioParameters_.imu.td0 = 0;
   readConfigFile_ = true;
 }
 
@@ -865,15 +853,7 @@ bool VioParametersReader::getCameraCalibration(
 
 void VioParametersReader::print(
     const VioParametersReader::CameraCalibration& cc) const {
-  LOG(INFO) << "T_SC " << std::endl
-            << cc.T_SC.T3x4() << std::endl
-            << "image dimension after downscale "
-            << cc.imageDimension.transpose() << " distortion type "
-            << cc.distortionType.c_str() << std::endl
-            << " distortion " << cc.distortionCoefficients.transpose()
-            << std::endl
-            << " focal " << cc.focalLength.transpose() << " principalpoint "
-            << cc.principalPoint.transpose();
+  LOG(INFO) << cc.toString();
 }
 
 // Get the camera calibration via the configuration file.
@@ -914,9 +894,9 @@ bool VioParametersReader::getCalibrationViaConfig(
     LOG(INFO) << "Did not find a calibration in the configuration file.";
 
   if (gotCalibration) {
+    size_t camIdx = 0u;
     for (cv::FileNodeIterator it = cameraNode.begin();
-        it != cameraNode.end(); ++it) {
-
+        it != cameraNode.end(); ++it, ++camIdx) {
       CameraCalibration calib;
 
       cv::FileNode T_SC_node = (*it)["T_SC"];
@@ -945,14 +925,45 @@ bool VioParametersReader::getCalibrationViaConfig(
                                   downScale,
           static_cast<double>(principalPointNode[1]) / downScale;
       calib.distortionType = (std::string)((*it)["distortion_type"]);
+
+      if ((*it)["image_delay"].isReal()) {
+        (*it)["image_delay"] >> calib.imageDelaySecs;
+      } else {
+        calib.imageDelaySecs = 0.0;
+        LOG(WARNING) << "'image_delay' parameter for camera " << camIdx
+                     << " missing in configuration file. Setting to "
+                     << calib.imageDelaySecs;
+      }
+      if ((*it)["image_readout_time"].isReal()) {
+        (*it)["image_readout_time"] >> calib.readoutTimeSecs;
+          const double upper = 1.0;
+          const double lower = 0.0;
+          OKVIS_ASSERT_LE(Exception,
+                          calib.readoutTimeSecs, upper,
+                          "image_readout_time should be no more than " + std::to_string(upper) + " sec.");
+          OKVIS_ASSERT_GE(Exception,
+                          calib.readoutTimeSecs, lower,
+                          "image_readout_time should be no less than " + std::to_string(lower) + " sec.");
+      } else {
+        calib.readoutTimeSecs = 0.0;
+        LOG(WARNING) << "'image_readout_time' parameter for camera " << camIdx <<
+                        " missing in configuration file. Setting to "
+                     << calib.readoutTimeSecs;
+      }
+
       if ((*it)["extrinsic_opt_mode"].isString()) {
         calib.extrinsicOptMode =
             static_cast<std::string>((*it)["extrinsic_opt_mode"]);
+      } else {
+        calib.extrinsicOptMode = "";
       }
       if ((*it)["projection_opt_mode"].isString()) {
         calib.projOptMode =
             static_cast<std::string>((*it)["projection_opt_mode"]);
+      } else {
+        calib.projOptMode = "";
       }
+
       calibrations.push_back(calib);
       print(calib);
     }

@@ -87,9 +87,8 @@ class VioBackendInterface {
    * @param extrinsicsEstimationParameters The parameters that tell how to estimate extrinsics.
    * @return Index of new camera.
    */
-  virtual int addCamera(
-      const ExtrinsicsEstimationParameters& extrinsicsEstimationParameters,
-      double frameReadoutTime) = 0;
+  virtual int addCameraParameterStds(
+      const ExtrinsicsEstimationParameters& extrinsicsEstimationParameters) = 0;
 
   /**
    * @brief Add an IMU to the configuration.

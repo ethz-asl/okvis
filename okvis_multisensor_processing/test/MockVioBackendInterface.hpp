@@ -43,9 +43,8 @@ namespace okvis {
 
 class MockVioBackendInterface : public VioBackendInterface {
  public:
-  MOCK_METHOD2(addCamera,
-      int(const ExtrinsicsEstimationParameters & extrinsicsEstimationParameters,
-          double frameReadoutTime));
+  MOCK_METHOD1(addCameraParameterStds,
+      int(const ExtrinsicsEstimationParameters & extrinsicsEstimationParameters));
   MOCK_METHOD1(addImu,
       int(const ImuParameters & imuParameters));
   MOCK_METHOD0(clearCameras,
