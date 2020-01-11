@@ -47,8 +47,8 @@ class ExtrinsicFixed {
   }
 };
 
-class Extrinsic_p_CS {
-  // of T_SC only p_CS is variable
+class Extrinsic_p_CB {
+  // of T_BC only p_CB is variable.
  public:
   static const int kModelId = 1;
   static const size_t kNumParams = 3;
@@ -81,25 +81,25 @@ class Extrinsic_p_CS {
   static void toParamsInfo(const std::string delimiter,
                            std::string* extrinsic_format) {
     *extrinsic_format =
-        "p_SC_S_x[m]" + delimiter + "p_SC_S_y" + delimiter + "p_SC_S_z";
+        "p_BC_B_x[m]" + delimiter + "p_BC_B_y" + delimiter + "p_BC_B_z";
   }
-  static void toParamsValueString(const okvis::kinematics::Transformation& T_SC,
+  static void toParamsValueString(const okvis::kinematics::Transformation& T_BC,
                                   const std::string delimiter,
                                   std::string* extrinsic_string) {
-    Eigen::Vector3d r = T_SC.q().conjugate() * (-T_SC.r());
+    Eigen::Vector3d r = T_BC.q().conjugate() * (-T_BC.r());
     std::stringstream ss;
     ss << r[0] << delimiter << r[1] << delimiter << r[2];
     *extrinsic_string = ss.str();
   }
   static void toParamValues(
-      const okvis::kinematics::Transformation& T_SC,
+      const okvis::kinematics::Transformation& T_BC,
       Eigen::VectorXd* extrinsic_opt_coeffs) {
-    *extrinsic_opt_coeffs = T_SC.q().conjugate() * (-T_SC.r());
+    *extrinsic_opt_coeffs = T_BC.q().conjugate() * (-T_BC.r());
   }
 };
 
-class Extrinsic_p_SC_q_SC {
-  // T_SC is represented by p_SC and R_SC in the states
+class Extrinsic_p_BC_q_BC {
+  // T_BC is represented by p_BC and R_BC in the states.
  public:
   static const int kModelId = 2;
   static const size_t kNumParams = 6;
@@ -149,32 +149,32 @@ class Extrinsic_p_SC_q_SC {
   }
   static void toParamsInfo(const std::string delimiter,
                            std::string* extrinsic_format) {
-    *extrinsic_format = "p_SC_S_x[m]" + delimiter + "p_SC_S_y" + delimiter +
-                        "p_SC_S_z" + delimiter + "q_SC_x" + delimiter +
-                        "q_SC_y" + delimiter + "q_SC_z" + delimiter + "q_SC_w";
+    *extrinsic_format = "p_BC_S_x[m]" + delimiter + "p_BC_S_y" + delimiter +
+                        "p_BC_S_z" + delimiter + "q_BC_x" + delimiter +
+                        "q_BC_y" + delimiter + "q_BC_z" + delimiter + "q_BC_w";
   }
-  static void toParamsValueString(const okvis::kinematics::Transformation& T_SC,
+  static void toParamsValueString(const okvis::kinematics::Transformation& T_BC,
                                   const std::string delimiter,
                                   std::string* extrinsic_string) {
-    Eigen::Vector3d r = T_SC.r();
-    Eigen::Quaterniond q = T_SC.q();
+    Eigen::Vector3d r = T_BC.r();
+    Eigen::Quaterniond q = T_BC.q();
     std::stringstream ss;
     ss << r[0] << delimiter << r[1] << delimiter << r[2];
     ss << delimiter << q.x() << delimiter << q.y() << delimiter << q.z() << delimiter << q.w();
     *extrinsic_string = ss.str();
   }
   static void toParamValues(
-      const okvis::kinematics::Transformation& T_SC,
+      const okvis::kinematics::Transformation& T_BC,
       Eigen::VectorXd* extrinsic_opt_coeffs) {
-    *extrinsic_opt_coeffs = T_SC.coeffs();
+    *extrinsic_opt_coeffs = T_BC.coeffs();
   }
 };
 
 #ifndef EXTRINSIC_MODEL_CASES
 #define EXTRINSIC_MODEL_CASES          \
   EXTRINSIC_MODEL_CASE(ExtrinsicFixed) \
-  EXTRINSIC_MODEL_CASE(Extrinsic_p_CS) \
-  EXTRINSIC_MODEL_CASE(Extrinsic_p_SC_q_SC)
+  EXTRINSIC_MODEL_CASE(Extrinsic_p_CB) \
+  EXTRINSIC_MODEL_CASE(Extrinsic_p_BC_q_BC)
 #endif
 
 inline int ExtrinsicModelGetMinimalDim(int model_id) {
@@ -212,10 +212,10 @@ inline int ExtrinsicModelNameToId(std::string extrinsic_opt_rep) {
   std::transform(extrinsic_opt_rep.begin(), extrinsic_opt_rep.end(),
                  extrinsic_opt_rep.begin(),
                  [](unsigned char c) { return std::toupper(c); });
-  if (extrinsic_opt_rep.compare("P_CS") == 0) {
-    return Extrinsic_p_CS::kModelId;
-  } else if (extrinsic_opt_rep.compare("P_SC_R_SC") == 0) {
-    return Extrinsic_p_SC_q_SC::kModelId;
+  if (extrinsic_opt_rep.compare("P_CB") == 0) {
+    return Extrinsic_p_CB::kModelId;
+  } else if (extrinsic_opt_rep.compare("P_BC_R_BC") == 0) {
+    return Extrinsic_p_BC_q_BC::kModelId;
   } else {
     return ExtrinsicFixed::kModelId;
   }
@@ -274,13 +274,13 @@ inline void ExtrinsicModelToParamsInfo(
 }
 
 inline void ExtrinsicModelToParamsValueString(
-    int model_id, const okvis::kinematics::Transformation& T_SC,
+    int model_id, const okvis::kinematics::Transformation& T_BC,
     const std::string delimiter, std::string* extrinsic_string) {
   switch (model_id) {
 #define MODEL_CASES EXTRINSIC_MODEL_CASES
 #define EXTRINSIC_MODEL_CASE(ExtrinsicModel)                    \
   case ExtrinsicModel::kModelId:                                \
-    return ExtrinsicModel::toParamsValueString(T_SC, delimiter, \
+    return ExtrinsicModel::toParamsValueString(T_BC, delimiter, \
                                                extrinsic_string);
 
     MODEL_SWITCH_CASES
@@ -291,14 +291,14 @@ inline void ExtrinsicModelToParamsValueString(
 }
 
 inline void ExtrinsicModelToParamValues(
-    int model_id, const okvis::kinematics::Transformation& T_SC,
+    int model_id, const okvis::kinematics::Transformation& T_BC,
     Eigen::VectorXd* extrinsic_opt_coeffs) {
   switch (model_id) {
 #define MODEL_CASES EXTRINSIC_MODEL_CASES
 #define EXTRINSIC_MODEL_CASE(ExtrinsicModel)                    \
   case ExtrinsicModel::kModelId:                                \
     return ExtrinsicModel::toParamValues(                       \
-        T_SC, extrinsic_opt_coeffs);
+        T_BC, extrinsic_opt_coeffs);
 
     MODEL_SWITCH_CASES
 

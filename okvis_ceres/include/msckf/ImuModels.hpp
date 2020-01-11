@@ -11,6 +11,9 @@
 
 // The IMU input reference frame or sensor frame denoted by S is affixed to
 // the accelerometer triad, and its x-axis aligned to the accelerometer in the x direction.
+// Its origin is at the intersection of the three accelerometers.
+// Tts y-axis in the plane spanned by the two accelerometers at x and y
+// direction while being close to the accelerometer at y-direction.
 // The sensor rig body frame denoted by B is used to express the motion of the rig.
 // It varies depending on the IMU model.
 
@@ -156,6 +159,19 @@ class Imu_BG_BA {
  * triad and gyroscope triad need to account for scaling effect, misalignment,
  * relative orientation to the body frame.
  * This model also considers the g-sensitivity of the gyroscope triad.
+ *
+ * S frame is defined such that its rotation component is fixed to the nominal
+ * value of R_SC0 and its origin is at the accelerometer intersection as
+ * discussed in Huai thesis. In this case, the remaining misalignment between
+ * the orthogonal accelerometer input reference frame (A) and the C frame will
+ * be absorbed into T_a, the IMU accelerometer misalignment matrix.
+ *
+ * IMU model
+ * w_m = T_g * w_B + T_s * a_B + b_w + n_w
+ * a_m = T_a * a_B + b_a + n_a = S * M * R_AB * a_B + b_a + n_a
+ *
+ * The A frame has origin at the accelerometers intersection and x-axis aligned
+ * with accelerometer x.
  */
 class Imu_BG_BA_TG_TS_TA {
  public:
@@ -232,7 +248,7 @@ class Imu_BG_BA_TG_TS_TA {
  * to the IMU sensor frame, and g-sensitivity whereas the accelerometer triad
  * needs to consider scaling effect and misalignment.
  * The lever arm(size) effects are ignored.
- * Implemented according to "Extending Kalibr"
+ * Implemented according to "Extending Kalibr".
  */
 class ScaledMisalignedImu {
  public:

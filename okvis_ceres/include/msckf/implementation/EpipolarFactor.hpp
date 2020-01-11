@@ -229,7 +229,7 @@ bool EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
 
     Eigen::Matrix<double, 1, Eigen::Dynamic> de_dExtrinsic;
     switch (EXTRINSIC_MODEL::kModelId) {
-      case Extrinsic_p_SC_q_SC::kModelId:
+      case Extrinsic_p_BC_q_BC::kModelId:
         rmj.dtheta_dtheta_BC(&dtheta_dtheta_BC);
         rmj.dp_dtheta_BC(&dp_dtheta_BC);
         rmj.dp_dt_BC(&dp_dt_BC);
@@ -238,7 +238,7 @@ bool EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
         de_dExtrinsic.tail<3>() = de_dt_Ctij_Ctik * dp_dtheta_BC +
                                   de_dtheta_Ctij_Ctik * dtheta_dtheta_BC;
         break;
-      case Extrinsic_p_CS::kModelId:
+      case Extrinsic_p_CB::kModelId:
         rmj.dp_dt_CB(&dp_dt_CB);
         de_dExtrinsic = de_dt_Ctij_Ctik * dp_dt_CB;
         break;
