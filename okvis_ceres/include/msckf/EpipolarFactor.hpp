@@ -89,8 +89,8 @@ class EpipolarFactor
    * @param covariance12 left and right 2d covariance for 2d meas
    * @param imuMeasCanopy imu measurements in neighborhoods of the left and
    *     right stateEpochs
-   * @param T_SC_base reference extrinsic parameters, needed because
-   *     EXTRINSIC_MODEL may be a subset of T_SC
+   * @param T_BC_base reference extrinsic parameters, needed because
+   *     EXTRINSIC_MODEL may be a subset of T_BC
    * @param stateEpoch left and right state timestamps
    * @param tdAtCreation left and right reference td
    * @param gravityMag magnitude of gravity
@@ -107,7 +107,7 @@ class EpipolarFactor
       const std::vector<okvis::ImuMeasurementDeque,
                         Eigen::aligned_allocator<okvis::ImuMeasurementDeque>>&
           imuMeasCanopy,
-      const okvis::kinematics::Transformation& T_SC_base,
+      const okvis::kinematics::Transformation& T_BC_base,
       const std::vector<okvis::Time>& stateEpoch,
       const std::vector<double>& tdAtCreation,
       const std::vector<Eigen::Matrix<double, 9, 1>,
@@ -197,9 +197,9 @@ class EpipolarFactor
               Eigen::aligned_allocator<okvis::ImuMeasurementDeque>>
       imuMeasCanopy_;
 
-  // T_SC_base_ is volatile and updated in every Evaluate() step.
+  // T_BC_base_ is volatile and updated in every Evaluate() step.
   // assume the two measurements are made by the same camera
-  mutable okvis::kinematics::Transformation T_SC_base_;
+  mutable okvis::kinematics::Transformation T_BC_base_;
 
   // weighting related, they will be computed along with the residual
 //  double information_; ///< The information matrix.

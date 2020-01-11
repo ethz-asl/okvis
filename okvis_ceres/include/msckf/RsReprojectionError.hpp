@@ -35,7 +35,7 @@ class RsReprojectionErrorAutoDiff;
 /// \tparam EXTRINSIC_MODEL describes which subset of the extrinsic parameters,
 ///     is represented and optimized in the ceres solver.
 ///     It maps the subset to the full extrinsic parameters using additional
-///     constant values from a provided extrinsic entity, e.g., T_SC.
+///     constant values from a provided extrinsic entity, e.g., T_BC.
 ///     Its kNumParams should not be zero.
 template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL, class EXTRINSIC_MODEL>
 class RsReprojectionError
@@ -88,7 +88,7 @@ class RsReprojectionError
    * @param information The information (weight) matrix.
    * @param imuMeasCanopy imu meas in the neighborhood of stateEpoch for
    *     compensating the rolling shutter effect.
-   * @param T_SC_base reference T_SC used when EXTRINSIC_MODEL is incomplete.
+   * @param T_BC_base reference T_BC used when EXTRINSIC_MODEL is incomplete.
    * @param stateEpoch epoch of the pose state and speed and biases
    * @param tdAtCreation the time offset at the creation of the state.
    * @param gravityMag
@@ -98,7 +98,7 @@ class RsReprojectionError
       uint64_t cameraId, const measurement_t& measurement,
       const covariance_t& information,
       const okvis::ImuMeasurementDeque& imuMeasCanopy,
-      const okvis::kinematics::Transformation& T_SC_base,
+      const okvis::kinematics::Transformation& T_BC_base,
       okvis::Time stateEpoch, double tdAtCreation, double gravityMag);
 
   /// \brief Trivial destructor.
@@ -237,7 +237,7 @@ class RsReprojectionError
   // It is volatile and updated in every Evaluate() step.
   mutable std::shared_ptr<camera_geometry_t> cameraGeometryBase_;
   // The reference extrinsic parameters in case the EXTRINSIC_MODEL is incomplete.
-  mutable okvis::kinematics::Transformation T_SC_base_;
+  mutable okvis::kinematics::Transformation T_BC_base_;
   // const after initialization
   okvis::ImuMeasurementDeque imuMeasCanopy_;
   // weighting related

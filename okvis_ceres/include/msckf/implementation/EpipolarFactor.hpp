@@ -41,7 +41,7 @@ EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
         const std::vector<okvis::ImuMeasurementDeque,
                           Eigen::aligned_allocator<okvis::ImuMeasurementDeque>>&
             imuMeasCanopy,
-        const okvis::kinematics::Transformation& T_SC_base,
+        const okvis::kinematics::Transformation& T_BC_base,
         const std::vector<okvis::Time>& stateEpoch,
         const std::vector<double>& tdAtCreation,
         const std::vector<
@@ -52,7 +52,7 @@ EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
     : measurement_(measurement12),
       covariance_(covariance12),
       imuMeasCanopy_(imuMeasCanopy),
-      T_SC_base_(T_SC_base),
+      T_BC_base_(T_BC_base),
       stateEpoch_(stateEpoch),
       tdAtCreation_(tdAtCreation),
       speedAndBiases_(speedAndBiases),
@@ -79,7 +79,7 @@ template <class GEOMETRY_TYPE, class EXTRINSIC_MODEL,
 void EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
     computePoseAndVelocityAtExposure(
         std::pair<Eigen::Quaternion<double>, Eigen::Matrix<double, 3, 1>>*
-            pair_T_WS,
+            pair_T_WB,
         Eigen::Matrix<double, 6, 1>* velAndOmega,
         double const* const* parameters, int index) const {
   double trLatestEstimate = parameters[5][0];
@@ -93,11 +93,11 @@ void EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
   okvis::Time t_end = stateEpoch_[index] + okvis::Duration(relativeFeatureTime);
   const double wedge = 5e-8;
   if (relativeFeatureTime >= wedge) {
-    okvis::ceres::predictStates(imuMeasCanopy_[index], gravityMag_, *pair_T_WS,
+    okvis::ceres::predictStates(imuMeasCanopy_[index], gravityMag_, *pair_T_WB,
                                 speedBgBa, t_start, t_end);
   } else if (relativeFeatureTime <= -wedge) {
     okvis::ceres::predictStatesBackward(imuMeasCanopy_[index], gravityMag_,
-                                        *pair_T_WS, speedBgBa, t_start, t_end);
+                                        *pair_T_WB, speedBgBa, t_start, t_end);
   }
   velAndOmega->head<3>() = speedBgBa.head<3>();
   okvis::ImuMeasurement queryValue;
@@ -118,16 +118,16 @@ bool EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
   // q and then d_alpha.
 
   // pose: world to sensor transformation
-  Eigen::Map<const Eigen::Vector3d> t_WS1_W(parameters[0]);
-  const Eigen::Quaterniond q_WS1(parameters[0][6], parameters[0][3],
+  Eigen::Map<const Eigen::Vector3d> t_WB1_W(parameters[0]);
+  const Eigen::Quaterniond q_WB1(parameters[0][6], parameters[0][3],
                                  parameters[0][4], parameters[0][5]);
-  Eigen::Map<const Eigen::Vector3d> t_WS2_W(parameters[1]);
-  const Eigen::Quaterniond q_WS2(parameters[1][6], parameters[1][3],
+  Eigen::Map<const Eigen::Vector3d> t_WB2_W(parameters[1]);
+  const Eigen::Quaterniond q_WB2(parameters[1][6], parameters[1][3],
                                  parameters[1][4], parameters[1][5]);
 
-  // TODO(jhuai): use extrinsic_model and if needed T_SC_base_
-  Eigen::Map<const Eigen::Vector3d> t_SC_S(parameters[2]);
-  const Eigen::Quaterniond q_SC(parameters[2][6], parameters[2][3],
+  // TODO(jhuai): use extrinsic_model and if needed T_BC_base_
+  Eigen::Map<const Eigen::Vector3d> t_BC_B(parameters[2]);
+  const Eigen::Quaterniond q_BC(parameters[2][6], parameters[2][3],
                                 parameters[2][4], parameters[2][5]);
   // TODO(jhuai): use GEOMETRY_TYPE::NumIntrinsics will lead to undefined
   // reference to NumIntrinsics of 4 instantiated PinholeCamera template class.
@@ -145,15 +145,15 @@ bool EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
   double trLatestEstimate = parameters[5][0];
   double tdLatestEstimate = parameters[6][0];
   int index = 0;
-  std::pair<Eigen::Quaternion<double>, Eigen::Matrix<double, 3, 1>> pair_T_WS1(
-      q_WS1, t_WS1_W);
+  std::pair<Eigen::Quaternion<double>, Eigen::Matrix<double, 3, 1>> pair_T_WB1(
+      q_WB1, t_WB1_W);
   Eigen::Matrix<double, 6, 1> velAndOmega[2];
-  computePoseAndVelocityAtExposure(&pair_T_WS1, &velAndOmega[index], parameters,
+  computePoseAndVelocityAtExposure(&pair_T_WB1, &velAndOmega[index], parameters,
                                    index);
   index = 1;
-  std::pair<Eigen::Quaternion<double>, Eigen::Matrix<double, 3, 1>> pair_T_WS2(
-      q_WS2, t_WS2_W);
-  computePoseAndVelocityAtExposure(&pair_T_WS2, &velAndOmega[index], parameters,
+  std::pair<Eigen::Quaternion<double>, Eigen::Matrix<double, 3, 1>> pair_T_WB2(
+      q_WB2, t_WB2_W);
+  computePoseAndVelocityAtExposure(&pair_T_WB2, &velAndOmega[index], parameters,
                                    index);
 
   // backProject to compute the obsDirections for the two observations
@@ -187,13 +187,13 @@ bool EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
   }
 
   // compute epipolar error with Jacobian and compute the measurement covariance
-  std::pair<Eigen::Matrix3d, Eigen::Vector3d> dual_T_SC =
+  std::pair<Eigen::Matrix3d, Eigen::Vector3d> dual_T_BC =
       std::make_pair<Eigen::Matrix3d, Eigen::Vector3d>(
-        q_SC.toRotationMatrix(), t_SC_S);
-  std::pair<Eigen::Matrix3d, Eigen::Vector3d> dual_T_WS[2] = {
-      std::make_pair<Eigen::Matrix3d, Eigen::Vector3d>(q_WS1.toRotationMatrix(), t_WS1_W),
-      std::make_pair<Eigen::Matrix3d, Eigen::Vector3d>(q_WS2.toRotationMatrix(), t_WS2_W)};
-  RelativeMotionJacobian rmj(dual_T_SC, dual_T_WS[0], dual_T_WS[1]);
+        q_BC.toRotationMatrix(), t_BC_B);
+  std::pair<Eigen::Matrix3d, Eigen::Vector3d> dual_T_WB[2] = {
+      std::make_pair<Eigen::Matrix3d, Eigen::Vector3d>(q_WB1.toRotationMatrix(), t_WB1_W),
+      std::make_pair<Eigen::Matrix3d, Eigen::Vector3d>(q_WB2.toRotationMatrix(), t_WB2_W)};
+  RelativeMotionJacobian rmj(dual_T_BC, dual_T_WB[0], dual_T_WB[1]);
   std::pair<Eigen::Matrix3d, Eigen::Vector3d> dual_T_C1C2 = rmj.relativeMotion();
   EpipolarJacobian epj(dual_T_C1C2.first, dual_T_C1C2.second, xy1[0], xy1[1]);
   Eigen::Matrix<double, 1, 3> de_dfj[2];
@@ -266,7 +266,7 @@ bool EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
     Eigen::Matrix<double, 3, 1> dtheta_GBtij_dtij[2];
     Eigen::Matrix<double, 3, 1> dt_GBtij_dtij[2];
     for (int j = 0; j < 2; ++j) {
-      dtheta_GBtij_dtij[j] = dual_T_WS[j].first * velAndOmega[j].tail<3>();
+      dtheta_GBtij_dtij[j] = dual_T_WB[j].first * velAndOmega[j].tail<3>();
       dt_GBtij_dtij[j] = velAndOmega[j].head<3>();
     }
 
@@ -331,7 +331,7 @@ bool EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
       }
     }
 
-    // T_SC
+    // T_BC
     if (jacobians[2]) {
       Eigen::Matrix<double, 6, 7, Eigen::RowMajor> J_lift;
       PoseLocalParameterization::liftJacobian(parameters[2], J_lift.data());

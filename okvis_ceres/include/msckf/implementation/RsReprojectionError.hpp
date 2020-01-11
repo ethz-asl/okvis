@@ -32,9 +32,9 @@ RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
         uint64_t cameraId, const measurement_t& measurement,
         const covariance_t& information,
         const okvis::ImuMeasurementDeque& imuMeasCanopy,
-        const okvis::kinematics::Transformation& T_SC_base,
+        const okvis::kinematics::Transformation& T_BC_base,
         okvis::Time stateEpoch, double tdAtCreation, double gravityMag)
-    : T_SC_base_(T_SC_base),
+    : T_BC_base_(T_BC_base),
       imuMeasCanopy_(imuMeasCanopy),
       stateEpoch_(stateEpoch),
       tdAtCreation_(tdAtCreation),
@@ -76,16 +76,16 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
   // able to check Jacobians with numeric differentiation chained, first w.r.t.
   // q and then d_alpha.
 
-  Eigen::Map<const Eigen::Vector3d> t_WS_W0(parameters[0]);
-  const Eigen::Quaterniond q_WS0(parameters[0][6], parameters[0][3],
+  Eigen::Map<const Eigen::Vector3d> t_WB_W0(parameters[0]);
+  const Eigen::Quaterniond q_WB0(parameters[0][6], parameters[0][3],
                                  parameters[0][4], parameters[0][5]);
 
   // the point in world coordinates
   Eigen::Map<const Eigen::Vector4d> hp_W(&parameters[1][0]);
 
   // TODO(jhuai): use Extrinsic_model
-  Eigen::Map<const Eigen::Vector3d> t_SC_S(parameters[2]);
-  const Eigen::Quaterniond q_SC(parameters[2][6], parameters[2][3],
+  Eigen::Map<const Eigen::Vector3d> t_BC_B(parameters[2]);
+  const Eigen::Quaterniond q_BC(parameters[2][6], parameters[2][3],
                                 parameters[2][4], parameters[2][5]);
   Eigen::VectorXd intrinsics(GEOMETRY_TYPE::NumIntrinsics);
 
@@ -105,8 +105,8 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
   uint32_t height = cameraGeometryBase_->imageHeight();
   double kpN = ypixel / height - 0.5;
   double relativeFeatureTime = tdLatestEstimate + trLatestEstimate * kpN - tdAtCreation_;
-  std::pair<Eigen::Quaternion<double>, Eigen::Matrix<double, 3, 1>> pairT_WS(
-      q_WS0, t_WS_W0);
+  std::pair<Eigen::Quaternion<double>, Eigen::Matrix<double, 3, 1>> pairT_WB(
+      q_WB0, t_WB_W0);
   Eigen::Matrix<double, 9, 1> speedBgBa =
       Eigen::Map<const Eigen::Matrix<double, 9, 1>>(parameters[7]);
 
@@ -114,29 +114,29 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
   okvis::Time t_end = stateEpoch_ + okvis::Duration(relativeFeatureTime);
   const double wedge = 5e-8;
   if (relativeFeatureTime >= wedge) {
-    okvis::ceres::predictStates(imuMeasCanopy_, gravityMag_, pairT_WS,
+    okvis::ceres::predictStates(imuMeasCanopy_, gravityMag_, pairT_WB,
                                 speedBgBa, t_start, t_end);
   } else if (relativeFeatureTime <= -wedge) {
-    okvis::ceres::predictStatesBackward(imuMeasCanopy_, gravityMag_, pairT_WS,
+    okvis::ceres::predictStatesBackward(imuMeasCanopy_, gravityMag_, pairT_WB,
                                         speedBgBa, t_start, t_end);
   }
 
-  Eigen::Quaterniond q_WS = pairT_WS.first;
-  Eigen::Vector3d t_WS_W = pairT_WS.second;
+  Eigen::Quaterniond q_WB = pairT_WB.first;
+  Eigen::Vector3d t_WB_W = pairT_WB.second;
 
   // transform the point into the camera:
-  Eigen::Matrix3d C_SC = q_SC.toRotationMatrix();
-  Eigen::Matrix3d C_CS = C_SC.transpose();
-  Eigen::Matrix4d T_CS = Eigen::Matrix4d::Identity();
-  T_CS.topLeftCorner<3, 3>() = C_CS;
-  T_CS.topRightCorner<3, 1>() = -C_CS * t_SC_S;
-  Eigen::Matrix3d C_WS = q_WS.toRotationMatrix();
-  Eigen::Matrix3d C_SW = C_WS.transpose();
-  Eigen::Matrix4d T_SW = Eigen::Matrix4d::Identity();
-  T_SW.topLeftCorner<3, 3>() = C_SW;
-  T_SW.topRightCorner<3, 1>() = -C_SW * t_WS_W;
-  Eigen::Vector4d hp_S = T_SW * hp_W;
-  Eigen::Vector4d hp_C = T_CS * hp_S;
+  Eigen::Matrix3d C_BC = q_BC.toRotationMatrix();
+  Eigen::Matrix3d C_CB = C_BC.transpose();
+  Eigen::Matrix4d T_CB = Eigen::Matrix4d::Identity();
+  T_CB.topLeftCorner<3, 3>() = C_CB;
+  T_CB.topRightCorner<3, 1>() = -C_CB * t_BC_B;
+  Eigen::Matrix3d C_WB = q_WB.toRotationMatrix();
+  Eigen::Matrix3d C_BW = C_WB.transpose();
+  Eigen::Matrix4d T_BW = Eigen::Matrix4d::Identity();
+  T_BW.topLeftCorner<3, 3>() = C_BW;
+  T_BW.topRightCorner<3, 1>() = -C_BW * t_WB_W;
+  Eigen::Vector4d hp_B = T_BW * hp_W;
+  Eigen::Vector4d hp_C = T_CB * hp_B;
 
   // calculate the reprojection error
   measurement_t kp;
@@ -184,21 +184,21 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
     Eigen::Vector4d dhC_td;
     Eigen::Matrix<double, 4, 9> dhC_sb;
 
-    Eigen::Vector3d p_W = hp_W.head<3>() - t_WS_W * hp_W[3];
+    Eigen::Vector3d p_BP_W = hp_W.head<3>() - t_WB_W * hp_W[3];
     Eigen::Matrix<double, 4, 6> dhS_deltaTWS;
 
-    dhS_deltaTWS.topLeftCorner<3, 3>() = -C_SW * hp_W[3];
+    dhS_deltaTWS.topLeftCorner<3, 3>() = -C_BW * hp_W[3];
     dhS_deltaTWS.topRightCorner<3, 3>() =
-        C_SW * okvis::kinematics::crossMx(p_W);
+        C_BW * okvis::kinematics::crossMx(p_BP_W);
     dhS_deltaTWS.row(3).setZero();
-    dhC_deltaTWS = T_CS * dhS_deltaTWS;
+    dhC_deltaTWS = T_CB * dhS_deltaTWS;
 
-    dhC_deltahpW = T_CS * T_SW;
+    dhC_deltahpW = T_CB * T_BW;
 
-    Eigen::Vector3d p_S = hp_S.head<3>() - t_SC_S * hp_S[3];
-    dhC_deltaTSC.topLeftCorner<3, 3>() = -C_CS * hp_S[3];
+    Eigen::Vector3d p_CP_B = hp_B.head<3>() - t_BC_B * hp_B[3];
+    dhC_deltaTSC.topLeftCorner<3, 3>() = -C_CB * hp_B[3];
     dhC_deltaTSC.topRightCorner<3, 3>() =
-        C_CS * okvis::kinematics::crossMx(p_S);
+        C_CB * okvis::kinematics::crossMx(p_CP_B);
     dhC_deltaTSC.row(3).setZero();
 
     okvis::ImuMeasurement queryValue;
@@ -206,16 +206,16 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
     queryValue.measurement.gyroscopes -= speedBgBa.segment<3>(3);
     Eigen::Vector3d p =
         okvis::kinematics::crossMx(queryValue.measurement.gyroscopes) *
-            hp_S.head<3>() +
-        C_SW * speedBgBa.head<3>() * hp_W[3];
-    dhC_td.head<3>() = -C_CS * p;
+            hp_B.head<3>() +
+        C_BW * speedBgBa.head<3>() * hp_W[3];
+    dhC_td.head<3>() = -C_CB * p;
     dhC_td[3] = 0;
 
-    Eigen::Matrix3d dhC_vW = -C_CS * C_SW * relativeFeatureTime * hp_W[3];
+    Eigen::Matrix3d dhC_vW = -C_CB * C_BW * relativeFeatureTime * hp_W[3];
     Eigen::Matrix3d dhC_bg =
-        -C_CS * C_SW *
-        okvis::kinematics::crossMx(hp_W.head<3>() - hp_W[3] * t_WS_W) *
-        relativeFeatureTime * q_WS0.toRotationMatrix();
+        -C_CB * C_BW *
+        okvis::kinematics::crossMx(hp_W.head<3>() - hp_W[3] * t_WB_W) *
+        relativeFeatureTime * q_WB0.toRotationMatrix();
 
     dhC_sb.row(3).setZero();
     dhC_sb.topRightCorner<3, 3>().setZero();
@@ -508,30 +508,30 @@ template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
           class EXTRINSIC_MODEL>
 template <typename Scalar>
 bool RsReprojectionErrorAutoDiff<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
-operator()(const Scalar* const T_WS, const Scalar* const php_W,
-           const Scalar* const T_SC,
+operator()(const Scalar* const T_WB, const Scalar* const php_W,
+           const Scalar* const T_BC,
            const Scalar* const t_r,
            const Scalar* const t_d, const Scalar* const speedAndBiases,
-           const Scalar* const deltaT_WS, const Scalar* const deltaT_SC,
+           const Scalar* const deltaT_WB, const Scalar* const deltaT_BC,
            Scalar residuals[4]) const {
-  Eigen::Map<const Eigen::Matrix<Scalar, 3, 1>> t_WS_W0(T_WS);
-  const Eigen::Quaternion<Scalar> q_WS0(T_WS[6], T_WS[3], T_WS[4], T_WS[5]);
-  Eigen::Map<const Eigen::Matrix<Scalar, 6, 1>> deltaT_WSe(deltaT_WS);
-  Eigen::Matrix<Scalar, 3, 1> t_WS_W = t_WS_W0 + deltaT_WSe.template head<3>();
-  Eigen::Matrix<Scalar, 3, 1> omega = deltaT_WSe.template tail<3>();
+  Eigen::Map<const Eigen::Matrix<Scalar, 3, 1>> t_WB_W0(T_WB);
+  const Eigen::Quaternion<Scalar> q_WB0(T_WB[6], T_WB[3], T_WB[4], T_WB[5]);
+  Eigen::Map<const Eigen::Matrix<Scalar, 6, 1>> deltaT_WBe(deltaT_WB);
+  Eigen::Matrix<Scalar, 3, 1> t_WB_W = t_WB_W0 + deltaT_WBe.template head<3>();
+  Eigen::Matrix<Scalar, 3, 1> omega = deltaT_WBe.template tail<3>();
   Eigen::Quaternion<Scalar> dqWS = okvis::ceres::expAndTheta(omega);
-  Eigen::Quaternion<Scalar> q_WS = dqWS * q_WS0;
-  // q_WS.normalize();
+  Eigen::Quaternion<Scalar> q_WB = dqWS * q_WB0;
+  // q_WB.normalize();
 
   Eigen::Map<const Eigen::Matrix<Scalar, 4, 1>> hp_W(php_W);
 
-  Eigen::Map<const Eigen::Matrix<Scalar, 3, 1>> t_SC_S0(T_SC);
-  const Eigen::Quaternion<Scalar> q_SC0(T_SC[6], T_SC[3], T_SC[4], T_SC[5]);
-  Eigen::Map<const Eigen::Matrix<Scalar, 6, 1>> deltaT_SCe(deltaT_SC);
-  Eigen::Matrix<Scalar, 3, 1> t_SC_S = t_SC_S0 + deltaT_SCe.template head<3>();
-  omega = deltaT_SCe.template tail<3>();
+  Eigen::Map<const Eigen::Matrix<Scalar, 3, 1>> t_BC_B0(T_BC);
+  const Eigen::Quaternion<Scalar> q_BC0(T_BC[6], T_BC[3], T_BC[4], T_BC[5]);
+  Eigen::Map<const Eigen::Matrix<Scalar, 6, 1>> deltaT_BCe(deltaT_BC);
+  Eigen::Matrix<Scalar, 3, 1> t_BC_B = t_BC_B0 + deltaT_BCe.template head<3>();
+  omega = deltaT_BCe.template tail<3>();
   Eigen::Quaternion<Scalar> dqSC = okvis::ceres::expAndTheta(omega);
-  Eigen::Quaternion<Scalar> q_SC = dqSC * q_SC0;
+  Eigen::Quaternion<Scalar> q_BC = dqSC * q_BC0;
 
   Scalar trLatestEstimate = t_r[0];
 
@@ -542,8 +542,8 @@ operator()(const Scalar* const T_WS, const Scalar* const php_W,
   Scalar relativeFeatureTime =
       tdLatestEstimate + trLatestEstimate * kpN - (Scalar)rsre_.tdAtCreation_;
 
-  std::pair<Eigen::Quaternion<Scalar>, Eigen::Matrix<Scalar, 3, 1>> pairT_WS(
-      q_WS, t_WS_W);
+  std::pair<Eigen::Quaternion<Scalar>, Eigen::Matrix<Scalar, 3, 1>> pairT_WB(
+      q_WB, t_WB_W);
   Eigen::Matrix<Scalar, 9, 1> speedBgBa =
       Eigen::Map<const Eigen::Matrix<Scalar, 9, 1>>(speedAndBiases);
 
@@ -559,29 +559,29 @@ operator()(const Scalar* const T_WS, const Scalar* const php_W,
   }
 
   if (relativeFeatureTime >= Scalar(5e-8)) {
-    okvis::ceres::predictStates(imuMeasurements, (Scalar)rsre_.gravityMag_, pairT_WS,
+    okvis::ceres::predictStates(imuMeasurements, (Scalar)rsre_.gravityMag_, pairT_WB,
                                 speedBgBa, t_start, t_end);
   } else if (relativeFeatureTime <= Scalar(-5e-8)) {
     okvis::ceres::predictStatesBackward(imuMeasurements, (Scalar)rsre_.gravityMag_,
-                                        pairT_WS, speedBgBa, t_start, t_end);
+                                        pairT_WB, speedBgBa, t_start, t_end);
   }
 
-  q_WS = pairT_WS.first;
-  t_WS_W = pairT_WS.second;
+  q_WB = pairT_WB.first;
+  t_WB_W = pairT_WB.second;
 
   // transform the point into the camera:
-  Eigen::Matrix<Scalar, 3, 3> C_SC = q_SC.toRotationMatrix();
-  Eigen::Matrix<Scalar, 3, 3> C_CS = C_SC.transpose();
-  Eigen::Matrix<Scalar, 4, 4> T_CS = Eigen::Matrix<Scalar, 4, 4>::Identity();
-  T_CS.template topLeftCorner<3, 3>() = C_CS;
-  T_CS.template topRightCorner<3, 1>() = -C_CS * t_SC_S;
-  Eigen::Matrix<Scalar, 3, 3> C_WS = q_WS.toRotationMatrix();
-  Eigen::Matrix<Scalar, 3, 3> C_SW = C_WS.transpose();
-  Eigen::Matrix<Scalar, 4, 4> T_SW = Eigen::Matrix<Scalar, 4, 4>::Identity();
-  T_SW.template topLeftCorner<3, 3>() = C_SW;
-  T_SW.template topRightCorner<3, 1>() = -C_SW * t_WS_W;
-  Eigen::Matrix<Scalar, 4, 1> hp_S = T_SW * hp_W;
-  Eigen::Matrix<Scalar, 4, 1> hp_C = T_CS * hp_S;
+  Eigen::Matrix<Scalar, 3, 3> C_BC = q_BC.toRotationMatrix();
+  Eigen::Matrix<Scalar, 3, 3> C_CB = C_BC.transpose();
+  Eigen::Matrix<Scalar, 4, 4> T_CB = Eigen::Matrix<Scalar, 4, 4>::Identity();
+  T_CB.template topLeftCorner<3, 3>() = C_CB;
+  T_CB.template topRightCorner<3, 1>() = -C_CB * t_BC_B;
+  Eigen::Matrix<Scalar, 3, 3> C_WB = q_WB.toRotationMatrix();
+  Eigen::Matrix<Scalar, 3, 3> C_BW = C_WB.transpose();
+  Eigen::Matrix<Scalar, 4, 4> T_BW = Eigen::Matrix<Scalar, 4, 4>::Identity();
+  T_BW.template topLeftCorner<3, 3>() = C_BW;
+  T_BW.template topRightCorner<3, 1>() = -C_BW * t_WB_W;
+  Eigen::Matrix<Scalar, 4, 1> hp_B = T_BW * hp_W;
+  Eigen::Matrix<Scalar, 4, 1> hp_C = T_CB * hp_B;
 
   residuals[0] = hp_C[0];
   residuals[1] = hp_C[1];
