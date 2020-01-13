@@ -30,7 +30,7 @@ add_library(${PROJECT_NAME}
   msckf/CameraTimeParamBlock.cpp
   msckf/GeneralEstimator.cpp
   msckf/ImuRig.cpp
-  msckf/InitialPVandStd.cpp
+  msckf/InitialNavState.cpp
   msckf/PriorlessEstimator.cpp
   msckf/checkSensorRig.cpp
 )

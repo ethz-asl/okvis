@@ -7,7 +7,7 @@
 
 namespace okvis {
 
-struct InitialPVandStd {
+struct InitialNavState {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   // S represents the nominal IMU sensor frame realized with the camera frame
   // and the intersection of three accelerometers W represents the world frame
@@ -23,14 +23,14 @@ struct InitialPVandStd {
       std_q_WS;  // std of $\delta \theta$ which is expressed in the world frame
   Eigen::Vector3d std_v_WS;
 
-  InitialPVandStd();
+  InitialNavState();
 
-  InitialPVandStd(const okvis::InitialState& rhs);
+  InitialNavState(const okvis::InitialState& rhs);
 
   void updatePose(const okvis::kinematics::Transformation& T_WS,
                   const okvis::Time state_time);
 
-  InitialPVandStd& operator=(const InitialPVandStd& other);
+  InitialNavState& operator=(const InitialNavState& other);
 };
 
 }  // namespace okvis

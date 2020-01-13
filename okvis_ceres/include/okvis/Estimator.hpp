@@ -64,7 +64,7 @@
 
 #include <msckf/BoundedImuDeque.hpp>
 #include <msckf/CameraRig.hpp>
-#include <msckf/InitialPVandStd.hpp>
+#include <msckf/InitialNavState.hpp>
 #include <msckf/ImuRig.hpp>
 #include <fstream> // ONLY for debug output
 #include <iomanip> // std::setfill, std::setw
@@ -464,7 +464,7 @@ class Estimator : public VioBackendInterface
     mapPtr_ = mapPtr;
   }
 
-  void resetInitialPVandStd(const InitialPVandStd& rhs) {
+  void resetInitialNavState(const InitialNavState& rhs) {
      pvstd_ = rhs;
   }
 
@@ -726,7 +726,7 @@ class Estimator : public VioBackendInterface
   okvis::BoundedImuDeque inertialMeasForStates_;
 
   // initial nav state, (position, orientation, and velocity), and their stds.
-  InitialPVandStd pvstd_;
+  InitialNavState pvstd_;
 
   // e.g., min observs to triang a landmark
   size_t minTrackLength_;

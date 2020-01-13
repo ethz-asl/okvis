@@ -1,8 +1,8 @@
-#include "msckf/InitialPVandStd.hpp"
+#include "msckf/InitialNavState.hpp"
 
 namespace okvis {
 
-InitialPVandStd::InitialPVandStd()
+InitialNavState::InitialNavState()
     : initWithExternalSource_(false),
       p_WS(0, 0, 0),
       q_WS(1, 0, 0, 0),
@@ -13,7 +13,7 @@ InitialPVandStd::InitialPVandStd()
 
 // v_WS, and std_v_WS are to be recalculated later according to updated p_WS and
 // q_ws
-InitialPVandStd::InitialPVandStd(const okvis::InitialState& rhs)
+InitialNavState::InitialNavState(const okvis::InitialState& rhs)
     : initWithExternalSource_(rhs.bUseExternalInitState),
       stateTime(rhs.stateTime),
       p_WS(0, 0, 0),
@@ -23,14 +23,14 @@ InitialPVandStd::InitialPVandStd(const okvis::InitialState& rhs)
       std_q_WS(rhs.std_q_WS),
       std_v_WS(rhs.std_v_WS) {}
 
-void InitialPVandStd::updatePose(const okvis::kinematics::Transformation& T_WS,
+void InitialNavState::updatePose(const okvis::kinematics::Transformation& T_WS,
                                  const okvis::Time state_time) {
   stateTime = state_time;
   p_WS = T_WS.r();
   q_WS = T_WS.q();
 }
 
-InitialPVandStd& InitialPVandStd::operator=(const InitialPVandStd& other) {
+InitialNavState& InitialNavState::operator=(const InitialNavState& other) {
   if (&other == this) return *this;
   initWithExternalSource_ = other.initWithExternalSource_;
   stateTime = other.stateTime;
