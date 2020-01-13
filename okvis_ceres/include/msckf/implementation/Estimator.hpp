@@ -151,10 +151,10 @@ bool Estimator::addEpipolarConstraint(uint64_t landmarkId, uint64_t poseId,
   multiFramePtr->getKeypointSize(camIdx, keypointIdx, size);
   covariance12[1] *= (size * size) / 64.0;
 
-  std::shared_ptr<const okvis::cameras::CameraBase> baseCameraGeometry =
-      camera_rig_.getCameraGeometry(camIdx);
-  std::shared_ptr<const CAMERA_GEOMETRY_T> argCameraGeometry =
-      std::static_pointer_cast<const CAMERA_GEOMETRY_T>(baseCameraGeometry);
+  std::shared_ptr<okvis::cameras::CameraBase> baseCameraGeometry =
+      camera_rig_.getMutableCameraGeometry(camIdx);
+  std::shared_ptr<CAMERA_GEOMETRY_T> argCameraGeometry =
+      std::static_pointer_cast<CAMERA_GEOMETRY_T>(baseCameraGeometry);
 
   auto& stateLeft = statesMap_.at(kidHead.frameId);
   auto& stateRight = statesMap_.at(poseId);

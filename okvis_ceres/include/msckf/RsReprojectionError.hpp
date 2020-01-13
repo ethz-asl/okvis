@@ -82,7 +82,8 @@ class RsReprojectionError
 
   /**
    * @brief RsReprojectionError Construct with measurement and information matrix
-   * @param cameraGeometry cameraGeometry The camera geometry will be copied to a class member.
+   * @param cameraGeometry
+   * @warning The camera geometry will be modified in evaluating Jacobians.
    * @param cameraId The id of the camera in the okvis::cameras::NCameraSystem.
    * @param measurement
    * @param information The information (weight) matrix.
@@ -94,7 +95,7 @@ class RsReprojectionError
    * @param gravityMag
    */
   RsReprojectionError(
-      std::shared_ptr<const camera_geometry_t> cameraGeometry,
+      std::shared_ptr<camera_geometry_t> cameraGeometry,
       uint64_t cameraId, const measurement_t& measurement,
       const covariance_t& information,
       const okvis::ImuMeasurementDeque& imuMeasCanopy,
@@ -117,9 +118,9 @@ class RsReprojectionError
   /// \brief Set the underlying camera model.
   /// @param[in] cameraGeometry The camera geometry.
   void setCameraGeometry(
-      std::shared_ptr<const camera_geometry_t> cameraGeometry)
+      std::shared_ptr<camera_geometry_t> cameraGeometry)
   {
-    cameraGeometryBase_ = std::make_shared<camera_geometry_t>(*cameraGeometry);
+    cameraGeometryBase_ = cameraGeometry;
   }
 
   /// \brief Set the information.
@@ -233,7 +234,7 @@ class RsReprojectionError
   uint64_t cameraId_; ///< ID of the camera.
   measurement_t measurement_; ///< The (2D) measurement.
 
-  // An independent copy of the camera model from other RsReprojectionError's copies.
+  // The camera model shared by all RsReprojectionError.
   // It is volatile and updated in every Evaluate() step.
   mutable std::shared_ptr<camera_geometry_t> cameraGeometryBase_;
   // The reference extrinsic parameters in case the EXTRINSIC_MODEL is incomplete.

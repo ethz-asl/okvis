@@ -91,6 +91,10 @@ class CameraRig {
       int camera_id) const {
     return camera_geometries_[camera_id];
   }
+  inline std::shared_ptr<cameras::CameraBase> getMutableCameraGeometry(
+      int camera_id) const {
+    return camera_geometries_[camera_id];
+  }
   inline int getIntrinsicDimen(int camera_id) const {
     return camera_geometries_[camera_id]->noIntrinsicsParameters();
   }

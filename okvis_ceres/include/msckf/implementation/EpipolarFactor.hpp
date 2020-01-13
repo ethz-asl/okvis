@@ -30,7 +30,7 @@ template <class GEOMETRY_TYPE, class EXTRINSIC_MODEL,
           class PROJ_INTRINSIC_MODEL>
 EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
     EpipolarFactor(
-        std::shared_ptr<const camera_geometry_t> cameraGeometry,
+        std::shared_ptr<camera_geometry_t> cameraGeometry,
         uint64_t landmarkId,
         const std::vector<Eigen::Vector2d,
                           Eigen::aligned_allocator<Eigen::Vector2d>>&

@@ -28,7 +28,7 @@ template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
           class EXTRINSIC_MODEL>
 RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
     RsReprojectionError(
-        std::shared_ptr<const camera_geometry_t> cameraGeometry,
+        std::shared_ptr<camera_geometry_t> cameraGeometry,
         uint64_t cameraId, const measurement_t& measurement,
         const covariance_t& information,
         const okvis::ImuMeasurementDeque& imuMeasCanopy,

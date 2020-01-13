@@ -83,8 +83,8 @@ class EpipolarFactor
 
   /**
    * @brief EpipolarFactor Construct with measurement and information matrix
-   * @param cameraGeometry The underlying camera geometry. Its copy as a member
-   *     of this class will be updated each call to Evaluate()
+   * @param cameraGeometry
+   * @warning The camera geometry will be modified in evaluating Jacobians.
    * @param measurement12 left and right 2d measurements
    * @param covariance12 left and right 2d covariance for 2d meas
    * @param imuMeasCanopy imu measurements in neighborhoods of the left and
@@ -96,7 +96,7 @@ class EpipolarFactor
    * @param gravityMag magnitude of gravity
    */
   EpipolarFactor(
-      std::shared_ptr<const camera_geometry_t> cameraGeometry,
+      std::shared_ptr<camera_geometry_t> cameraGeometry,
       uint64_t landmarkId,
       const std::vector<Eigen::Vector2d,
                         Eigen::aligned_allocator<Eigen::Vector2d>>&
@@ -124,9 +124,9 @@ class EpipolarFactor
   /// \brief Set the underlying camera model.
   /// @param[in] cameraGeometry The camera geometry.
   void setCameraGeometry(
-      std::shared_ptr<const camera_geometry_t> cameraGeometry)
+      std::shared_ptr<camera_geometry_t> cameraGeometry)
   {
-    cameraGeometryBase_ = std::make_shared<camera_geometry_t>(*cameraGeometry);
+    cameraGeometryBase_ = cameraGeometry;
   }
 
   // error term and Jacobian implementation
@@ -185,7 +185,7 @@ class EpipolarFactor
 
  protected:
 
-  // An independent copy of the camera model from other EpipolarFactor's copies.
+  // An camera model shared by all EpipolarFactor.
   // The camera model is volatile and updated in every Evaluate() step.
   mutable std::shared_ptr<camera_geometry_t> cameraGeometryBase_;
 
