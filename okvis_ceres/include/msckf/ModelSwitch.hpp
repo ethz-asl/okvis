@@ -13,5 +13,8 @@ namespace okvis {
 #define MODEL_DOES_NOT_EXIST_EXCEPTION \
   throw std::domain_error("Model does not exist");
 
+#define MODEL_DOES_NOT_APPLY_EXCEPTION \
+  throw std::domain_error("Model does not apply or exist");
+
 } // namespace okvis
 #endif  // INCLUDE_MSCKF_MODEL_SWITCH_HPP_

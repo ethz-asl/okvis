@@ -19,7 +19,7 @@
 
 #include <msckf/ImuModels.hpp>
 #include <msckf/ExtrinsicModels.hpp>
-#include <okvis/ceres/HomogeneousPointParameterBlock.hpp>
+#include <msckf/PointLandmarkModels.hpp>
 
 namespace okvis {
 namespace ceres {
@@ -44,7 +44,7 @@ class LocalBearingVector;
 ///     Its kNumParams should not be zero.
 template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
           class EXTRINSIC_MODEL=Extrinsic_p_BC_q_BC,
-          class LANDMARK_MODEL=HomogeneousPointParameterBlock,
+          class LANDMARK_MODEL=msckf::HomogeneousPointParameterization,
           class IMU_MODEL=Imu_BG_BA>
 class RsReprojectionError
     : public ::ceres::SizedCostFunction<
@@ -72,6 +72,24 @@ class RsReprojectionError
       2, 7, 4, EXTRINSIC_MODEL::kGlobalDim, PROJ_INTRINSIC_MODEL::kNumParams,
       GEOMETRY_TYPE::distortion_t::NumDistortionIntrinsics, 1, 1, 9>
       base_t;
+
+  typedef typename std::conditional<
+      (PROJ_INTRINSIC_MODEL::kNumParams > 1),
+      Eigen::Matrix<double, 2, PROJ_INTRINSIC_MODEL::kNumParams,
+                    Eigen::RowMajor>,
+      Eigen::Matrix<double, 2, PROJ_INTRINSIC_MODEL::kNumParams> >::type
+      ProjectionIntrinsicJacType;
+
+  typedef typename std::conditional<
+      (PROJ_INTRINSIC_MODEL::kNumParams > 1),
+      Eigen::Matrix<double, 4, PROJ_INTRINSIC_MODEL::kNumParams,
+                    Eigen::RowMajor>,
+      Eigen::Matrix<double, 4, PROJ_INTRINSIC_MODEL::kNumParams>>::type
+      ProjectionIntrinsicJacType4;
+
+  typedef typename std::conditional<(kDistortionDim > 1),
+      Eigen::Matrix<double, 2, kDistortionDim, Eigen::RowMajor>,
+      Eigen::Matrix<double, 2, kDistortionDim>>::type DistortionJacType;
 
   /// \brief Number of residuals (2)
   static const int kNumResiduals = 2;
@@ -182,7 +200,17 @@ class RsReprojectionError
                                             double** jacobians,
                                             double** jacobiansMinimal) const;
 
-  bool EvaluateWithMinimalJacobiansAutoDiff(double const* const * parameters,
+  bool EvaluateWithMinimalJacobiansAnalytic(double const* const * parameters,
+                                            double* residuals,
+                                            double** jacobians,
+                                            double** jacobiansMinimal) const;
+
+  bool EvaluateWithMinimalJacobiansGlobalAutoDiff(double const* const * parameters,
+                                            double* residuals,
+                                            double** jacobians,
+                                            double** jacobiansMinimal) const;
+
+  bool EvaluateWithMinimalJacobiansModuleAutoDiff(double const* const * parameters,
                                             double* residuals,
                                             double** jacobians,
                                             double** jacobiansMinimal) const;
@@ -259,6 +287,7 @@ class RsReprojectionError
   const double gravityMag_; ///< gravity in the world frame is [0, 0, -gravityMag_].
 };
 
+// For testing only
 // Calculate the Jacobians of the homogeneous landmark coordinates in the
 // camera frame, hp_C, relative to the states.
 // AutoDifferentiate will invoke Evaluate() if the Functor is a ceres::CostFunction
@@ -279,44 +308,6 @@ class LocalBearingVector {
 
  private:
   const RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDMARK_MODEL, IMU_MODEL>& rsre_;
-};
-
-//template <class EXTRINSIC_MODEL, class LANDMARK_MODEL, class IMU_MODEL>
-//class LocalBearingVector {
-// public:
-//  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-//  LocalBearingVector();
-//  template <typename Scalar>
-//  bool operator()(const Scalar* const T_WS, const Scalar* const hp_W,
-//                  const Scalar* const extrinsic, const Scalar* const t_r,
-//                  const Scalar* const t_d, const Scalar* const speedAndBiases,
-//                  const Scalar* const deltaT_WS,
-//                  const Scalar* const deltaExtrinsic, Scalar* hp_C) const {
-//    LANDMARK_MODEL::getLocalBearingVector(/*imu meas, imu model, extrinsic parameters, system states*/);
-//  }
-
-// private:
-//  // add the rsre_ parameters for computing residual
-
-//};
-
-template <class EXTRINSIC_MODEL, class LANDMARK_MODEL, class IMU_MODEL>
-class GlobalBearingVector {
- public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  GlobalBearingVector();
-  template <typename Scalar>
-  bool operator()(const Scalar* const T_WS, const Scalar* const hp_W,
-                  const Scalar* const extrinsic, const Scalar* const t_r,
-                  const Scalar* const t_d, const Scalar* const speedAndBiases,
-                  const Scalar* const deltaT_WS,
-                  const Scalar* const deltaExtrinsic, Scalar* hp_C) const {
-    LANDMARK_MODEL::getGlobalBearingVector(/*imu meas, imu model, extrinsic parameters*/);
-  }
-
- private:
-  // add the rsre_ parameters for computing residual
-
 };
 
 }  // namespace ceres

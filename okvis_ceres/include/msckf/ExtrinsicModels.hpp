@@ -45,6 +45,12 @@ class ExtrinsicFixed {
       Eigen::VectorXd* /*extrinsic_opt_coeffs*/) {
     return;
   }
+  template <class Scalar>
+  static std::pair<Eigen::Matrix<Scalar, 3, 1>, Eigen::Quaternion<Scalar>> get_T_BC(
+      const okvis::kinematics::Transformation& T_BC_base,
+      const Scalar* /*parameters*/) {
+    return std::make_pair(T_BC_base.r().cast<Scalar>(), T_BC_base.q().cast<Scalar>());
+  }
 };
 
 class Extrinsic_p_CB {
@@ -95,6 +101,15 @@ class Extrinsic_p_CB {
       const okvis::kinematics::Transformation& T_BC,
       Eigen::VectorXd* extrinsic_opt_coeffs) {
     *extrinsic_opt_coeffs = T_BC.q().conjugate() * (-T_BC.r());
+  }
+
+  template <class Scalar>
+  static std::pair<Eigen::Matrix<Scalar, 3, 1>, Eigen::Quaternion<Scalar>> get_T_BC(
+      const okvis::kinematics::Transformation& T_BC_base,
+      const Scalar* parameters) {
+    Eigen::Matrix<Scalar, 3, 1> t_CB_C(parameters[0], parameters[1], parameters[2]);
+    Eigen::Quaternion<Scalar> q_BC = T_BC_base.q().cast<Scalar>();
+    return std::make_pair(q_BC * (-t_CB_C), q_BC);
   }
 };
 
@@ -167,6 +182,16 @@ class Extrinsic_p_BC_q_BC {
       const okvis::kinematics::Transformation& T_BC,
       Eigen::VectorXd* extrinsic_opt_coeffs) {
     *extrinsic_opt_coeffs = T_BC.coeffs();
+  }
+
+  template <class Scalar>
+  static std::pair<Eigen::Matrix<Scalar, 3, 1>, Eigen::Quaternion<Scalar>> get_T_BC(
+      const okvis::kinematics::Transformation& /*T_BC_base*/,
+      const Scalar* parameters) {
+    Eigen::Matrix<Scalar, 3, 1> t_BC_B(parameters[0], parameters[1], parameters[2]);
+    Eigen::Quaternion<Scalar> q_BC(parameters[6], parameters[3], parameters[4],
+                                   parameters[5]);
+    return std::make_pair(t_BC_B, q_BC);
   }
 };
 

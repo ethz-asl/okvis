@@ -30,12 +30,12 @@ Eigen::Quaternion<typename Derived::Scalar> rvec2quat(const Eigen::MatrixBase<De
 template<typename Scalar>
 int predictStates(const okvis::GenericImuMeasurementDeque<Scalar> & imuMeasurements,
             const Scalar gravityMag,
-            std::pair< Eigen::Quaternion<Scalar>, Eigen::Matrix<Scalar, 3, 1> > &T_WS,
+            std::pair<Eigen::Matrix<Scalar, 3, 1>, Eigen::Quaternion<Scalar>> &T_WS,
             Eigen::Matrix<Scalar, 9,1>& speedBgBa,
             const Scalar t_start, const Scalar t_end)
 {
-    Eigen::Matrix<Scalar, 3,1> r_old(T_WS.second), r_new(r_old), v_old(speedBgBa.template head<3>()), v_new(v_old);
-    Eigen::Quaternion<Scalar> q_old(T_WS.first.conjugate()), q_new(q_old); //rotation from world to sensor
+    Eigen::Matrix<Scalar, 3,1> r_old(T_WS.first), r_new(r_old), v_old(speedBgBa.template head<3>()), v_new(v_old);
+    Eigen::Quaternion<Scalar> q_old(T_WS.second.conjugate()), q_new(q_old); //rotation from world to sensor
     assert(imuMeasurements.front().timeStamp <= t_start && imuMeasurements.back().timeStamp >= t_end);
 
     Scalar time = t_start;
@@ -108,8 +108,8 @@ int predictStates(const okvis::GenericImuMeasurementDeque<Scalar> & imuMeasureme
     }
     assert(nexttime == t_end);
 
-    T_WS.first = q_new.conjugate();
-    T_WS.second = r_new;
+    T_WS.second = q_new.conjugate();
+    T_WS.first = r_new;
     speedBgBa. template head<3>()=v_new;
     return i;
 }
@@ -118,12 +118,12 @@ int predictStates(const okvis::GenericImuMeasurementDeque<Scalar> & imuMeasureme
 template<typename Scalar>
 int predictStatesBackward(const okvis::GenericImuMeasurementDeque<Scalar> & imuMeasurements,
                     const Scalar gravityMag,
-                    std::pair< Eigen::Quaternion<Scalar>, Eigen::Matrix<Scalar, 3, 1> > &T_WS,
+                    std::pair<Eigen::Matrix<Scalar, 3, 1>, Eigen::Quaternion<Scalar>> &T_WS,
                     Eigen::Matrix<Scalar, 9,1>& speedBgBa,
                     const Scalar t_start, const Scalar t_end)
 {
-    Eigen::Matrix<Scalar, 3,1> r_old(T_WS.second), r_new(r_old), v_old(speedBgBa.template head<3>()), v_new(v_old);
-    Eigen::Quaternion<Scalar> q_old(T_WS.first.conjugate()), q_new(q_old); //rotation from world to sensor
+    Eigen::Matrix<Scalar, 3,1> r_old(T_WS.first), r_new(r_old), v_old(speedBgBa.template head<3>()), v_new(v_old);
+    Eigen::Quaternion<Scalar> q_old(T_WS.second.conjugate()), q_new(q_old); //rotation from world to sensor
     assert(imuMeasurements.front().timeStamp <= t_end && imuMeasurements.back().timeStamp >= t_start);
 
     Scalar time = t_start;
@@ -197,8 +197,8 @@ int predictStatesBackward(const okvis::GenericImuMeasurementDeque<Scalar> & imuM
     }
     assert(nexttime == t_end);
 
-    T_WS.first = q_new.conjugate();
-    T_WS.second = r_new;
+    T_WS.second = q_new.conjugate();
+    T_WS.first = r_new;
     speedBgBa.template head<3>()=v_new;
     return i;
 }
@@ -206,12 +206,12 @@ int predictStatesBackward(const okvis::GenericImuMeasurementDeque<Scalar> & imuM
 template<typename Scalar>
 int predictStates(const okvis::ImuMeasurementDeque & imuMeasurements,
             const Scalar gravityMag,
-            std::pair< Eigen::Quaternion<Scalar>, Eigen::Matrix<Scalar, 3, 1> > &T_WS,
+            std::pair<Eigen::Matrix<Scalar, 3, 1>, Eigen::Quaternion<Scalar>> &T_WS,
             Eigen::Matrix<Scalar, 9,1>& speedBgBa,
             const okvis::Time t_start, const okvis::Time t_end)
 {
-    Eigen::Matrix<Scalar, 3,1> r_old(T_WS.second), r_new(r_old), v_old(speedBgBa.template head<3>()), v_new(v_old);
-    Eigen::Quaternion<Scalar> q_old(T_WS.first.conjugate()), q_new(q_old); //rotation from world to sensor
+    Eigen::Matrix<Scalar, 3,1> r_old(T_WS.first), r_new(r_old), v_old(speedBgBa.template head<3>()), v_new(v_old);
+    Eigen::Quaternion<Scalar> q_old(T_WS.second.conjugate()), q_new(q_old); //rotation from world to sensor
     assert(imuMeasurements.front().timeStamp <= t_start && imuMeasurements.back().timeStamp >= t_end);
 
     okvis::Time time = t_start;
@@ -285,8 +285,8 @@ int predictStates(const okvis::ImuMeasurementDeque & imuMeasurements,
     }
     assert(nexttime == t_end);
 
-    T_WS.first = q_new.conjugate();
-    T_WS.second = r_new;
+    T_WS.second = q_new.conjugate();
+    T_WS.first = r_new;
     speedBgBa. template head<3>()=v_new;
     return i;
 }
@@ -295,12 +295,12 @@ int predictStates(const okvis::ImuMeasurementDeque & imuMeasurements,
 template<typename Scalar>
 int predictStatesBackward(const okvis::ImuMeasurementDeque & imuMeasurements,
                     const Scalar gravityMag,
-                    std::pair< Eigen::Quaternion<Scalar>, Eigen::Matrix<Scalar, 3, 1> > &T_WS,
+                    std::pair<Eigen::Matrix<Scalar, 3, 1>, Eigen::Quaternion<Scalar>> &T_WS,
                     Eigen::Matrix<Scalar, 9,1>& speedBgBa,
                     const okvis::Time t_start, const okvis::Time t_end)
 {
-    Eigen::Matrix<Scalar, 3,1> r_old(T_WS.second), r_new(r_old), v_old(speedBgBa.template head<3>()), v_new(v_old);
-    Eigen::Quaternion<Scalar> q_old(T_WS.first.conjugate()), q_new(q_old); //rotation from world to sensor
+    Eigen::Matrix<Scalar, 3,1> r_old(T_WS.first), r_new(r_old), v_old(speedBgBa.template head<3>()), v_new(v_old);
+    Eigen::Quaternion<Scalar> q_old(T_WS.second.conjugate()), q_new(q_old); //rotation from world to sensor
     assert(imuMeasurements.front().timeStamp <= t_end && imuMeasurements.back().timeStamp >= t_start);
     // if this assertion fails during optimization, it often means the time offset variables diverge. Solution:
     // either try to enlarge the range of imu reading segment, or decrease the time variables' std to effectively lock them
@@ -376,8 +376,8 @@ int predictStatesBackward(const okvis::ImuMeasurementDeque & imuMeasurements,
     }
     assert(nexttime == t_end);
 
-    T_WS.first = q_new.conjugate();
-    T_WS.second = r_new;
+    T_WS.second = q_new.conjugate();
+    T_WS.first = r_new;
     speedBgBa.template head<3>()=v_new;
     return i;
 }

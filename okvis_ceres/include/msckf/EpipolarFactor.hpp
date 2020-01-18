@@ -223,7 +223,7 @@ class EpipolarFactor
    * @param[in] index 0 for left camera, 1 for right
    */
   void computePoseAndVelocityAtExposure(
-      std::pair<Eigen::Quaternion<double>, Eigen::Matrix<double, 3, 1>>*
+      std::pair<Eigen::Matrix<double, 3, 1>, Eigen::Quaternion<double>>*
           pairT_WS,
       Eigen::Matrix<double, 6, 1>* velAndOmega,
       double const* const* parameters, int index) const;

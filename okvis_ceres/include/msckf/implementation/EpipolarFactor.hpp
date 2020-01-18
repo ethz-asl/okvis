@@ -78,7 +78,7 @@ template <class GEOMETRY_TYPE, class EXTRINSIC_MODEL,
           class PROJ_INTRINSIC_MODEL>
 void EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
     computePoseAndVelocityAtExposure(
-        std::pair<Eigen::Quaternion<double>, Eigen::Matrix<double, 3, 1>>*
+        std::pair<Eigen::Matrix<double, 3, 1>, Eigen::Quaternion<double>>*
             pair_T_WB,
         Eigen::Matrix<double, 6, 1>* velAndOmega,
         double const* const* parameters, int index) const {
@@ -145,14 +145,14 @@ bool EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
   double trLatestEstimate = parameters[5][0];
   double tdLatestEstimate = parameters[6][0];
   int index = 0;
-  std::pair<Eigen::Quaternion<double>, Eigen::Matrix<double, 3, 1>> pair_T_WB1(
-      q_WB1, t_WB1_W);
+  std::pair<Eigen::Matrix<double, 3, 1>, Eigen::Quaternion<double>> pair_T_WB1(
+      t_WB1_W, q_WB1);
   Eigen::Matrix<double, 6, 1> velAndOmega[2];
   computePoseAndVelocityAtExposure(&pair_T_WB1, &velAndOmega[index], parameters,
                                    index);
   index = 1;
-  std::pair<Eigen::Quaternion<double>, Eigen::Matrix<double, 3, 1>> pair_T_WB2(
-      q_WB2, t_WB2_W);
+  std::pair<Eigen::Matrix<double, 3, 1>, Eigen::Quaternion<double>> pair_T_WB2(
+      t_WB2_W, q_WB2);
   computePoseAndVelocityAtExposure(&pair_T_WB2, &velAndOmega[index], parameters,
                                    index);
 
