@@ -19,14 +19,14 @@ namespace okvis {
 namespace ceres {
 
 template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
-          class EXTRINSIC_MODEL>
+          class EXTRINSIC_MODEL, class LANDMARK_MODEL, class IMU_MODEL>
 RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL,
-                    EXTRINSIC_MODEL>::RsReprojectionError()
+                    EXTRINSIC_MODEL, LANDMARK_MODEL, IMU_MODEL>::RsReprojectionError()
     : gravityMag_(9.80665) {}
 
 template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
-          class EXTRINSIC_MODEL>
-RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
+          class EXTRINSIC_MODEL, class LANDMARK_MODEL, class IMU_MODEL>
+RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDMARK_MODEL, IMU_MODEL>::
     RsReprojectionError(
         std::shared_ptr<camera_geometry_t> cameraGeometry,
         uint64_t cameraId, const measurement_t& measurement,
@@ -46,8 +46,8 @@ RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
 }
 
 template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
-          class EXTRINSIC_MODEL>
-void RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
+          class EXTRINSIC_MODEL, class LANDMARK_MODEL, class IMU_MODEL>
+void RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDMARK_MODEL, IMU_MODEL>::
     setInformation(const covariance_t& information) {
   information_ = information;
   covariance_ = information.inverse();
@@ -58,16 +58,16 @@ void RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
 }
 
 template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
-          class EXTRINSIC_MODEL>
-bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
+          class EXTRINSIC_MODEL, class LANDMARK_MODEL, class IMU_MODEL>
+bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDMARK_MODEL, IMU_MODEL>::
     Evaluate(double const* const* parameters, double* residuals,
              double** jacobians) const {
   return EvaluateWithMinimalJacobians(parameters, residuals, jacobians, NULL);
 }
 
 template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
-          class EXTRINSIC_MODEL>
-bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
+          class EXTRINSIC_MODEL, class LANDMARK_MODEL, class IMU_MODEL>
+bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDMARK_MODEL, IMU_MODEL>::
     EvaluateWithMinimalJacobians(double const* const* parameters,
                                  double* residuals, double** jacobians,
                                  double** jacobiansMinimal) const {
@@ -230,8 +230,8 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
 }
 
 template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
-          class EXTRINSIC_MODEL>
-void RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
+          class EXTRINSIC_MODEL, class LANDMARK_MODEL, class IMU_MODEL>
+void RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDMARK_MODEL, IMU_MODEL>::
     setJacobiansZero(double** jacobians, double** jacobiansMinimal) const {
   zeroJacobian<7, 6, 2>(0, jacobians, jacobiansMinimal);
   zeroJacobian<4, 3, 2>(1, jacobians, jacobiansMinimal);
@@ -241,14 +241,14 @@ void RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
                                                     jacobiansMinimal);
   zeroJacobian<kDistortionDim, kDistortionDim, 2>(4, jacobians,
                                                   jacobiansMinimal);
-  zeroJacobianOne<2>(5, jacobians, jacobiansMinimal);
-  zeroJacobianOne<2>(6, jacobians, jacobiansMinimal);
+  zeroJacobian<1, 1, 2>(5, jacobians, jacobiansMinimal);
+  zeroJacobian<1, 1, 2>(6, jacobians, jacobiansMinimal);
   zeroJacobian<9, 9, 2>(7, jacobians, jacobiansMinimal);
 }
 
 template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
-          class EXTRINSIC_MODEL>
-void RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
+          class EXTRINSIC_MODEL, class LANDMARK_MODEL, class IMU_MODEL>
+void RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDMARK_MODEL, IMU_MODEL>::
     assignJacobians(
         double const* const* parameters, double** jacobians,
         double** jacobiansMinimal,
@@ -332,12 +332,14 @@ void RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
   }
 
   if (jacobians[4] != NULL) {
-    Eigen::Map<Eigen::Matrix<double, 2, kDistortionDim, Eigen::RowMajor>> J1(
-        jacobians[4]);
+    typedef typename std::conditional<(kDistortionDim > 1),
+        Eigen::Matrix<double, 2, kDistortionDim, Eigen::RowMajor>,
+        Eigen::Matrix<double, 2, kDistortionDim>>::type DistortionJacType;
+    Eigen::Map<DistortionJacType> J1(jacobians[4]);
     J1 = -Jpi_weighted.template topRightCorner<2, kDistortionDim>();
     if (jacobiansMinimal != NULL) {
       if (jacobiansMinimal[4] != NULL) {
-        Eigen::Map<Eigen::Matrix<double, 2, kDistortionDim, Eigen::RowMajor>>
+        Eigen::Map<DistortionJacType>
             J1_minimal_mapped(jacobiansMinimal[4]);
         J1_minimal_mapped = J1;
       }
@@ -387,8 +389,8 @@ void RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
 // This evaluates the error term and additionally computes
 // the Jacobians in the minimal internal representation via autodiff
 template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
-          class EXTRINSIC_MODEL>
-bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
+          class EXTRINSIC_MODEL, class LANDMARK_MODEL, class IMU_MODEL>
+bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDMARK_MODEL, IMU_MODEL>::
     EvaluateWithMinimalJacobiansAutoDiff(double const* const* parameters,
                                          double* residuals, double** jacobians,
                                          double** jacobiansMinimal) const {
@@ -424,7 +426,7 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
                             dhC_sb.data(),
                             dhC_deltaTWS.data(),
                             dhC_deltaTSC.data()};
-  RsReprojectionErrorAutoDiff<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL> rsre(*this);
+  LocalBearingVector<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, okvis::ceres::HomogeneousPointParameterBlock, Imu_BG_BA> rsre(*this);
   bool diffState =
           ::ceres::internal::AutoDifferentiate<
               ::ceres::internal::StaticParameterDims<7, 4, EXTRINSIC_MODEL::kGlobalDim, 1, 1, 9, 6,
@@ -497,17 +499,19 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
 }
 
 template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
-          class EXTRINSIC_MODEL>
-RsReprojectionErrorAutoDiff<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
-RsReprojectionErrorAutoDiff(const RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>& rsre) :
-    rsre_(rsre) {
-
-}
+          class EXTRINSIC_MODEL, class LANDMARK_MODEL, class IMU_MODEL>
+LocalBearingVector<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL,
+                   LANDMARK_MODEL, IMU_MODEL>::
+    LocalBearingVector(
+        const RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL,
+                                  EXTRINSIC_MODEL, LANDMARK_MODEL, IMU_MODEL>&
+            rsre)
+    : rsre_(rsre) {}
 
 template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
-          class EXTRINSIC_MODEL>
+          class EXTRINSIC_MODEL, class LANDMARK_MODEL, class IMU_MODEL>
 template <typename Scalar>
-bool RsReprojectionErrorAutoDiff<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>::
+bool LocalBearingVector<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDMARK_MODEL, IMU_MODEL>::
 operator()(const Scalar* const T_WB, const Scalar* const php_W,
            const Scalar* const T_BC,
            const Scalar* const t_r,

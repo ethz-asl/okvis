@@ -8,6 +8,7 @@
 #include <okvis/cameras/CameraBase.hpp>
 #include <okvis/cameras/EquidistantDistortion.hpp>
 #include <okvis/cameras/FovDistortion.hpp>
+#include <okvis/cameras/NCameraSystem.hpp>
 #include <okvis/cameras/NoDistortion.hpp>
 #include <okvis/cameras/RadialTangentialDistortion.hpp>
 #include <okvis/cameras/RadialTangentialDistortion8.hpp>
@@ -49,12 +50,41 @@ static inline void DistortionNameToParamsInfo(const std::string& distortionName,
   }
 }
 
+static inline okvis::cameras::NCameraSystem::DistortionType
+DistortionNameToTypeId(const std::string& distortionName) {
+  std::map<std::string, okvis::cameras::NCameraSystem::DistortionType> distortionNameList{
+      {okvis::cameras::EquidistantDistortion().type(),
+       okvis::cameras::NCameraSystem::Equidistant},
+      {okvis::cameras::RadialTangentialDistortion().type(),
+       okvis::cameras::NCameraSystem::RadialTangential},
+      {okvis::cameras::NoDistortion().type(),
+       okvis::cameras::NCameraSystem::NoDistortion},
+      {okvis::cameras::RadialTangentialDistortion8().type(),
+       okvis::cameras::NCameraSystem::RadialTangential8},
+      {okvis::cameras::FovDistortion().type(), okvis::cameras::NCameraSystem::FOV}};
+
+  std::map<std::string, okvis::cameras::NCameraSystem::DistortionType>::iterator
+      it = std::find_if(
+      distortionNameList.begin(), distortionNameList.end(),
+      [&distortionName](const std::pair<std::string, okvis::cameras::NCameraSystem::DistortionType>& val) {
+        if (val.first.compare(distortionName) == 0) return true;
+        return false;
+      });
+  if (it == distortionNameList.end()) {
+    return okvis::cameras::NCameraSystem::NoDistortion;
+  } else {
+    return it->second;
+  }
+}
+
 class CameraRig {
  private:
   ///< Mounting transformations from IMU
   std::vector<std::shared_ptr<okvis::kinematics::Transformation>> T_SC_;
   ///< Camera geometries
   std::vector<std::shared_ptr<cameras::CameraBase>> camera_geometries_;
+
+  std::vector<okvis::cameras::NCameraSystem::DistortionType> distortionTypes_;
 
   ///< which subset of the extrinsic parameters are variable in estimation.
   std::vector<int> extrinsic_opt_rep_;
@@ -68,6 +98,7 @@ class CameraRig {
   inline void clear() {
     T_SC_.clear();
     camera_geometries_.clear();
+    distortionTypes_.clear();
     extrinsic_opt_rep_.clear();
     proj_opt_rep_.clear();
   }
@@ -110,6 +141,10 @@ class CameraRig {
   }
   inline int getDistortionDimen(int camera_id) const {
     return camera_geometries_[camera_id]->noDistortionParameters();
+  }
+  inline okvis::cameras::NCameraSystem::DistortionType
+      getDistortionType(int camera_id) const {
+    return distortionTypes_[camera_id];
   }
   inline int getMinimalExtrinsicDimen(int camera_id) const {
     return ExtrinsicModelGetMinimalDim(extrinsic_opt_rep_[camera_id]);
@@ -164,6 +199,7 @@ class CameraRig {
     T_SC_.emplace_back(
         std::make_shared<okvis::kinematics::Transformation>(*T_SC));
     camera_geometries_.emplace_back(cloneCameraGeometry(cameraGeometry));
+    distortionTypes_.emplace_back(DistortionNameToTypeId(cameraGeometry->distortionType()));
     proj_opt_rep_.emplace_back(ProjectionOptNameToId(pinhole_opt_rep));
     LOG(INFO) << "added proj opt rep " << pinhole_opt_rep << " of id "
               << proj_opt_rep_.back();
@@ -173,6 +209,82 @@ class CameraRig {
     return static_cast<int>(T_SC_.size()) - 1;
   }
 };
+
+#ifndef DISTORTION_MODEL_NO_NODISTORTION_SWITCH_CASES
+#define DISTORTION_MODEL_NO_NODISTORTION_SWITCH_CASES                                         \
+  case okvis::cameras::NCameraSystem::Equidistant:                            \
+    DISTORTION_MODEL_CASE(                                                    \
+        okvis::cameras::PinholeCamera<okvis::cameras::EquidistantDistortion>) \
+    break;                                                                    \
+  case okvis::cameras::NCameraSystem::RadialTangential:                       \
+    DISTORTION_MODEL_CASE(okvis::cameras::PinholeCamera<                      \
+                          okvis::cameras::RadialTangentialDistortion>)        \
+    break;                                                                    \
+  case okvis::cameras::NCameraSystem::RadialTangential8:                      \
+    DISTORTION_MODEL_CASE(okvis::cameras::PinholeCamera<                      \
+                          okvis::cameras::RadialTangentialDistortion8>)       \
+    break;                                                                    \
+  case okvis::cameras::NCameraSystem::FOV:                                    \
+    DISTORTION_MODEL_CASE(                                                    \
+        okvis::cameras::PinholeCamera<okvis::cameras::FovDistortion>)         \
+    break;                                                                    \
+  default:                                                                    \
+    MODEL_DOES_NOT_EXIST_EXCEPTION                                            \
+    break;
+#endif
+
+#ifndef DISTORTION_MODEL_SWITCH_CASES
+#define DISTORTION_MODEL_SWITCH_CASES                                         \
+  case okvis::cameras::NCameraSystem::Equidistant:                            \
+    DISTORTION_MODEL_CASE(                                                    \
+        okvis::cameras::PinholeCamera<okvis::cameras::EquidistantDistortion>) \
+    break;                                                                    \
+  case okvis::cameras::NCameraSystem::RadialTangential:                       \
+    DISTORTION_MODEL_CASE(okvis::cameras::PinholeCamera<                      \
+                          okvis::cameras::RadialTangentialDistortion>)        \
+    break;                                                                    \
+  case okvis::cameras::NCameraSystem::RadialTangential8:                      \
+    DISTORTION_MODEL_CASE(okvis::cameras::PinholeCamera<                      \
+                          okvis::cameras::RadialTangentialDistortion8>)       \
+    break;                                                                    \
+  case okvis::cameras::NCameraSystem::NoDistortion:                           \
+    DISTORTION_MODEL_CASE(                                                    \
+        okvis::cameras::PinholeCamera<okvis::cameras::NoDistortion>)          \
+    break;                                                                    \
+  case okvis::cameras::NCameraSystem::FOV:                                    \
+    DISTORTION_MODEL_CASE(                                                    \
+        okvis::cameras::PinholeCamera<okvis::cameras::FovDistortion>)         \
+    break;                                                                    \
+  default:                                                                    \
+    MODEL_DOES_NOT_EXIST_EXCEPTION                                            \
+    break;
+#endif
+
+// with the initialized landmark, compute the measurement Jacobian
+const int kReprojectionErrorId = 0;
+const int kEpipolarFactorId = 1;
+const int kChordalDistanceId = 2;
+const int kTangentDistanceId = 3;
+
+#ifndef RESIDUAL_MODEL_SWITCH_CASES
+#define RESIDUAL_MODEL_SWITCH_CASES          \
+  case okvis::cameras::kReprojectionErrorId: \
+    RESIDUAL_MODEL_CASE(RsReprojectionError) \
+    break;                                   \
+  case okvis::cameras::kEpipolarFactorId:    \
+    RESIDUAL_MODEL_CASE(EpipolarFactor)      \
+    break;                                   \
+  case okvis::cameras::kChordalDistanceId:   \
+    RESIDUAL_MODEL_CASE(ChordalDistance)     \
+    break;                                   \
+  case okvis::cameras::kTangentDistanceId:   \
+    RESIDUAL_MODEL_CASE(TangentDistance)     \
+    break;                                   \
+  default:                                   \
+    MODEL_DOES_NOT_EXIST_EXCEPTION           \
+    break;
+#endif
+
 }  // namespace cameras
 }  // namespace okvis
 #endif  // INCLUDE_MSCKF_CAMERA_RIG_HPP_

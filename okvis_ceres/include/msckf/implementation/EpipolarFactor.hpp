@@ -403,8 +403,8 @@ void EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
   zeroJacobian<PROJ_INTRINSIC_MODEL::kNumParams,
                PROJ_INTRINSIC_MODEL::kNumParams, 1>(3, jacobians, jacobiansMinimal);
   zeroJacobian<kDistortionDim, kDistortionDim, 1>(4, jacobians, jacobiansMinimal);
-  zeroJacobianOne<1>(5, jacobians, jacobiansMinimal);
-  zeroJacobianOne<1>(6, jacobians, jacobiansMinimal);
+  zeroJacobian<1, 1, 1>(5, jacobians, jacobiansMinimal);
+  zeroJacobian<1, 1, 1>(6, jacobians, jacobiansMinimal);
 }
 
 }  // namespace ceres

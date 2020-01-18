@@ -17,11 +17,16 @@
 #include <okvis/ceres/PoseLocalParameterization.hpp>
 #include <okvis/ceres/ErrorInterface.hpp>
 
+#include <msckf/ImuModels.hpp>
+#include <msckf/ExtrinsicModels.hpp>
+#include <okvis/ceres/HomogeneousPointParameterBlock.hpp>
+
 namespace okvis {
 namespace ceres {
 
-template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL, class EXTRINSIC_MODEL>
-class RsReprojectionErrorAutoDiff;
+template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL, class EXTRINSIC_MODEL,
+          class LANDMARK_MODEL, class IMU_MODEL>
+class LocalBearingVector;
 
 /// \brief The 2D keypoint reprojection error accounting for rolling shutter
 ///     skew and time offset and camera intrinsics.
@@ -37,7 +42,10 @@ class RsReprojectionErrorAutoDiff;
 ///     It maps the subset to the full extrinsic parameters using additional
 ///     constant values from a provided extrinsic entity, e.g., T_BC.
 ///     Its kNumParams should not be zero.
-template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL, class EXTRINSIC_MODEL>
+template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
+          class EXTRINSIC_MODEL=Extrinsic_p_BC_q_BC,
+          class LANDMARK_MODEL=HomogeneousPointParameterBlock,
+          class IMU_MODEL=Imu_BG_BA>
 class RsReprojectionError
     : public ::ceres::SizedCostFunction<
           2 /* number of residuals */, 7 /* pose */, 4 /* landmark */,
@@ -229,7 +237,7 @@ class RsReprojectionError
     cameraId_ = cameraId;
   }
 
-  friend class RsReprojectionErrorAutoDiff<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>;
+  friend class LocalBearingVector<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDMARK_MODEL, IMU_MODEL>;
  protected:
   uint64_t cameraId_; ///< ID of the camera.
   measurement_t measurement_; ///< The (2D) measurement.
@@ -251,26 +259,64 @@ class RsReprojectionError
   const double gravityMag_; ///< gravity in the world frame is [0, 0, -gravityMag_].
 };
 
+// Calculate the Jacobians of the homogeneous landmark coordinates in the
+// camera frame, hp_C, relative to the states.
 // AutoDifferentiate will invoke Evaluate() if the Functor is a ceres::CostFunction
 // see ceres-solver/include/ceres/internal/variadic_evaluate.h
 // so we have to separate operator() from Evaluate()
-template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL, class EXTRINSIC_MODEL>
-class RsReprojectionErrorAutoDiff {
-public:
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    RsReprojectionErrorAutoDiff(const RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>& rsre);
-    template<typename Scalar>
-    bool operator()(
-        const Scalar* const T_WS,  const Scalar* const hp_W,
-        const Scalar* const extrinsic,
-        const Scalar* const t_r,
-        const Scalar* const t_d,
-        const Scalar* const speedAndBiases,
-        const Scalar* const deltaT_WS,
-        const Scalar* const deltaExtrinsic,
-        Scalar* hp_C) const;
-private:
-    const RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL>& rsre_;
+template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
+          class EXTRINSIC_MODEL, class LANDMARK_MODEL, class IMU_MODEL>
+class LocalBearingVector {
+ public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  LocalBearingVector(const RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDMARK_MODEL, IMU_MODEL>& rsre);
+  template <typename Scalar>
+  bool operator()(const Scalar* const T_WS, const Scalar* const hp_W,
+                  const Scalar* const extrinsic, const Scalar* const t_r,
+                  const Scalar* const t_d, const Scalar* const speedAndBiases,
+                  const Scalar* const deltaT_WS,
+                  const Scalar* const deltaExtrinsic, Scalar* hp_C) const;
+
+ private:
+  const RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDMARK_MODEL, IMU_MODEL>& rsre_;
+};
+
+//template <class EXTRINSIC_MODEL, class LANDMARK_MODEL, class IMU_MODEL>
+//class LocalBearingVector {
+// public:
+//  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+//  LocalBearingVector();
+//  template <typename Scalar>
+//  bool operator()(const Scalar* const T_WS, const Scalar* const hp_W,
+//                  const Scalar* const extrinsic, const Scalar* const t_r,
+//                  const Scalar* const t_d, const Scalar* const speedAndBiases,
+//                  const Scalar* const deltaT_WS,
+//                  const Scalar* const deltaExtrinsic, Scalar* hp_C) const {
+//    LANDMARK_MODEL::getLocalBearingVector(/*imu meas, imu model, extrinsic parameters, system states*/);
+//  }
+
+// private:
+//  // add the rsre_ parameters for computing residual
+
+//};
+
+template <class EXTRINSIC_MODEL, class LANDMARK_MODEL, class IMU_MODEL>
+class GlobalBearingVector {
+ public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  GlobalBearingVector();
+  template <typename Scalar>
+  bool operator()(const Scalar* const T_WS, const Scalar* const hp_W,
+                  const Scalar* const extrinsic, const Scalar* const t_r,
+                  const Scalar* const t_d, const Scalar* const speedAndBiases,
+                  const Scalar* const deltaT_WS,
+                  const Scalar* const deltaExtrinsic, Scalar* hp_C) const {
+    LANDMARK_MODEL::getGlobalBearingVector(/*imu meas, imu model, extrinsic parameters*/);
+  }
+
+ private:
+  // add the rsre_ parameters for computing residual
+
 };
 
 }  // namespace ceres

@@ -56,32 +56,20 @@ Eigen::Quaternion<Scalar> expAndTheta(const Eigen::Matrix<Scalar, 3, 1> & omega)
 
 template <int globalDim, int localDim, int numResiduals>
 inline void zeroJacobian(int index, double** jacobians, double** jacobiansMinimal) {
+  using JacType = typename std::conditional<
+      (globalDim > 1),
+      Eigen::Matrix<double, numResiduals, globalDim, Eigen::RowMajor>,
+      Eigen::Matrix<double, numResiduals, globalDim> >::type;
+  using MinimalJacType = typename std::conditional<
+      (localDim > 1),
+      Eigen::Matrix<double, numResiduals, localDim, Eigen::RowMajor>,
+      Eigen::Matrix<double, numResiduals, localDim> >::type;
   if (jacobians[index] != NULL) {
-    Eigen::Map<Eigen::Matrix<double, numResiduals, globalDim, Eigen::RowMajor>>
-        J0(jacobians[index]);
+    Eigen::Map<JacType> J0(jacobians[index]);
     J0.setZero();
     if (jacobiansMinimal != NULL) {
       if (jacobiansMinimal[index] != NULL) {
-        Eigen::Map<
-            Eigen::Matrix<double, numResiduals, localDim, Eigen::RowMajor>>
-            J0_minimal_mapped(jacobiansMinimal[index]);
-        J0_minimal_mapped.setZero();
-      }
-    }
-  }
-}
-
-template <int numResiduals>
-inline void zeroJacobianOne(int index, double** jacobians, double** jacobiansMinimal) {
-  if (jacobians[index] != NULL) {
-    Eigen::Map<Eigen::Matrix<double, numResiduals, 1>>
-        J0(jacobians[index]);
-    J0.setZero();
-    if (jacobiansMinimal != NULL) {
-      if (jacobiansMinimal[index] != NULL) {
-        Eigen::Map<
-            Eigen::Matrix<double, numResiduals, 1>>
-            J0_minimal_mapped(jacobiansMinimal[index]);
+        Eigen::Map<MinimalJacType> J0_minimal_mapped(jacobiansMinimal[index]);
         J0_minimal_mapped.setZero();
       }
     }

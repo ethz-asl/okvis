@@ -31,6 +31,8 @@ add_library(${PROJECT_NAME}
   msckf/GeneralEstimator.cpp
   msckf/ImuRig.cpp
   msckf/InitialNavState.cpp
+  msckf/PointLandmark.cpp
+  msckf/PointLandmarkModels.cpp
   msckf/PriorlessEstimator.cpp
   msckf/checkSensorRig.cpp
 )
