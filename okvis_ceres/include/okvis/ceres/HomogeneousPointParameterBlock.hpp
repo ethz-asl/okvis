@@ -163,8 +163,6 @@ class HomogeneousPointParameterBlock : public ParameterBlockSized<4, 3,
 
  private:
   bool initialized_;  ///< Whether or not the 3d position is considered initialised.
- public:
-  bool inverseDepth_; ///< Whether or not the 3d position is using inverse depth parameterization
 
 };
 
