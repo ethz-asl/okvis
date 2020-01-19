@@ -281,6 +281,11 @@ struct Optimization{
   double triangulationTranslationThreshold;
   double triangulationMaxDepth;
   int numClonedStates; ///< Max number of cloned nav states in MSCKF
+  Optimization()
+      : translationThreshold(0.4),
+        rotationThreshold(0.2618),
+        trackingRateThreshold(0.5),
+        minTrackLength(3u) {}
 };
 
 /**

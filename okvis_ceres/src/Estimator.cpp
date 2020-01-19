@@ -1435,6 +1435,12 @@ Eigen::Matrix<double, Eigen::Dynamic, 1> Estimator::computeImuAugmentedParamsErr
   return imu_rig_.computeImuAugmentedParamsError(0);
 }
 
+void Estimator::computeCovariance(Eigen::MatrixXd* cov) const {
+  // TODO(jhuai): compute marginal covariance for navigation states following
+  // http://ceres-solver.org/nnls_covariance.html.
+  *cov = Eigen::Matrix<double, 6, 6>::Identity();
+}
+
 const okvis::Duration Estimator::half_window_(2, 0);
 
 }  // namespace okvis
