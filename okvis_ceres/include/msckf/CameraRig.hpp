@@ -285,6 +285,19 @@ const int kTangentDistanceId = 3;
     break;
 #endif
 
+inline int CameraObservationModelResidualDim(int modelId) {
+  switch (modelId) {
+    case kEpipolarFactorId:
+      return 1;
+    case kChordalDistanceId:
+      return 3;
+    case kReprojectionErrorId:
+    case kTangentDistanceId:
+    default:
+      return 2;
+  }
+}
+
 }  // namespace cameras
 }  // namespace okvis
 #endif  // INCLUDE_MSCKF_CAMERA_RIG_HPP_

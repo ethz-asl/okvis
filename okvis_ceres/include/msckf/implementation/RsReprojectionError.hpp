@@ -28,8 +28,8 @@ template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
           class EXTRINSIC_MODEL, class LANDMARK_MODEL, class IMU_MODEL>
 RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDMARK_MODEL, IMU_MODEL>::
     RsReprojectionError(
-        std::shared_ptr<camera_geometry_t> cameraGeometry,
-        uint64_t cameraId, const measurement_t& measurement,
+        std::shared_ptr<const camera_geometry_t> cameraGeometry,
+        const measurement_t& measurement,
         const covariance_t& information,
         const okvis::ImuMeasurementDeque& imuMeasCanopy,
         const okvis::kinematics::Transformation& T_BC_base,
@@ -39,7 +39,6 @@ RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDMA
       stateEpoch_(stateEpoch),
       tdAtCreation_(tdAtCreation),
       gravityMag_(gravityMag) {
-  setCameraId(cameraId);
   setMeasurement(measurement);
   setInformation(information);
   setCameraGeometry(cameraGeometry);
@@ -97,15 +96,16 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, L
   const Eigen::Vector3d& t_BC_B = pairT_BC.first;
   const Eigen::Quaterniond& q_BC = pairT_BC.second;
 
-  Eigen::VectorXd intrinsics(GEOMETRY_TYPE::NumIntrinsics);
-  Eigen::Map<const Eigen::Matrix<double, PROJ_INTRINSIC_MODEL::kNumParams, 1>>
-      projIntrinsics(parameters[3]);
-  PROJ_INTRINSIC_MODEL::localToGlobal(projIntrinsics, &intrinsics);
+  // TODO(jhuai): do this prior to Evaluate() or EvaluateWithMinimalJacobians() in a EvaluationCallback().
+//  Eigen::VectorXd intrinsics(GEOMETRY_TYPE::NumIntrinsics);
+//  Eigen::Map<const Eigen::Matrix<double, PROJ_INTRINSIC_MODEL::kNumParams, 1>>
+//      projIntrinsics(parameters[3]);
+//  PROJ_INTRINSIC_MODEL::localToGlobal(projIntrinsics, &intrinsics);
 
-  Eigen::Map<const Eigen::Matrix<double, kDistortionDim, 1>>
-      distortionIntrinsics(parameters[4]);
-  intrinsics.tail<kDistortionDim>() = distortionIntrinsics;
-  cameraGeometryBase_->setIntrinsics(intrinsics);
+//  Eigen::Map<const Eigen::Matrix<double, kDistortionDim, 1>>
+//      distortionIntrinsics(parameters[4]);
+//  intrinsics.tail<kDistortionDim>() = distortionIntrinsics;
+//  cameraGeometryBase_->setIntrinsics(intrinsics);
 
   double trLatestEstimate = parameters[5][0];
   double tdLatestEstimate = parameters[6][0];
@@ -161,7 +161,7 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, L
     cameraGeometryBase_->projectHomogeneous(hp_C, &kp);
   }
 
-  measurement_t error = measurement_ - kp;
+  measurement_t error = kp - measurement_;
 
   // weight:
   measurement_t weighted_error = squareRootInformation_ * error;
@@ -189,26 +189,20 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, L
     }
     Eigen::Matrix<double, 4, 6> dhC_deltaTWS;
     Eigen::Matrix<double, 4, 4> dhC_deltahpW;
-    Eigen::Matrix<double, 4, 6> dhC_deltaTSC;
+    Eigen::Matrix<double, 4, EXTRINSIC_MODEL::kNumParams> dhC_dExtrinsic;
     Eigen::Vector4d dhC_td;
     Eigen::Matrix<double, 4, 9> dhC_sb;
 
     Eigen::Vector3d p_BP_W = hp_W.head<3>() - t_WB_W * hp_W[3];
     Eigen::Matrix<double, 4, 6> dhS_deltaTWS;
-
     dhS_deltaTWS.topLeftCorner<3, 3>() = -C_BW * hp_W[3];
     dhS_deltaTWS.topRightCorner<3, 3>() =
         C_BW * okvis::kinematics::crossMx(p_BP_W);
     dhS_deltaTWS.row(3).setZero();
     dhC_deltaTWS = T_CB * dhS_deltaTWS;
-
     dhC_deltahpW = T_CB * T_BW;
 
-    Eigen::Vector3d p_CP_B = hp_B.head<3>() - t_BC_B * hp_B[3];
-    dhC_deltaTSC.topLeftCorner<3, 3>() = -C_CB * hp_B[3];
-    dhC_deltaTSC.topRightCorner<3, 3>() =
-        C_CB * okvis::kinematics::crossMx(p_CP_B);
-    dhC_deltaTSC.row(3).setZero();
+    EXTRINSIC_MODEL::dhC_dExtrinsic_HPP(hp_C, C_CB, &dhC_dExtrinsic);
 
     okvis::ImuMeasurement queryValue;
     okvis::ceres::interpolateInertialData(imuMeasCanopy_, t_end, queryValue);
@@ -232,7 +226,7 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, L
     dhC_sb.block<3, 3>(0, 3) = dhC_bg;
 
     assignJacobians(parameters, jacobians, jacobiansMinimal, Jh_weighted,
-                    Jpi_weighted, dhC_deltaTWS, dhC_deltahpW, dhC_deltaTSC,
+                    Jpi_weighted, dhC_deltaTWS, dhC_deltahpW, dhC_dExtrinsic,
                     dhC_td, kpN, dhC_sb);
   }
   return true;
@@ -248,7 +242,7 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, L
                                          double** jacobiansMinimal) const {
   const int numOutputs = 4;
   double deltaTWS[6] = {0};
-  double deltaTSC[6] = {0};
+  double deltaTSC[EXTRINSIC_MODEL::kNumParams] = {0};
   double const* const expandedParams[] = {
       parameters[0], parameters[1], parameters[2],
       parameters[5], parameters[6], parameters[7], deltaTWS, deltaTSC};
@@ -256,7 +250,7 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, L
   double php_C[numOutputs];
   Eigen::Matrix<double, numOutputs, 7, Eigen::RowMajor> dhC_deltaTWS_full;
   Eigen::Matrix<double, numOutputs, 4, Eigen::RowMajor> dhC_deltahpW;
-  Eigen::Matrix<double, numOutputs, 7, Eigen::RowMajor> dhC_deltaTSC_full;
+  Eigen::Matrix<double, numOutputs, EXTRINSIC_MODEL::kGlobalDim, Eigen::RowMajor> dhC_dExtrinsic_full;
 
   ProjectionIntrinsicJacType4 dhC_projIntrinsic;
   Eigen::Matrix<double, numOutputs, kDistortionDim, Eigen::RowMajor>
@@ -265,18 +259,18 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, L
   Eigen::Matrix<double, numOutputs, 1> dhC_td;
   Eigen::Matrix<double, numOutputs, 9, Eigen::RowMajor> dhC_sb;
   Eigen::Matrix<double, numOutputs, 6, Eigen::RowMajor> dhC_deltaTWS;
-  Eigen::Matrix<double, numOutputs, 6, Eigen::RowMajor> dhC_deltaTSC;
+  Eigen::Matrix<double, numOutputs, EXTRINSIC_MODEL::kNumParams, Eigen::RowMajor> dhC_dExtrinsic;
 
   dhC_projIntrinsic.setZero();
   dhC_distortion.setZero();
   double* dpC_deltaAll[] = {dhC_deltaTWS_full.data(),
                             dhC_deltahpW.data(),
-                            dhC_deltaTSC_full.data(),
+                            dhC_dExtrinsic_full.data(),
                             dhC_tr.data(),
                             dhC_td.data(),
                             dhC_sb.data(),
                             dhC_deltaTWS.data(),
-                            dhC_deltaTSC.data()};
+                            dhC_dExtrinsic.data()};
   LocalBearingVector<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL,
                      msckf::HomogeneousPointParameterization, Imu_BG_BA>
       rsre(*this);
@@ -288,15 +282,15 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, L
   if (!diffState)
     std::cerr << "Potentially wrong Jacobians in autodiff " << std::endl;
 
-  Eigen::VectorXd intrinsics(GEOMETRY_TYPE::NumIntrinsics);
-  Eigen::Map<const Eigen::Matrix<double, PROJ_INTRINSIC_MODEL::kNumParams, 1>>
-      projIntrinsics(parameters[3]);
-  PROJ_INTRINSIC_MODEL::localToGlobal(projIntrinsics, &intrinsics);
+//  Eigen::VectorXd intrinsics(GEOMETRY_TYPE::NumIntrinsics);
+//  Eigen::Map<const Eigen::Matrix<double, PROJ_INTRINSIC_MODEL::kNumParams, 1>>
+//      projIntrinsics(parameters[3]);
+//  PROJ_INTRINSIC_MODEL::localToGlobal(projIntrinsics, &intrinsics);
 
-  Eigen::Map<const Eigen::Matrix<double, kDistortionDim, 1>>
-      distortionIntrinsics(parameters[4]);
-  intrinsics.tail<kDistortionDim>() = distortionIntrinsics;
-  cameraGeometryBase_->setIntrinsics(intrinsics);
+//  Eigen::Map<const Eigen::Matrix<double, kDistortionDim, 1>>
+//      distortionIntrinsics(parameters[4]);
+//  intrinsics.tail<kDistortionDim>() = distortionIntrinsics;
+//  cameraGeometryBase_->setIntrinsics(intrinsics);
 
   Eigen::Map<const Eigen::Vector4d> hp_C(&php_C[0]);
 
@@ -314,7 +308,7 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, L
     cameraGeometryBase_->projectHomogeneous(hp_C, &kp);
   }
 
-  measurement_t error = measurement_ - kp;
+  measurement_t error = kp - measurement_;
 
   // weight:
   measurement_t weighted_error = squareRootInformation_ * error;
@@ -344,126 +338,7 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, L
     double ypixel(measurement_[1]);
     double kpN = ypixel / height - 0.5;
     assignJacobians(parameters, jacobians, jacobiansMinimal, Jh_weighted,
-                    Jpi_weighted, dhC_deltaTWS, dhC_deltahpW, dhC_deltaTSC,
-                    dhC_td, kpN, dhC_sb);
-  }
-  return true;
-}
-
-template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
-          class EXTRINSIC_MODEL, class LANDMARK_MODEL, class IMU_MODEL>
-bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDMARK_MODEL, IMU_MODEL>::
-    EvaluateWithMinimalJacobiansModuleAutoDiff(double const* const* parameters,
-                                         double* residuals, double** jacobians,
-                                         double** jacobiansMinimal) const {
-  const int numOutputs = 4;
-  double deltaTWS[6] = {0};
-  double deltaTSC[6] = {0};
-  double const* const expandedParams[] = {
-      parameters[0], parameters[1], parameters[2],
-      parameters[5], parameters[6], parameters[7], deltaTWS, deltaTSC};
-
-  double php_C[numOutputs];
-  Eigen::Matrix<double, numOutputs, 7, Eigen::RowMajor> dhC_deltaTWS_full;
-  Eigen::Matrix<double, numOutputs, 4, Eigen::RowMajor> dhC_deltahpW;
-  Eigen::Matrix<double, numOutputs, 7, Eigen::RowMajor> dhC_deltaTSC_full;
-  ProjectionIntrinsicJacType4 dhC_projIntrinsic;
-  Eigen::Matrix<double, numOutputs, kDistortionDim, Eigen::RowMajor>
-      dhC_distortion;
-  Eigen::Matrix<double, numOutputs, 1> dhC_tr;
-  Eigen::Matrix<double, numOutputs, 1> dhC_td;
-  Eigen::Matrix<double, numOutputs, 9, Eigen::RowMajor> dhC_sb;
-  Eigen::Matrix<double, numOutputs, 6, Eigen::RowMajor> dhC_deltaTWS;
-  Eigen::Matrix<double, numOutputs, 6, Eigen::RowMajor> dhC_deltaTSC;
-
-  dhC_projIntrinsic.setZero();
-  dhC_distortion.setZero();
-
-  // prepare the variables used by BearingVectorInCamera
-  // propagate the states to the epoch of the feature measurements
-  // interpolate for the velocity and angular rate at the feature epoch
-
-  double* dpC_deltaAll[] = {dhC_deltaTWS_full.data(),
-                            dhC_deltahpW.data(),
-                            dhC_deltaTSC_full.data(),
-                            dhC_tr.data(),
-                            dhC_td.data(),
-                            dhC_sb.data(),
-                            dhC_deltaTWS.data(),
-                            dhC_deltaTSC.data()};
-  LocalBearingVector<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL,
-                     msckf::HomogeneousPointParameterization, Imu_BG_BA>
-      rsre(*this);
-  bool diffState = ::ceres::internal::AutoDifferentiate<
-      ::ceres::internal::StaticParameterDims<7, 4, EXTRINSIC_MODEL::kGlobalDim,
-                                             1, 1, 9, 6,
-                                             EXTRINSIC_MODEL::kNumParams>>(
-      rsre, expandedParams, numOutputs, php_C, dpC_deltaAll);
-
-  //  Eigen::Vector4d hp_C_temp =
-  //  LANDMARK_MODEL::bearingVectorInCamera(pairT_WB, nullptr, nullptr,
-  //  pairT_BC, parameters[1]);
-
-  if (!diffState)
-    std::cerr << "Potentially wrong Jacobians in autodiff " << std::endl;
-
-  Eigen::VectorXd intrinsics(GEOMETRY_TYPE::NumIntrinsics);
-  Eigen::Map<const Eigen::Matrix<double, PROJ_INTRINSIC_MODEL::kNumParams, 1>>
-      projIntrinsics(parameters[3]);
-  PROJ_INTRINSIC_MODEL::localToGlobal(projIntrinsics, &intrinsics);
-
-  Eigen::Map<const Eigen::Matrix<double, kDistortionDim, 1>>
-      distortionIntrinsics(parameters[4]);
-  intrinsics.tail<kDistortionDim>() = distortionIntrinsics;
-  cameraGeometryBase_->setIntrinsics(intrinsics);
-
-  Eigen::Map<const Eigen::Vector4d> hp_C(&php_C[0]);
-
-  // calculate the reprojection error
-  measurement_t kp;
-  Eigen::Matrix<double, 2, 4> Jh;
-  Eigen::Matrix<double, 2, 4> Jh_weighted;
-  Eigen::Matrix<double, 2, Eigen::Dynamic> Jpi;
-  Eigen::Matrix<double, 2, Eigen::Dynamic> Jpi_weighted;
-  if (jacobians != NULL) {
-    cameraGeometryBase_->projectHomogeneous(hp_C, &kp, &Jh, &Jpi);
-    Jh_weighted = squareRootInformation_ * Jh;
-    Jpi_weighted = squareRootInformation_ * Jpi;
-  } else {
-    cameraGeometryBase_->projectHomogeneous(hp_C, &kp);
-  }
-
-  measurement_t error = measurement_ - kp;
-
-  // weight:
-  measurement_t weighted_error = squareRootInformation_ * error;
-
-  // assign:
-  residuals[0] = weighted_error[0];
-  residuals[1] = weighted_error[1];
-
-  // check validity:
-  bool valid = true;
-  if (fabs(hp_C[3]) > 1.0e-8) {
-    Eigen::Vector3d p_C = hp_C.template head<3>() / hp_C[3];
-    if (p_C[2] < 0.2) {  // 20 cm - not very generic... but reasonable
-      // std::cout<<"INVALID POINT"<<std::endl;
-      valid = false;
-    }
-  }
-
-  // calculate jacobians, if required
-  // This is pretty close to Paul Furgale's thesis. eq. 3.100 on page 40
-  if (jacobians != NULL) {
-    if (!valid) {
-      setJacobiansZero(jacobians, jacobiansMinimal);
-      return true;
-    }
-    uint32_t height = cameraGeometryBase_->imageHeight();
-    double ypixel(measurement_[1]);
-    double kpN = ypixel / height - 0.5;
-    assignJacobians(parameters, jacobians, jacobiansMinimal, Jh_weighted,
-                    Jpi_weighted, dhC_deltaTWS, dhC_deltahpW, dhC_deltaTSC,
+                    Jpi_weighted, dhC_deltaTWS, dhC_deltahpW, dhC_dExtrinsic,
                     dhC_td, kpN, dhC_sb);
   }
   return true;
@@ -496,12 +371,12 @@ void RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, L
         const Eigen::Matrix<double, 2, Eigen::Dynamic>& Jpi_weighted,
         const Eigen::Matrix<double, 4, 6>& dhC_deltaTWS,
         const Eigen::Matrix<double, 4, 4>& dhC_deltahpW,
-        const Eigen::Matrix<double, 4, 6>& dhC_deltaTSC,
+        const Eigen::Matrix<double, 4, EXTRINSIC_MODEL::kNumParams>& dhC_dExtrinsic,
         const Eigen::Vector4d& dhC_td, double kpN,
         const Eigen::Matrix<double, 4, 9>& dhC_sb) const {
   if (jacobians[0] != NULL) {
     Eigen::Matrix<double, 2, 6, Eigen::RowMajor> J0_minimal;
-    J0_minimal = -Jh_weighted * dhC_deltaTWS;
+    J0_minimal = Jh_weighted * dhC_deltaTWS;
     // pseudo inverse of the local parametrization Jacobian
     Eigen::Matrix<double, 6, 7, Eigen::RowMajor> J_lift;
     PoseLocalParameterization::liftJacobian(parameters[0], J_lift.data());
@@ -520,7 +395,7 @@ void RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, L
 
   if (jacobians[1] != NULL) {
     Eigen::Map<Eigen::Matrix<double, 2, 4, Eigen::RowMajor>> J1(jacobians[1]);
-    J1 = -Jh_weighted * dhC_deltahpW;
+    J1 = Jh_weighted * dhC_deltahpW;
     if (jacobiansMinimal != NULL) {
       if (jacobiansMinimal[1] != NULL) {
         Eigen::Map<Eigen::Matrix<double, 2, 3, Eigen::RowMajor>>
@@ -535,19 +410,22 @@ void RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, L
 
   if (jacobians[2] != NULL) {
     // compute the minimal version
-    Eigen::Matrix<double, 2, 6, Eigen::RowMajor> J2_minimal;
-    J2_minimal = -Jh_weighted * dhC_deltaTSC;
-
-    // pseudo inverse of the local parametrization Jacobian:
-    Eigen::Matrix<double, 6, 7, Eigen::RowMajor> J_lift;
-    PoseLocalParameterization::liftJacobian(parameters[2], J_lift.data());
-
-    // hallucinate Jacobian w.r.t. state
-    Eigen::Map<Eigen::Matrix<double, 2, 7, Eigen::RowMajor>> J2(jacobians[2]);
-    J2 = J2_minimal * J_lift;
+    Eigen::Matrix<double, 2, EXTRINSIC_MODEL::kNumParams, Eigen::RowMajor>
+        J2_minimal = Jh_weighted * dhC_dExtrinsic;
+    Eigen::Map<Eigen::Matrix<double, 2, EXTRINSIC_MODEL::kGlobalDim, Eigen::RowMajor>> J2(jacobians[2]);
+    Eigen::Matrix<double, EXTRINSIC_MODEL::kNumParams, EXTRINSIC_MODEL::kGlobalDim, Eigen::RowMajor> J_lift;
+    if (EXTRINSIC_MODEL::kNumParams == 6) {
+      // pseudo inverse of the local parametrization Jacobian:
+      PoseLocalParameterization::liftJacobian(parameters[2], J_lift.data());
+      // hallucinate Jacobian w.r.t. state
+      J2 = J2_minimal * J_lift;
+    } else {
+      J_lift.setIdentity();
+      J2 = J2_minimal * J_lift;
+    }
     if (jacobiansMinimal != NULL) {
       if (jacobiansMinimal[2] != NULL) {
-        Eigen::Map<Eigen::Matrix<double, 2, 6, Eigen::RowMajor>>
+        Eigen::Map<Eigen::Matrix<double, 2, EXTRINSIC_MODEL::kNumParams, Eigen::RowMajor>>
             J2_minimal_mapped(jacobiansMinimal[2]);
         J2_minimal_mapped = J2_minimal;
       }
@@ -559,7 +437,7 @@ void RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, L
     Eigen::Map<ProjectionIntrinsicJacType> J1(jacobians[3]);
     Eigen::Matrix<double, 2, Eigen::Dynamic> Jpi_weighted_copy = Jpi_weighted;
     PROJ_INTRINSIC_MODEL::kneadIntrinsicJacobian(&Jpi_weighted_copy);
-    J1 = -Jpi_weighted_copy
+    J1 = Jpi_weighted_copy
         .template topLeftCorner<2, PROJ_INTRINSIC_MODEL::kNumParams>();
     if (jacobiansMinimal != NULL) {
       if (jacobiansMinimal[3] != NULL) {
@@ -571,7 +449,7 @@ void RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, L
 
   if (jacobians[4] != NULL) {
     Eigen::Map<DistortionJacType> J1(jacobians[4]);
-    J1 = -Jpi_weighted.template topRightCorner<2, kDistortionDim>();
+    J1 = Jpi_weighted.template topRightCorner<2, kDistortionDim>();
     if (jacobiansMinimal != NULL) {
       if (jacobiansMinimal[4] != NULL) {
         Eigen::Map<DistortionJacType>
@@ -583,7 +461,7 @@ void RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, L
 
   if (jacobians[5] != NULL) {
     Eigen::Map<Eigen::Matrix<double, 2, 1>> J1(jacobians[5]);
-    J1 = -Jh_weighted * dhC_td * kpN;
+    J1 = Jh_weighted * dhC_td * kpN;
     if (jacobiansMinimal != NULL) {
       if (jacobiansMinimal[5] != NULL) {
         Eigen::Map<Eigen::Matrix<double, 2, 1>>
@@ -596,7 +474,7 @@ void RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, L
   // t_d
   if (jacobians[6] != NULL) {
     Eigen::Map<Eigen::Matrix<double, 2, 1>> J1(jacobians[6]);
-    J1 = -Jh_weighted * dhC_td;
+    J1 = Jh_weighted * dhC_td;
     if (jacobiansMinimal != NULL) {
       if (jacobiansMinimal[6] != NULL) {
         Eigen::Map<Eigen::Matrix<double, 2, 1>> J1_minimal_mapped(
@@ -609,7 +487,7 @@ void RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, L
   // speed and gyro biases and accel biases
   if (jacobians[7] != NULL) {
     Eigen::Map<Eigen::Matrix<double, 2, 9, Eigen::RowMajor>> J1(jacobians[7]);
-    J1 = -Jh_weighted * dhC_sb;
+    J1 = Jh_weighted * dhC_sb;
     if (jacobiansMinimal != NULL) {
       if (jacobiansMinimal[7] != NULL) {
         Eigen::Map<Eigen::Matrix<double, 2, 9, Eigen::RowMajor>>
@@ -654,13 +532,9 @@ operator()(const Scalar* const T_WB, const Scalar* const php_W,
 
   std::pair<Eigen::Matrix<Scalar, 3, 1>, Eigen::Quaternion<Scalar>> T_BC =
       EXTRINSIC_MODEL::get_T_BC(rsre_.T_BC_base_, T_BC_params);
-  const Eigen::Matrix<Scalar, 3, 1>& t_BC_B0 = T_BC.first;
-  const Eigen::Quaternion<Scalar>& q_BC0 = T_BC.second;
-  Eigen::Map<const Eigen::Matrix<Scalar, 6, 1>> deltaT_BCe(deltaT_BC);
-  Eigen::Matrix<Scalar, 3, 1> t_BC_B = t_BC_B0 + deltaT_BCe.template head<3>();
-  omega = deltaT_BCe.template tail<3>();
-  Eigen::Quaternion<Scalar> dqSC = okvis::ceres::expAndTheta(omega);
-  Eigen::Quaternion<Scalar> q_BC = dqSC * q_BC0;
+  EXTRINSIC_MODEL::oplus(deltaT_BC, &T_BC);
+  const Eigen::Matrix<Scalar, 3, 1>& t_BC_B = T_BC.first;
+  const Eigen::Quaternion<Scalar>& q_BC = T_BC.second;
 
   Scalar trLatestEstimate = t_r[0];
 

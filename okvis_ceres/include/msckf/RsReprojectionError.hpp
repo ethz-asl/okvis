@@ -121,8 +121,8 @@ class RsReprojectionError
    * @param gravityMag
    */
   RsReprojectionError(
-      std::shared_ptr<camera_geometry_t> cameraGeometry,
-      uint64_t cameraId, const measurement_t& measurement,
+      std::shared_ptr<const camera_geometry_t> cameraGeometry,
+      const measurement_t& measurement,
       const covariance_t& information,
       const okvis::ImuMeasurementDeque& imuMeasCanopy,
       const okvis::kinematics::Transformation& T_BC_base,
@@ -144,7 +144,7 @@ class RsReprojectionError
   /// \brief Set the underlying camera model.
   /// @param[in] cameraGeometry The camera geometry.
   void setCameraGeometry(
-      std::shared_ptr<camera_geometry_t> cameraGeometry)
+      std::shared_ptr<const camera_geometry_t> cameraGeometry)
   {
     cameraGeometryBase_ = cameraGeometry;
   }
@@ -210,18 +210,13 @@ class RsReprojectionError
                                             double** jacobians,
                                             double** jacobiansMinimal) const;
 
-  bool EvaluateWithMinimalJacobiansModuleAutoDiff(double const* const * parameters,
-                                            double* residuals,
-                                            double** jacobians,
-                                            double** jacobiansMinimal) const;
-
   void assignJacobians(
       double const* const* parameters, double** jacobians,
       double** jacobiansMinimal, const Eigen::Matrix<double, 2, 4>& Jh_weighted,
       const Eigen::Matrix<double, 2, Eigen::Dynamic>& Jpi_weighted,
       const Eigen::Matrix<double, 4, 6>& dhC_deltaTWS,
       const Eigen::Matrix<double, 4, 4>& dhC_deltahpW,
-      const Eigen::Matrix<double, 4, 6>& dhC_deltaTSC,
+      const Eigen::Matrix<double, 4, EXTRINSIC_MODEL::kNumParams>& dhC_dExtrinsic,
       const Eigen::Vector4d& dhC_td, double kpN,
       const Eigen::Matrix<double, 4, 9>& dhC_sb) const;
 
@@ -254,27 +249,18 @@ class RsReprojectionError
     return "RsReprojectionError";
   }
 
-  /// \brief Camera ID.
-  uint64_t cameraId() const {
-    return cameraId_;
-  }
-
-  /// \brief Set camera ID.
-  /// @param[in] cameraId ID of the camera.
-  void setCameraId(uint64_t cameraId) {
-    cameraId_ = cameraId;
-  }
-
   friend class LocalBearingVector<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDMARK_MODEL, IMU_MODEL>;
  protected:
-  uint64_t cameraId_; ///< ID of the camera.
+//  uint64_t cameraId_; ///< ID of the camera.
   measurement_t measurement_; ///< The (2D) measurement.
 
+  /// Warn: cameraGeometryBase_ and T_BC_base_ may be updated with
+  /// a ceres EvaluationCallback prior to Evaluate().
   // The camera model shared by all RsReprojectionError.
-  // It is volatile and updated in every Evaluate() step.
-  mutable std::shared_ptr<camera_geometry_t> cameraGeometryBase_;
+  std::shared_ptr<const camera_geometry_t> cameraGeometryBase_;
   // The reference extrinsic parameters in case the EXTRINSIC_MODEL is incomplete.
   mutable okvis::kinematics::Transformation T_BC_base_;
+
   // const after initialization
   okvis::ImuMeasurementDeque imuMeasCanopy_;
   // weighting related

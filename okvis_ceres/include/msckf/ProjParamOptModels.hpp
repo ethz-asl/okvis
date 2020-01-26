@@ -5,6 +5,7 @@
 #include <msckf/ModelSwitch.hpp>
 
 namespace okvis {
+// TODO(jhuai): remove ProjectionOptFixed
 class ProjectionOptFixed {
  public:
   static const int kModelId = 0;
