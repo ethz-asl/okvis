@@ -731,6 +731,10 @@ class Estimator : public VioBackendInterface
   // e.g., min observs to triang a landmark
   size_t minTrackLength_;
 
+  bool fixCameraIntrinsicParams_;
+
+  bool fixCameraExtrinsicParams_;
+
   template<class GEOMETRY_TYPE>
   ::ceres::ResidualBlockId addPointFrameResidual(
       uint64_t landmarkId,
