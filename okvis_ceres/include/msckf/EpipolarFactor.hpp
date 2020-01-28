@@ -39,7 +39,7 @@ template <class GEOMETRY_TYPE, class EXTRINSIC_MODEL,
 class EpipolarFactor
     : public ::ceres::SizedCostFunction<
           1 /* number of residuals */, 7 /* left pose */, 7 /* right pose */,
-          EXTRINSIC_MODEL::kGlobalDim /* variable dim of extrinsics */,
+          7 /* variable dim of extrinsics */,
           PROJ_INTRINSIC_MODEL::kNumParams /* variable dim of proj intrinsics
                                               (e.g., f, cx, cy) */
           ,
@@ -62,7 +62,7 @@ class EpipolarFactor
 
   /// \brief The base class type.
   typedef ::ceres::SizedCostFunction<
-      1, 7, 7, EXTRINSIC_MODEL::kGlobalDim, PROJ_INTRINSIC_MODEL::kNumParams,
+      1, 7, 7, 7, PROJ_INTRINSIC_MODEL::kNumParams,
       kDistortionDim, 1, 1>
       base_t;
 
@@ -89,8 +89,6 @@ class EpipolarFactor
    * @param covariance12 left and right 2d covariance for 2d meas
    * @param imuMeasCanopy imu measurements in neighborhoods of the left and
    *     right stateEpochs
-   * @param T_BC_base reference extrinsic parameters, needed because
-   *     EXTRINSIC_MODEL may be a subset of T_BC
    * @param stateEpoch left and right state timestamps
    * @param tdAtCreation left and right reference td
    * @param gravityMag magnitude of gravity
@@ -104,10 +102,8 @@ class EpipolarFactor
       const std::vector<Eigen::Matrix2d,
                         Eigen::aligned_allocator<Eigen::Matrix2d>>&
           covariance12,
-      const std::vector<okvis::ImuMeasurementDeque,
-                        Eigen::aligned_allocator<okvis::ImuMeasurementDeque>>&
+      std::vector<std::shared_ptr<const okvis::ImuMeasurementDeque>>&
           imuMeasCanopy,
-      const okvis::kinematics::Transformation& T_BC_base,
       const std::vector<okvis::Time>& stateEpoch,
       const std::vector<double>& tdAtCreation,
       const std::vector<Eigen::Matrix<double, 9, 1>,
@@ -193,13 +189,7 @@ class EpipolarFactor
   std::vector<Eigen::Matrix2d, Eigen::aligned_allocator<Eigen::Matrix2d>> covariance_;
 
   // const after initialization
-  std::vector<okvis::ImuMeasurementDeque,
-              Eigen::aligned_allocator<okvis::ImuMeasurementDeque>>
-      imuMeasCanopy_;
-
-  // T_BC_base_ is volatile and updated in every Evaluate() step.
-  // assume the two measurements are made by the same camera
-  mutable okvis::kinematics::Transformation T_BC_base_;
+  std::vector<std::shared_ptr<const okvis::ImuMeasurementDeque>> imuMeasCanopy_;
 
   // weighting related, they will be computed along with the residual
 //  double information_; ///< The information matrix.

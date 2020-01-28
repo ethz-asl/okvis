@@ -201,9 +201,9 @@ bool GeneralEstimator::addStates(
       Eigen::VectorXd allIntrinsics;
       camera_rig_.getCameraGeometry(i)->getIntrinsics(allIntrinsics);
       id = IdProvider::instance().newId();
-      int projOptModelId = camera_rig_.getProjectionOptMode(i);
-      const int minProjectionDim = camera_rig_.getMinimalProjectionDimen(i);
-      if (minProjectionDim > 0) {
+      if (!fixCameraIntrinsicParams_[i]) {
+        int projOptModelId = camera_rig_.getProjectionOptMode(i);
+        const int minProjectionDim = camera_rig_.getMinimalProjectionDimen(i);
         Eigen::VectorXd optProjIntrinsics;
         ProjectionOptGlobalToLocal(projOptModelId, allIntrinsics,
                                    &optProjIntrinsics);
@@ -213,7 +213,7 @@ bool GeneralEstimator::addStates(
         mapPtr_->addParameterBlock(projIntrinsicParamBlockPtr,
                                    ceres::Map::Parameterization::Trivial);
         cameraInfos.at(CameraSensorStates::Intrinsics).id = id;
-      } else { // put the original parameters in a parameter block to ensure there is always a intrinsic param block
+      } else {
         Eigen::VectorXd optProjIntrinsics = allIntrinsics.head<4>();
         std::shared_ptr<okvis::ceres::EuclideanParamBlock>
             projIntrinsicParamBlockPtr(new okvis::ceres::EuclideanParamBlock(
@@ -221,6 +221,7 @@ bool GeneralEstimator::addStates(
         mapPtr_->addParameterBlock(projIntrinsicParamBlockPtr, 
             ceres::Map::Parameterization::Trivial);
         cameraInfos.at(CameraSensorStates::Intrinsics).id = id;
+        mapPtr_->setParameterBlockConstant(id);
       }
       id = IdProvider::instance().newId();
       const int distortionDim = camera_rig_.getDistortionDimen(i);

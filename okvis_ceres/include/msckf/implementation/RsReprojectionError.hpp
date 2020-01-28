@@ -31,11 +31,9 @@ RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDMA
         std::shared_ptr<const camera_geometry_t> cameraGeometry,
         const measurement_t& measurement,
         const covariance_t& information,
-        const okvis::ImuMeasurementDeque& imuMeasCanopy,
-        const okvis::kinematics::Transformation& T_BC_base,
+        std::shared_ptr<const okvis::ImuMeasurementDeque> imuMeasCanopy,
         okvis::Time stateEpoch, double tdAtCreation, double gravityMag)
-    : T_BC_base_(T_BC_base),
-      imuMeasCanopy_(imuMeasCanopy),
+    : imuMeasCanopy_(imuMeasCanopy),
       stateEpoch_(stateEpoch),
       tdAtCreation_(tdAtCreation),
       gravityMag_(gravityMag) {
@@ -92,21 +90,9 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, L
   // the point in world coordinates
   Eigen::Map<const Eigen::Vector4d> hp_W(&parameters[1][0]);
 
-  std::pair<Eigen::Vector3d, Eigen::Quaterniond> pairT_BC = EXTRINSIC_MODEL::get_T_BC(T_BC_base_, parameters[2]);
-  const Eigen::Vector3d& t_BC_B = pairT_BC.first;
-  const Eigen::Quaterniond& q_BC = pairT_BC.second;
-
-  // TODO(jhuai): do this prior to Evaluate() or EvaluateWithMinimalJacobians() in a EvaluationCallback().
-//  Eigen::VectorXd intrinsics(GEOMETRY_TYPE::NumIntrinsics);
-//  Eigen::Map<const Eigen::Matrix<double, PROJ_INTRINSIC_MODEL::kNumParams, 1>>
-//      projIntrinsics(parameters[3]);
-//  PROJ_INTRINSIC_MODEL::localToGlobal(projIntrinsics, &intrinsics);
-
-//  Eigen::Map<const Eigen::Matrix<double, kDistortionDim, 1>>
-//      distortionIntrinsics(parameters[4]);
-//  intrinsics.tail<kDistortionDim>() = distortionIntrinsics;
-//  cameraGeometryBase_->setIntrinsics(intrinsics);
-
+  Eigen::Matrix<double, 3, 1> t_BC_B(parameters[2][0], parameters[2][1], parameters[2][2]);
+  Eigen::Quaternion<double> q_BC(parameters[2][6], parameters[2][3], parameters[2][4],
+                                 parameters[2][5]);
   double trLatestEstimate = parameters[5][0];
   double tdLatestEstimate = parameters[6][0];
 
@@ -123,10 +109,10 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, L
   okvis::Time t_end = stateEpoch_ + okvis::Duration(relativeFeatureTime);
   const double wedge = 5e-8;
   if (relativeFeatureTime >= wedge) {
-    okvis::ceres::predictStates(imuMeasCanopy_, gravityMag_, pairT_WB,
+    okvis::ceres::predictStates(*imuMeasCanopy_, gravityMag_, pairT_WB,
                                 speedBgBa, t_start, t_end);
   } else if (relativeFeatureTime <= -wedge) {
-    okvis::ceres::predictStatesBackward(imuMeasCanopy_, gravityMag_, pairT_WB,
+    okvis::ceres::predictStatesBackward(*imuMeasCanopy_, gravityMag_, pairT_WB,
                                         speedBgBa, t_start, t_end);
   }
 
@@ -205,7 +191,7 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, L
     EXTRINSIC_MODEL::dhC_dExtrinsic_HPP(hp_C, C_CB, &dhC_dExtrinsic);
 
     okvis::ImuMeasurement queryValue;
-    okvis::ceres::interpolateInertialData(imuMeasCanopy_, t_end, queryValue);
+    okvis::ceres::interpolateInertialData(*imuMeasCanopy_, t_end, queryValue);
     queryValue.measurement.gyroscopes -= speedBgBa.segment<3>(3);
     Eigen::Vector3d p =
         okvis::kinematics::crossMx(queryValue.measurement.gyroscopes) *
@@ -250,7 +236,7 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, L
   double php_C[numOutputs];
   Eigen::Matrix<double, numOutputs, 7, Eigen::RowMajor> dhC_deltaTWS_full;
   Eigen::Matrix<double, numOutputs, 4, Eigen::RowMajor> dhC_deltahpW;
-  Eigen::Matrix<double, numOutputs, EXTRINSIC_MODEL::kGlobalDim, Eigen::RowMajor> dhC_dExtrinsic_full;
+  Eigen::Matrix<double, numOutputs, 7, Eigen::RowMajor> dhC_dExtrinsic_full;
 
   ProjectionIntrinsicJacType4 dhC_projIntrinsic;
   Eigen::Matrix<double, numOutputs, kDistortionDim, Eigen::RowMajor>
@@ -276,7 +262,7 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, L
       rsre(*this);
   bool diffState =
           ::ceres::internal::AutoDifferentiate<
-              ::ceres::internal::StaticParameterDims<7, 4, EXTRINSIC_MODEL::kGlobalDim, 1, 1, 9, 6,
+              ::ceres::internal::StaticParameterDims<7, 4, 7, 1, 1, 9, 6,
               EXTRINSIC_MODEL::kNumParams>
              >(rsre, expandedParams, numOutputs, php_C, dpC_deltaAll);
   if (!diffState)
@@ -350,7 +336,7 @@ void RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, L
     setJacobiansZero(double** jacobians, double** jacobiansMinimal) const {
   zeroJacobian<7, 6, 2>(0, jacobians, jacobiansMinimal);
   zeroJacobian<4, 3, 2>(1, jacobians, jacobiansMinimal);
-  zeroJacobian<EXTRINSIC_MODEL::kGlobalDim, EXTRINSIC_MODEL::kNumParams, 2>(2, jacobians, jacobiansMinimal);
+  zeroJacobian<7, EXTRINSIC_MODEL::kNumParams, 2>(2, jacobians, jacobiansMinimal);
   zeroJacobian<PROJ_INTRINSIC_MODEL::kNumParams,
                PROJ_INTRINSIC_MODEL::kNumParams, 2>(3, jacobians,
                                                     jacobiansMinimal);
@@ -412,8 +398,8 @@ void RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, L
     // compute the minimal version
     Eigen::Matrix<double, 2, EXTRINSIC_MODEL::kNumParams, Eigen::RowMajor>
         J2_minimal = Jh_weighted * dhC_dExtrinsic;
-    Eigen::Map<Eigen::Matrix<double, 2, EXTRINSIC_MODEL::kGlobalDim, Eigen::RowMajor>> J2(jacobians[2]);
-    Eigen::Matrix<double, EXTRINSIC_MODEL::kNumParams, EXTRINSIC_MODEL::kGlobalDim, Eigen::RowMajor> J_lift;
+    Eigen::Map<Eigen::Matrix<double, 2, 7, Eigen::RowMajor>> J2(jacobians[2]);
+    Eigen::Matrix<double, EXTRINSIC_MODEL::kNumParams, 7, Eigen::RowMajor> J_lift;
     if (EXTRINSIC_MODEL::kNumParams == 6) {
       // pseudo inverse of the local parametrization Jacobian:
       PoseLocalParameterization::liftJacobian(parameters[2], J_lift.data());
@@ -530,8 +516,12 @@ operator()(const Scalar* const T_WB, const Scalar* const php_W,
 
   Eigen::Map<const Eigen::Matrix<Scalar, 4, 1>> hp_W(php_W);
 
+  Eigen::Matrix<Scalar, 3, 1> t_BC_B0(T_BC_params[0], T_BC_params[1],
+                                      T_BC_params[2]);
+  Eigen::Quaternion<Scalar> q_BC0(T_BC_params[6], T_BC_params[3],
+                                  T_BC_params[4], T_BC_params[5]);
   std::pair<Eigen::Matrix<Scalar, 3, 1>, Eigen::Quaternion<Scalar>> T_BC =
-      EXTRINSIC_MODEL::get_T_BC(rsre_.T_BC_base_, T_BC_params);
+      std::make_pair(t_BC_B0, q_BC0);
   EXTRINSIC_MODEL::oplus(deltaT_BC, &T_BC);
   const Eigen::Matrix<Scalar, 3, 1>& t_BC_B = T_BC.first;
   const Eigen::Quaternion<Scalar>& q_BC = T_BC.second;
@@ -553,11 +543,11 @@ operator()(const Scalar* const T_WB, const Scalar* const php_W,
   Scalar t_start = (Scalar)rsre_.stateEpoch_.toSec();
   Scalar t_end = t_start + relativeFeatureTime;
   okvis::GenericImuMeasurementDeque<Scalar> imuMeasurements;
-  for (size_t jack = 0; jack < rsre_.imuMeasCanopy_.size(); ++jack) {
+  for (size_t jack = 0; jack < rsre_.imuMeasCanopy_->size(); ++jack) {
     okvis::GenericImuMeasurement<Scalar> imuMeas(
-        (Scalar)(rsre_.imuMeasCanopy_[jack].timeStamp.toSec()),
-        rsre_.imuMeasCanopy_[jack].measurement.gyroscopes.template cast<Scalar>(),
-        rsre_.imuMeasCanopy_[jack].measurement.accelerometers.template cast<Scalar>());
+        (Scalar)(rsre_.imuMeasCanopy_->at(jack).timeStamp.toSec()),
+        rsre_.imuMeasCanopy_->at(jack).measurement.gyroscopes.template cast<Scalar>(),
+        rsre_.imuMeasCanopy_->at(jack).measurement.accelerometers.template cast<Scalar>());
     imuMeasurements.push_back(imuMeas);
   }
 

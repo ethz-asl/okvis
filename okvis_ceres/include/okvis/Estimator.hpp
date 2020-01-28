@@ -680,9 +680,9 @@ class Estimator : public VioBackendInterface
     uint64_t id;
     const okvis::Time timestamp;         // t_j, fixed once initialized
     const okvis::Duration tdAtCreation;  // t_{d_j}, fixed once initialized
-    Eigen::Matrix<double, 6, 1>
-        linearizationPoint;  /// first estimate of position r_WB and velocity
-                             /// v_WB
+    // first estimate of position r_WB and velocity v_WB
+    Eigen::Matrix<double, 6, 1> linearizationPoint;
+    std::shared_ptr<const okvis::ImuMeasurementDeque> imuReadingWindow;
   };
 
   // the following keeps track of all the states at different time instances (key=poseId)
@@ -731,9 +731,14 @@ class Estimator : public VioBackendInterface
   // e.g., min observs to triang a landmark
   size_t minTrackLength_;
 
-  bool fixCameraIntrinsicParams_;
+  // whether camera intrinsic parameters will be estimated? If true,
+  // the camera intrinsic parameter blocks (including distortion) will not be created.
+  std::vector<bool> fixCameraIntrinsicParams_;
 
-  bool fixCameraExtrinsicParams_;
+  // whether camera extrinsic parameters will be estimated? If true,
+  // the camera extrinsic parameter block will be set fixed just as
+  // when the extrinsic noise is zero.
+  std::vector<bool> fixCameraExtrinsicParams_;
 
   template<class GEOMETRY_TYPE>
   ::ceres::ResidualBlockId addPointFrameResidual(

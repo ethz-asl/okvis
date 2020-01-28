@@ -62,9 +62,7 @@ Estimator::Estimator(
       cauchyLossFunctionPtr_(new ::ceres::CauchyLoss(1)),
       huberLossFunctionPtr_(new ::ceres::HuberLoss(1)),
       marginalizationResidualId_(0),
-      minTrackLength_(3u),
-      fixCameraIntrinsicParams_(false),
-      fixCameraExtrinsicParams_(false)
+      minTrackLength_(3u)
 {
 }
 
@@ -75,9 +73,7 @@ Estimator::Estimator()
       cauchyLossFunctionPtr_(new ::ceres::CauchyLoss(1)),
       huberLossFunctionPtr_(new ::ceres::HuberLoss(1)),
       marginalizationResidualId_(0),
-      minTrackLength_(3u),
-      fixCameraIntrinsicParams_(false),
-      fixCameraExtrinsicParams_(false)
+      minTrackLength_(3u)
 {
 }
 
@@ -98,6 +94,12 @@ void Estimator::addCameraSystem(const okvis::cameras::NCameraSystem& cameras) {
   for (size_t i = 0; i < cameras.numCameras(); ++i) {
     camera_rig_.addCamera(cameras.T_SC(i), cameras.cameraGeometry(i),
                           cameras.projOptRep(i), cameras.extrinsicOptRep(i));
+    bool fixProjectionIntrinsics = false;
+    ProjectionOptNameToId(cameras.projOptRep(i), &fixProjectionIntrinsics);
+    fixCameraIntrinsicParams_.push_back(fixProjectionIntrinsics);
+    bool fixExtrinsics = false;
+    ExtrinsicModelNameToId(cameras.extrinsicOptRep(i), &fixExtrinsics);
+    fixCameraExtrinsicParams_.push_back(fixExtrinsics);
   }
 }
 

@@ -65,7 +65,7 @@ class Map {
   OKVIS_DEFINE_EXCEPTION(Exception,std::runtime_error)
 
   /// @brief Constructor.
-  Map();
+  Map(::ceres::EvaluationCallback* evaluation_callback = nullptr);
 
   // definitions
   /// @brief Struct to store some infos about a residual.

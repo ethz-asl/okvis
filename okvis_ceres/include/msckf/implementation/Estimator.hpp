@@ -19,8 +19,6 @@ template<class GEOMETRY_TYPE>
     const Eigen::Vector2d& measurement,
     const Eigen::Matrix2d& information,
     std::shared_ptr<const GEOMETRY_TYPE> cameraGeometry) {
-  // TODO(jhuai): add residual according to
-  // (camera_rig_.getProjectionOptMode(camIdx) == ProjectionOptFixed::kModelId)
   std::shared_ptr < ceres::ReprojectionError
       < GEOMETRY_TYPE
           >> reprojectionError(
@@ -161,13 +159,11 @@ bool Estimator::addEpipolarConstraint(uint64_t landmarkId, uint64_t poseId,
 
   std::vector<okvis::Time> stateEpoch = {stateLeft.timestamp,
                                          stateRight.timestamp};
-  std::vector<okvis::ImuMeasurementDeque,
-              Eigen::aligned_allocator<okvis::ImuMeasurementDeque>>
-      imuMeasCanopy = {
-          inertialMeasForStates_.findWindow(stateEpoch[0], half_window_),
-          inertialMeasForStates_.findWindow(stateEpoch[1], half_window_)};
-  okvis::kinematics::Transformation T_SC_base =
-      camera_rig_.getCameraExtrinsic(camIdx);
+  std::vector<std::shared_ptr<const okvis::ImuMeasurementDeque>> imuMeasCanopy;
+  imuMeasCanopy.emplace_back(new okvis::ImuMeasurementDeque(
+           inertialMeasForStates_.findWindow(stateEpoch[0], half_window_)));
+  imuMeasCanopy.emplace_back(new okvis::ImuMeasurementDeque(
+           inertialMeasForStates_.findWindow(stateEpoch[1], half_window_)));
 
   std::vector<double> tdAtCreation = {stateLeft.tdAtCreation.toSec(),
                                       stateRight.tdAtCreation.toSec()};
@@ -201,26 +197,25 @@ bool Estimator::addEpipolarConstraint(uint64_t landmarkId, uint64_t poseId,
 
   std::shared_ptr<::ceres::CostFunction> twoViewError;
   switch (camera_rig_.getProjectionOptMode(camIdx)) {
-  case ProjectionOptFixed::kModelId:
   case ProjectionOptFXY_CXY::kModelId:
       twoViewError.reset(new ceres::EpipolarFactor<CAMERA_GEOMETRY_T, Extrinsic_p_BC_q_BC,
                          ProjectionOptFXY_CXY>(
                              argCameraGeometry, landmarkId, measurement12, covariance12,
-                             imuMeasCanopy, T_SC_base, stateEpoch, tdAtCreation,
+                             imuMeasCanopy, stateEpoch, tdAtCreation,
                              speedAndBias12, gravityMag));
       break;
   case ProjectionOptFX_CXY::kModelId:
       twoViewError.reset(new ceres::EpipolarFactor<CAMERA_GEOMETRY_T, Extrinsic_p_BC_q_BC,
                          ProjectionOptFX_CXY>(
                              argCameraGeometry, landmarkId, measurement12, covariance12,
-                             imuMeasCanopy, T_SC_base, stateEpoch, tdAtCreation,
+                             imuMeasCanopy, stateEpoch, tdAtCreation,
                              speedAndBias12, gravityMag));
       break;
   case ProjectionOptFX::kModelId:
       twoViewError.reset(new ceres::EpipolarFactor<CAMERA_GEOMETRY_T, Extrinsic_p_BC_q_BC,
                          ProjectionOptFX>(
                              argCameraGeometry, landmarkId, measurement12, covariance12,
-                             imuMeasCanopy, T_SC_base, stateEpoch, tdAtCreation,
+                             imuMeasCanopy, stateEpoch, tdAtCreation,
                              speedAndBias12, gravityMag));
       break;
   default:

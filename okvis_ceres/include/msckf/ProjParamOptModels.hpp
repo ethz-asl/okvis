@@ -5,34 +5,33 @@
 #include <msckf/ModelSwitch.hpp>
 
 namespace okvis {
-// TODO(jhuai): remove ProjectionOptFixed
-class ProjectionOptFixed {
- public:
-  static const int kModelId = 0;
-  static const size_t kNumParams = 0;
-  static inline int getMinimalDim() { return kNumParams; }
-  static void kneadIntrinsicJacobian(Eigen::Matrix2Xd* intrinsicJacobian) {
-      int resultCols = intrinsicJacobian->cols() - 4;
-      intrinsicJacobian->block(0, 0, 2, resultCols) =
-              intrinsicJacobian->block(0, 4, 2, resultCols);
-      intrinsicJacobian->conservativeResize(Eigen::NoChange, resultCols);
-  }
-  static void localToGlobal(const Eigen::VectorXd& /*local_opt_params*/,
-                            Eigen::VectorXd* /*global_proj_params*/) {
-    return;
-  }
-  static void globalToLocal(const Eigen::VectorXd& /*global_proj_params*/,
-                            Eigen::VectorXd* /*local_opt_params*/) {
-    return;
-  }
-  static Eigen::MatrixXd getInitCov(double /*sigma_focal_length*/,
-                                    double /*sigma_principal_point*/) {
-    return Eigen::MatrixXd();
-  }
-  static void toParamsInfo(const std::string /*delimiter*/, std::string* params_info) {
-    *params_info = "";
-  }
-};
+//class ProjectionOptFixed {
+// public:
+//  static const int kModelId = 0;
+//  static const size_t kNumParams = 0;
+//  static inline int getMinimalDim() { return kNumParams; }
+//  static void kneadIntrinsicJacobian(Eigen::Matrix2Xd* intrinsicJacobian) {
+//      int resultCols = intrinsicJacobian->cols() - 4;
+//      intrinsicJacobian->block(0, 0, 2, resultCols) =
+//              intrinsicJacobian->block(0, 4, 2, resultCols);
+//      intrinsicJacobian->conservativeResize(Eigen::NoChange, resultCols);
+//  }
+//  static void localToGlobal(const Eigen::VectorXd& /*local_opt_params*/,
+//                            Eigen::VectorXd* /*global_proj_params*/) {
+//    return;
+//  }
+//  static void globalToLocal(const Eigen::VectorXd& /*global_proj_params*/,
+//                            Eigen::VectorXd* /*local_opt_params*/) {
+//    return;
+//  }
+//  static Eigen::MatrixXd getInitCov(double /*sigma_focal_length*/,
+//                                    double /*sigma_principal_point*/) {
+//    return Eigen::MatrixXd();
+//  }
+//  static void toParamsInfo(const std::string /*delimiter*/, std::string* params_info) {
+//    *params_info = "";
+//  }
+//};
 
 class ProjectionOptFXY_CXY {
  public:
@@ -138,7 +137,6 @@ class ProjectionOptFX {
 
 #ifndef PROJ_OPT_MODEL_CASES
 #define PROJ_OPT_MODEL_CASES                \
-  PROJ_OPT_MODEL_CASE(ProjectionOptFixed)   \
   PROJ_OPT_MODEL_CASE(ProjectionOptFXY_CXY) \
   PROJ_OPT_MODEL_CASE(ProjectionOptFX_CXY)  \
   PROJ_OPT_MODEL_CASE(ProjectionOptFX)
@@ -159,10 +157,13 @@ inline int ProjectionOptGetMinimalDim(int model_id) {
   return 0;
 }
 
-inline int ProjectionOptNameToId(std::string pinhole_opt_rep) {
+inline int ProjectionOptNameToId(std::string pinhole_opt_rep, bool* isFixed=nullptr) {
   std::transform(pinhole_opt_rep.begin(), pinhole_opt_rep.end(),
                  pinhole_opt_rep.begin(),
                  [](unsigned char c) { return std::toupper(c); });
+  if (isFixed) {
+      *isFixed = false;
+  }
   if (pinhole_opt_rep.compare("FXY_CXY") == 0) {
     return ProjectionOptFXY_CXY::kModelId;
   } else if (pinhole_opt_rep.compare("FX_CXY") == 0) {
@@ -170,7 +171,10 @@ inline int ProjectionOptNameToId(std::string pinhole_opt_rep) {
   } else if (pinhole_opt_rep.compare("FX") == 0) {
     return ProjectionOptFX::kModelId;
   } else {
-    return ProjectionOptFixed::kModelId;
+    if (isFixed) {
+        *isFixed = true;
+    }
+    return ProjectionOptFXY_CXY::kModelId;
   }
 }
 

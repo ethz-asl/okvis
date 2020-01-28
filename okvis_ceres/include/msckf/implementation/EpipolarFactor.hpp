@@ -38,10 +38,8 @@ EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
         const std::vector<Eigen::Matrix2d,
                           Eigen::aligned_allocator<Eigen::Matrix2d>>&
             covariance12,
-        const std::vector<okvis::ImuMeasurementDeque,
-                          Eigen::aligned_allocator<okvis::ImuMeasurementDeque>>&
+        std::vector<std::shared_ptr<const okvis::ImuMeasurementDeque>>&
             imuMeasCanopy,
-        const okvis::kinematics::Transformation& T_BC_base,
         const std::vector<okvis::Time>& stateEpoch,
         const std::vector<double>& tdAtCreation,
         const std::vector<
@@ -52,7 +50,6 @@ EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
     : measurement_(measurement12),
       covariance_(covariance12),
       imuMeasCanopy_(imuMeasCanopy),
-      T_BC_base_(T_BC_base),
       stateEpoch_(stateEpoch),
       tdAtCreation_(tdAtCreation),
       speedAndBiases_(speedAndBiases),
@@ -93,15 +90,15 @@ void EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
   okvis::Time t_end = stateEpoch_[index] + okvis::Duration(relativeFeatureTime);
   const double wedge = 5e-8;
   if (relativeFeatureTime >= wedge) {
-    okvis::ceres::predictStates(imuMeasCanopy_[index], gravityMag_, *pair_T_WB,
+    okvis::ceres::predictStates(*imuMeasCanopy_[index], gravityMag_, *pair_T_WB,
                                 speedBgBa, t_start, t_end);
   } else if (relativeFeatureTime <= -wedge) {
-    okvis::ceres::predictStatesBackward(imuMeasCanopy_[index], gravityMag_,
+    okvis::ceres::predictStatesBackward(*imuMeasCanopy_[index], gravityMag_,
                                         *pair_T_WB, speedBgBa, t_start, t_end);
   }
   velAndOmega->head<3>() = speedBgBa.head<3>();
   okvis::ImuMeasurement queryValue;
-  okvis::ceres::interpolateInertialData(imuMeasCanopy_[index], t_end, queryValue);
+  okvis::ceres::interpolateInertialData(*imuMeasCanopy_[index], t_end, queryValue);
   queryValue.measurement.gyroscopes -= speedBgBa.segment<3>(3);
   velAndOmega->tail<3>() = queryValue.measurement.gyroscopes;
 }
@@ -125,7 +122,6 @@ bool EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
   const Eigen::Quaterniond q_WB2(parameters[1][6], parameters[1][3],
                                  parameters[1][4], parameters[1][5]);
 
-  // TODO(jhuai): use extrinsic_model and if needed T_BC_base_
   Eigen::Map<const Eigen::Vector3d> t_BC_B(parameters[2]);
   const Eigen::Quaterniond q_BC(parameters[2][6], parameters[2][3],
                                 parameters[2][4], parameters[2][5]);
@@ -229,7 +225,13 @@ bool EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
 
     Eigen::Matrix<double, 1, Eigen::Dynamic> de_dExtrinsic;
     switch (EXTRINSIC_MODEL::kModelId) {
+
+      case Extrinsic_p_CB::kModelId:
+        rmj.dp_dt_CB(&dp_dt_CB);
+        de_dExtrinsic = de_dt_Ctij_Ctik * dp_dt_CB;
+        break;
       case Extrinsic_p_BC_q_BC::kModelId:
+      default:
         rmj.dtheta_dtheta_BC(&dtheta_dtheta_BC);
         rmj.dp_dtheta_BC(&dp_dtheta_BC);
         rmj.dp_dt_BC(&dp_dt_BC);
@@ -237,13 +239,6 @@ bool EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
         de_dExtrinsic.head<3>() = de_dt_Ctij_Ctik * dp_dt_BC;
         de_dExtrinsic.tail<3>() = de_dt_Ctij_Ctik * dp_dtheta_BC +
                                   de_dtheta_Ctij_Ctik * dtheta_dtheta_BC;
-        break;
-      case Extrinsic_p_CB::kModelId:
-        rmj.dp_dt_CB(&dp_dt_CB);
-        de_dExtrinsic = de_dt_Ctij_Ctik * dp_dt_CB;
-        break;
-      case ExtrinsicFixed::kModelId:
-      default:
         break;
     }
     Eigen::Matrix<double, 1, Eigen::Dynamic> de_dxcam =
@@ -399,7 +394,7 @@ void EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
     setJacobiansZero(double** jacobians, double** jacobiansMinimal) const {
   zeroJacobian<7, 6, 1>(0, jacobians, jacobiansMinimal);
   zeroJacobian<7, 6, 1>(1, jacobians, jacobiansMinimal);
-  zeroJacobian<EXTRINSIC_MODEL::kGlobalDim, EXTRINSIC_MODEL::kNumParams, 1>(2, jacobians, jacobiansMinimal);
+  zeroJacobian<7, EXTRINSIC_MODEL::kNumParams, 1>(2, jacobians, jacobiansMinimal);
   zeroJacobian<PROJ_INTRINSIC_MODEL::kNumParams,
                PROJ_INTRINSIC_MODEL::kNumParams, 1>(3, jacobians, jacobiansMinimal);
   zeroJacobian<kDistortionDim, kDistortionDim, 1>(4, jacobians, jacobiansMinimal);

@@ -118,6 +118,10 @@ class CameraRig {
       int camera_id) const {
     return *(T_SC_[camera_id]);
   }
+  inline std::shared_ptr<const okvis::kinematics::Transformation> getCameraExtrinsicPtr(
+      int camera_id) const {
+    return T_SC_[camera_id];
+  }
   inline std::shared_ptr<const cameras::CameraBase> getCameraGeometry(
       int camera_id) const {
     return camera_geometries_[camera_id];
@@ -130,11 +134,7 @@ class CameraRig {
     return camera_geometries_[camera_id]->noIntrinsicsParameters();
   }
   inline int getProjectionOptMode(int camera_id) const {
-    if (camera_id >= static_cast<int>(proj_opt_rep_.size())) {
-      return ProjectionOptFixed::kModelId;
-    } else {
-      return proj_opt_rep_[camera_id];
-    }
+    return proj_opt_rep_[camera_id];
   }
   inline int getExtrinsicOptMode(int camera_id) const {
     return extrinsic_opt_rep_[camera_id];

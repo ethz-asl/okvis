@@ -8,74 +8,73 @@
 #include <okvis/kinematics/operators.hpp>
 
 namespace okvis {
-// TODO(jhuai): remove ExtrinsicFixed
-class ExtrinsicFixed {
- public:
-  static const int kModelId = 0;
-  static const size_t kNumParams = 0;
-  static const size_t kGlobalDim = 0;
-  static inline int getMinimalDim() { return kNumParams; }
-  static inline Eigen::MatrixXd initCov(double /*sigma_translation*/,
-                                        double /*sigma_orientation*/) {
-    return Eigen::MatrixXd();
-  }
-  static void dpC_dExtrinsic(const Eigen::Vector3d& /*pC*/,
-                             const Eigen::Matrix3d& /*R_CB*/,
-                             Eigen::MatrixXd* dpC_dT,
-                             const Eigen::Matrix3d* /*R_CfCa*/,
-                             const Eigen::Vector4d* /*ab1rho*/) {
-    *dpC_dT = Eigen::MatrixXd();
-  }
-  static void updateState(const Eigen::Vector3d& r, const Eigen::Quaterniond& q,
-                          const Eigen::VectorXd& /*delta*/,
-                          Eigen::Vector3d* r_delta,
-                          Eigen::Quaterniond* q_delta) {
-    *r_delta = r;
-    *q_delta = q;
-  }
+//class ExtrinsicFixed {
+// public:
+//  static const int kModelId = 0;
+//  static const size_t kNumParams = 0;
+//  static const size_t kGlobalDim = 7;
+//  static inline int getMinimalDim() { return kNumParams; }
+//  static inline Eigen::MatrixXd initCov(double /*sigma_translation*/,
+//                                        double /*sigma_orientation*/) {
+//    return Eigen::MatrixXd();
+//  }
+//  static void dpC_dExtrinsic(const Eigen::Vector3d& /*pC*/,
+//                             const Eigen::Matrix3d& /*R_CB*/,
+//                             Eigen::MatrixXd* dpC_dT,
+//                             const Eigen::Matrix3d* /*R_CfCa*/,
+//                             const Eigen::Vector4d* /*ab1rho*/) {
+//    *dpC_dT = Eigen::MatrixXd();
+//  }
+//  static void updateState(const Eigen::Vector3d& r, const Eigen::Quaterniond& q,
+//                          const Eigen::VectorXd& /*delta*/,
+//                          Eigen::Vector3d* r_delta,
+//                          Eigen::Quaterniond* q_delta) {
+//    *r_delta = r;
+//    *q_delta = q;
+//  }
 
-  static void dpC_dExtrinsic_AIDP(const Eigen::Vector3d& /*pC*/,
-                             const Eigen::Matrix3d& /*R_CB*/,
-                             Eigen::MatrixXd* dpC_dT,
-                             const Eigen::Matrix3d* /*R_CfCa*/,
-                             const Eigen::Vector4d* /*ab1rho*/) {
-    *dpC_dT = Eigen::MatrixXd();
-  }
+//  static void dpC_dExtrinsic_AIDP(const Eigen::Vector3d& /*pC*/,
+//                             const Eigen::Matrix3d& /*R_CB*/,
+//                             Eigen::MatrixXd* dpC_dT,
+//                             const Eigen::Matrix3d* /*R_CfCa*/,
+//                             const Eigen::Vector4d* /*ab1rho*/) {
+//    *dpC_dT = Eigen::MatrixXd();
+//  }
 
-  static void dpC_dExtrinsic_HPP(const Eigen::Vector4d& /*hpC*/,
-                                 const Eigen::Matrix3d& /*R_CB*/,
-                                 Eigen::MatrixXd* dpC_dT) {
-    *dpC_dT = Eigen::MatrixXd();
-  }
+//  static void dpC_dExtrinsic_HPP(const Eigen::Vector4d& /*hpC*/,
+//                                 const Eigen::Matrix3d& /*R_CB*/,
+//                                 Eigen::MatrixXd* dpC_dT) {
+//    *dpC_dT = Eigen::MatrixXd();
+//  }
 
-  static void toParamsInfo(const std::string /*delimiter*/,
-                           std::string* extrinsic_format) {
-    *extrinsic_format = "";
-  }
-  static void toParamsValueString(const okvis::kinematics::Transformation& /*T_SC*/,
-                                  const std::string /*delimiter*/,
-                                  std::string* extrinsic_string) {
-    *extrinsic_string = "";
-  }
-  static void toParamValues(
-      const okvis::kinematics::Transformation& /*T_SC*/,
-      Eigen::VectorXd* /*extrinsic_opt_coeffs*/) {
-    return;
-  }
-  template <class Scalar>
-  static std::pair<Eigen::Matrix<Scalar, 3, 1>, Eigen::Quaternion<Scalar>> get_T_BC(
-      const okvis::kinematics::Transformation& T_BC_base,
-      const Scalar* /*parameters*/) {
-    return std::make_pair(T_BC_base.r().cast<Scalar>(), T_BC_base.q().cast<Scalar>());
-  }
-};
+//  static void toParamsInfo(const std::string /*delimiter*/,
+//                           std::string* extrinsic_format) {
+//    *extrinsic_format = "";
+//  }
+//  static void toParamsValueString(const okvis::kinematics::Transformation& /*T_SC*/,
+//                                  const std::string /*delimiter*/,
+//                                  std::string* extrinsic_string) {
+//    *extrinsic_string = "";
+//  }
+//  static void toParamValues(
+//      const okvis::kinematics::Transformation& /*T_SC*/,
+//      Eigen::VectorXd* /*extrinsic_opt_coeffs*/) {
+//    return;
+//  }
+//  template <class Scalar>
+//  static std::pair<Eigen::Matrix<Scalar, 3, 1>, Eigen::Quaternion<Scalar>> get_T_BC(
+//      const okvis::kinematics::Transformation& T_BC_base,
+//      const Scalar* /*parameters*/) {
+//    return std::make_pair(T_BC_base.r().cast<Scalar>(), T_BC_base.q().cast<Scalar>());
+//  }
+//};
 
 class Extrinsic_p_CB {
   // of T_BC only p_CB is variable.
  public:
   static const int kModelId = 1;
   static const size_t kNumParams = 3;
-  static const size_t kGlobalDim = 3;
+  static const size_t kGlobalDim = 7;
   static inline int getMinimalDim() { return kNumParams; }
   static inline Eigen::MatrixXd initCov(double sigma_translation,
                                         double /*sigma_orientation*/) {
@@ -270,7 +269,6 @@ class Extrinsic_p_BC_q_BC {
 
 #ifndef EXTRINSIC_MODEL_CASES
 #define EXTRINSIC_MODEL_CASES          \
-  EXTRINSIC_MODEL_CASE(ExtrinsicFixed) \
   EXTRINSIC_MODEL_CASE(Extrinsic_p_CB) \
   EXTRINSIC_MODEL_CASE(Extrinsic_p_BC_q_BC)
 #endif
@@ -306,16 +304,22 @@ inline Eigen::MatrixXd ExtrinsicModelInitCov(int model_id,
   }
 }
 
-inline int ExtrinsicModelNameToId(std::string extrinsic_opt_rep) {
+inline int ExtrinsicModelNameToId(std::string extrinsic_opt_rep, bool* isFixed = nullptr) {
   std::transform(extrinsic_opt_rep.begin(), extrinsic_opt_rep.end(),
                  extrinsic_opt_rep.begin(),
                  [](unsigned char c) { return std::toupper(c); });
-  if (extrinsic_opt_rep.compare("P_CB") == 0) {
-    return Extrinsic_p_CB::kModelId;
-  } else if (extrinsic_opt_rep.compare("P_BC_R_BC") == 0) {
+  if (isFixed) {
+    *isFixed = false;
+  }
+  if (extrinsic_opt_rep.compare("P_BC_Q_BC") == 0) {
     return Extrinsic_p_BC_q_BC::kModelId;
+  } else if (extrinsic_opt_rep.compare("P_CB") == 0) {
+    return Extrinsic_p_CB::kModelId;
   } else {
-    return ExtrinsicFixed::kModelId;
+    if (isFixed) {
+      *isFixed = true;
+    }
+    return Extrinsic_p_BC_q_BC::kModelId;
   }
 }
 

@@ -49,7 +49,7 @@ template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
 class RsReprojectionError
     : public ::ceres::SizedCostFunction<
           2 /* number of residuals */, 7 /* pose */, 4 /* landmark */,
-          EXTRINSIC_MODEL::kGlobalDim /* variable dim of extrinsics */,
+          7 /* variable dim of extrinsics */,
           PROJ_INTRINSIC_MODEL::kNumParams /* variable dim of proj intrinsics
                                               (e.g., f, cx, cy) */,
           GEOMETRY_TYPE::distortion_t::NumDistortionIntrinsics,
@@ -69,7 +69,7 @@ class RsReprojectionError
 
   /// \brief The base class type.
   typedef ::ceres::SizedCostFunction<
-      2, 7, 4, EXTRINSIC_MODEL::kGlobalDim, PROJ_INTRINSIC_MODEL::kNumParams,
+      2, 7, 4, 7, PROJ_INTRINSIC_MODEL::kNumParams,
       GEOMETRY_TYPE::distortion_t::NumDistortionIntrinsics, 1, 1, 9>
       base_t;
 
@@ -115,7 +115,6 @@ class RsReprojectionError
    * @param information The information (weight) matrix.
    * @param imuMeasCanopy imu meas in the neighborhood of stateEpoch for
    *     compensating the rolling shutter effect.
-   * @param T_BC_base reference T_BC used when EXTRINSIC_MODEL is incomplete.
    * @param stateEpoch epoch of the pose state and speed and biases
    * @param tdAtCreation the time offset at the creation of the state.
    * @param gravityMag
@@ -124,8 +123,7 @@ class RsReprojectionError
       std::shared_ptr<const camera_geometry_t> cameraGeometry,
       const measurement_t& measurement,
       const covariance_t& information,
-      const okvis::ImuMeasurementDeque& imuMeasCanopy,
-      const okvis::kinematics::Transformation& T_BC_base,
+      std::shared_ptr<const okvis::ImuMeasurementDeque> imuMeasCanopy,
       okvis::Time stateEpoch, double tdAtCreation, double gravityMag);
 
   /// \brief Trivial destructor.
@@ -254,15 +252,13 @@ class RsReprojectionError
 //  uint64_t cameraId_; ///< ID of the camera.
   measurement_t measurement_; ///< The (2D) measurement.
 
-  /// Warn: cameraGeometryBase_ and T_BC_base_ may be updated with
+  /// Warn: cameraGeometryBase_ may be updated with
   /// a ceres EvaluationCallback prior to Evaluate().
   // The camera model shared by all RsReprojectionError.
   std::shared_ptr<const camera_geometry_t> cameraGeometryBase_;
-  // The reference extrinsic parameters in case the EXTRINSIC_MODEL is incomplete.
-  mutable okvis::kinematics::Transformation T_BC_base_;
 
   // const after initialization
-  okvis::ImuMeasurementDeque imuMeasCanopy_;
+  std::shared_ptr<const okvis::ImuMeasurementDeque> imuMeasCanopy_;
   // weighting related
   covariance_t information_; ///< The 2x2 information matrix.
   covariance_t squareRootInformation_; ///< The 2x2 square root information matrix.

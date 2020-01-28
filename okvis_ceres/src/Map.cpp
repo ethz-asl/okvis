@@ -49,9 +49,10 @@ namespace okvis {
 namespace ceres {
 
 // Constructor.
-Map::Map()
+Map::Map(::ceres::EvaluationCallback* evaluation_callback)
     : residualCounter_(0) {
   ::ceres::Problem::Options problemOptions;
+  problemOptions.evaluation_callback = evaluation_callback;
   problemOptions.local_parameterization_ownership =
       ::ceres::Ownership::DO_NOT_TAKE_OWNERSHIP;
   problemOptions.loss_function_ownership =
