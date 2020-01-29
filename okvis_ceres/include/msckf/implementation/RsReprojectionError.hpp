@@ -32,8 +32,10 @@ RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDMA
         const measurement_t& measurement,
         const covariance_t& information,
         std::shared_ptr<const okvis::ImuMeasurementDeque> imuMeasCanopy,
+        std::shared_ptr<const Eigen::Matrix<double, 6, 1>> posVelAtLinearization,
         okvis::Time stateEpoch, double tdAtCreation, double gravityMag)
     : imuMeasCanopy_(imuMeasCanopy),
+      posVelAtLinearization_(posVelAtLinearization),
       stateEpoch_(stateEpoch),
       tdAtCreation_(tdAtCreation),
       gravityMag_(gravityMag) {
@@ -105,8 +107,8 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, L
   Eigen::Matrix<double, 9, 1> speedBgBa =
       Eigen::Map<const Eigen::Matrix<double, 9, 1>>(parameters[7]);
 
-  okvis::Time t_start = stateEpoch_;
-  okvis::Time t_end = stateEpoch_ + okvis::Duration(relativeFeatureTime);
+  const okvis::Time t_start = stateEpoch_;
+  const okvis::Time t_end = stateEpoch_ + okvis::Duration(relativeFeatureTime);
   const double wedge = 5e-8;
   if (relativeFeatureTime >= wedge) {
     okvis::ceres::predictStates(*imuMeasCanopy_, gravityMag_, pairT_WB,
@@ -173,6 +175,29 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, L
       setJacobiansZero(jacobians, jacobiansMinimal);
       return true;
     }
+    std::pair<Eigen::Matrix<double, 3, 1>, Eigen::Quaternion<double>> lP_T_WB = pairT_WB;
+    SpeedAndBiases lP_sb = speedBgBa;
+    if (posVelAtLinearization_) {
+      // compute p_WB, v_WB at (t_{f_i,j}) that use FIRST ESTIMATES of
+      // position and velocity, i.e., their linearization point
+      lP_T_WB = std::make_pair(posVelAtLinearization_->head<3>(), q_WB0);
+      lP_sb = Eigen::Map<const Eigen::Matrix<double, 9, 1>>(parameters[7]);
+      lP_sb.head<3>() = posVelAtLinearization_->tail<3>();
+      if (relativeFeatureTime >= wedge) {
+        okvis::ceres::predictStates(*imuMeasCanopy_, gravityMag_, lP_T_WB,
+                                    lP_sb, t_start, t_end);
+      } else if (relativeFeatureTime <= -wedge) {
+        okvis::ceres::predictStatesBackward(*imuMeasCanopy_, gravityMag_, lP_T_WB,
+                                            lP_sb, t_start, t_end);
+      }
+      C_BW = lP_T_WB.second.toRotationMatrix().transpose();
+      t_WB_W = lP_T_WB.first;
+      T_BW.topLeftCorner<3, 3>() = C_BW;
+      T_BW.topRightCorner<3, 1>() = -C_BW * t_WB_W;
+      hp_B = T_BW * hp_W;
+      hp_C = T_CB * hp_B;
+    }
+
     Eigen::Matrix<double, 4, 6> dhC_deltaTWS;
     Eigen::Matrix<double, 4, 4> dhC_deltahpW;
     Eigen::Matrix<double, 4, EXTRINSIC_MODEL::kNumParams> dhC_dExtrinsic;
@@ -192,11 +217,11 @@ bool RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, L
 
     okvis::ImuMeasurement queryValue;
     okvis::ceres::interpolateInertialData(*imuMeasCanopy_, t_end, queryValue);
-    queryValue.measurement.gyroscopes -= speedBgBa.segment<3>(3);
+    queryValue.measurement.gyroscopes -= lP_sb.segment<3>(3);
     Eigen::Vector3d p =
         okvis::kinematics::crossMx(queryValue.measurement.gyroscopes) *
             hp_B.head<3>() +
-        C_BW * speedBgBa.head<3>() * hp_W[3];
+        C_BW * lP_sb.head<3>() * hp_W[3];
     dhC_td.head<3>() = -C_CB * p;
     dhC_td[3] = 0;
 
@@ -401,12 +426,12 @@ void RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, L
     Eigen::Map<Eigen::Matrix<double, 2, 7, Eigen::RowMajor>> J2(jacobians[2]);
     Eigen::Matrix<double, EXTRINSIC_MODEL::kNumParams, 7, Eigen::RowMajor> J_lift;
     if (EXTRINSIC_MODEL::kNumParams == 6) {
-      // pseudo inverse of the local parametrization Jacobian:
+      // Warn: This relates to the parameterization of
+      // CameraSensorStates::T_SCi in addStates, and ReprojectionError liftJacobian
       PoseLocalParameterization::liftJacobian(parameters[2], J_lift.data());
-      // hallucinate Jacobian w.r.t. state
       J2 = J2_minimal * J_lift;
     } else {
-      J_lift.setIdentity();
+      EXTRINSIC_MODEL::liftJacobian(parameters[2], J_lift.data());
       J2 = J2_minimal * J_lift;
     }
     if (jacobiansMinimal != NULL) {

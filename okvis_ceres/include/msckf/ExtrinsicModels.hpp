@@ -2,6 +2,9 @@
 #define INCLUDE_MSCKF_EXTRINSIC_MODELS_HPP_
 
 #include <Eigen/Core>
+
+#include <ceres/local_parameterization.h>
+
 #include <msckf/JacobianHelpers.hpp>
 #include <msckf/ModelSwitch.hpp>
 #include <okvis/kinematics/Transformation.hpp>
@@ -69,7 +72,7 @@ namespace okvis {
 //  }
 //};
 
-class Extrinsic_p_CB {
+class Extrinsic_p_CB : public ::ceres::LocalParameterization {
   // of T_BC only p_CB is variable.
  public:
   static const int kModelId = 1;
@@ -146,9 +149,44 @@ class Extrinsic_p_CB {
     Eigen::Quaternion<Scalar> q_BC = T_BC_base.q().cast<Scalar>();
     return std::make_pair(q_BC * (-t_CB_C), q_BC);
   }
+
+  /// \brief Computes the Jacobian from minimal space to naively overparameterised space as used by ceres.
+  /// @param[in] x Variable.
+  /// @param[out] jacobian the Jacobian (dimension minDim x dim).
+  /// \return True on success.
+  static bool liftJacobian(const double* /*x*/, double* jacobian) {
+    Eigen::Map<Eigen::Matrix<double, kNumParams, kGlobalDim, Eigen::RowMajor> > J_lift(jacobian);
+    J_lift.setIdentity();
+    return true;
+  }
+
+  virtual bool Plus(const double *x, const double *delta, double *x_plus_delta) const {
+    // transform to okvis::kinematics framework
+    std::pair<Eigen::Matrix<double, 3, 1>, Eigen::Quaternion<double>> T(
+          Eigen::Vector3d(x[0], x[1], x[2]),
+          Eigen::Quaterniond(x[6], x[3], x[4], x[5]));
+    // call oplus operator in okvis::kinematis
+    oplus(delta, &T);
+
+    // copy back
+    const Eigen::Vector3d& r = T.first;
+    x_plus_delta[0] = r[0];
+    x_plus_delta[1] = r[1];
+    x_plus_delta[2] = r[2];
+    return true;
+  }
+
+  virtual bool ComputeJacobian(const double */*x*/, double *jacobian) const {
+    Eigen::Map<Eigen::Matrix<double, kGlobalDim, kNumParams, Eigen::RowMajor>> j(jacobian);
+    j.setIdentity();
+    return true;
+  }
+
+  virtual int GlobalSize() const { return kGlobalDim; }
+  virtual int LocalSize() const { return kNumParams; }
 };
 
-class Extrinsic_p_BC_q_BC {
+class Extrinsic_p_BC_q_BC : public ::ceres::LocalParameterization {
   // T_BC is represented by p_BC and R_BC in the states.
  public:
   static const int kModelId = 2;
@@ -240,6 +278,7 @@ class Extrinsic_p_BC_q_BC {
                         "p_BC_S_z" + delimiter + "q_BC_x" + delimiter +
                         "q_BC_y" + delimiter + "q_BC_z" + delimiter + "q_BC_w";
   }
+
   static void toParamsValueString(const okvis::kinematics::Transformation& T_BC,
                                   const std::string delimiter,
                                   std::string* extrinsic_string) {
@@ -250,6 +289,7 @@ class Extrinsic_p_BC_q_BC {
     ss << delimiter << q.x() << delimiter << q.y() << delimiter << q.z() << delimiter << q.w();
     *extrinsic_string = ss.str();
   }
+
   static void toParamValues(
       const okvis::kinematics::Transformation& T_BC,
       Eigen::VectorXd* extrinsic_opt_coeffs) {
@@ -265,6 +305,47 @@ class Extrinsic_p_BC_q_BC {
                                    parameters[5]);
     return std::make_pair(t_BC_B, q_BC);
   }
+
+  /// \brief Computes the Jacobian from minimal space to naively overparameterised space as used by ceres.
+  ///     It must be the pseudo inverse of the local parametrization Jacobian as obtained by COmputeJacobian.
+  /// @param[in] x Variable.
+  /// @param[out] jacobian the Jacobian (dimension minDim x dim).
+  /// \return True on success.
+  static bool liftJacobian(const double* /*x*/, double* jacobian) {
+    Eigen::Map<Eigen::Matrix<double, kNumParams, kGlobalDim, Eigen::RowMajor> > J_lift(jacobian);
+    J_lift.setIdentity();
+    return true;
+  }
+
+  virtual bool Plus(const double *x, const double *delta, double *x_plus_delta) const {
+    // transform to okvis::kinematics framework
+    std::pair<Eigen::Matrix<double, 3, 1>, Eigen::Quaternion<double>> T(
+          Eigen::Vector3d(x[0], x[1], x[2]),
+          Eigen::Quaterniond(x[6], x[3], x[4], x[5]));
+    // call oplus operator in okvis::kinematis
+    oplus(delta, &T);
+
+    // copy back
+    const Eigen::Vector3d& r = T.first;
+    x_plus_delta[0] = r[0];
+    x_plus_delta[1] = r[1];
+    x_plus_delta[2] = r[2];
+    const Eigen::Vector4d& q = T.second.coeffs();
+    x_plus_delta[3] = q[0];
+    x_plus_delta[4] = q[1];
+    x_plus_delta[5] = q[2];
+    x_plus_delta[6] = q[3];
+    return true;
+  }
+
+  virtual bool ComputeJacobian(const double */*x*/, double *jacobian) const {
+    Eigen::Map<Eigen::Matrix<double, kGlobalDim, kNumParams, Eigen::RowMajor>> j(jacobian);
+    j.setIdentity();
+    return true;
+  }
+
+  virtual int GlobalSize() const { return kGlobalDim; }
+  virtual int LocalSize() const { return kNumParams; }
 };
 
 #ifndef EXTRINSIC_MODEL_CASES

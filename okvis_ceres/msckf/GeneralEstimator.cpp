@@ -52,6 +52,8 @@ bool GeneralEstimator::addStates(
   okvis::Time correctedStateTime;  // time of current multiFrame corrected with
                                    // current td estimate
 
+  // record the imu measurements between two consecutive states
+  inertialMeasForStates_.push_back(imuMeasurements);
   if (statesMap_.empty()) {
     // in case this is the first frame ever, let's initialize the pose:
     const int camIdx = 0;
@@ -111,8 +113,10 @@ bool GeneralEstimator::addStates(
       LOG(INFO) << "numUsedImuMeasurements=" << numUsedImuMeasurements;
       return false;
     }
+    okvis::Time secondLatestStateTime = statesMap_.rbegin()->second.timestamp;
+    auto imuMeasCoverSecond = inertialMeasForStates_.findWindow(secondLatestStateTime, half_window_);
+    statesMap_.rbegin()->second.imuReadingWindow.reset(new okvis::ImuMeasurementDeque(imuMeasCoverSecond));
   }
-
 
   // create a states object:
   States states(asKeyframe, multiFrame->id(), correctedStateTime, tdEstimate.toSec());
@@ -129,17 +133,12 @@ bool GeneralEstimator::addStates(
   states.global.at(GlobalStates::T_WS).exists = true;
   states.global.at(GlobalStates::T_WS).id = states.id;
 
-  if(statesMap_.empty())
-  {
+  auto imuMeasCover = inertialMeasForStates_.findWindow(correctedStateTime, half_window_);
+  states.imuReadingWindow.reset(new okvis::ImuMeasurementDeque(imuMeasCover));
+  if(statesMap_.empty()) {
     referencePoseId_ = states.id; // set this as reference pose
-    if (!mapPtr_->addParameterBlock(poseParameterBlock,ceres::Map::Pose6d)) {
-      return false;
-    }
-  } else {
-    if (!mapPtr_->addParameterBlock(poseParameterBlock,ceres::Map::Pose6d)) {
-      return false;
-    }
   }
+  mapPtr_->addParameterBlock(poseParameterBlock,ceres::Map::Pose6d);
 
   // add to buffer
   statesMap_.insert(std::pair<uint64_t, States>(states.id, states));
@@ -398,9 +397,6 @@ bool GeneralEstimator::addStates(
     // a term for global states as well as for the sensor-internal ones (i.e. biases).
     // TODO: magnetometer, pressure, ...
   }
-  // record the imu measurements between two consecutive states
-  inertialMeasForStates_.push_back(imuMeasurements);
-
   return true;
 }
 

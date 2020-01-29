@@ -131,6 +131,7 @@ class RsReprojectionError
       const measurement_t& measurement,
       const covariance_t& information,
       std::shared_ptr<const okvis::ImuMeasurementDeque> imuMeasCanopy,
+      std::shared_ptr<const Eigen::Matrix<double, 6, 1>> posVelAtLinearization,
       okvis::Time stateEpoch, double tdAtCreation, double gravityMag);
 
   /// \brief Trivial destructor.
@@ -266,6 +267,7 @@ class RsReprojectionError
 
   // const after initialization
   std::shared_ptr<const okvis::ImuMeasurementDeque> imuMeasCanopy_;
+  std::shared_ptr<const Eigen::Matrix<double, 6, 1>> posVelAtLinearization_;
   // weighting related
   covariance_t information_; ///< The 2x2 information matrix.
   covariance_t squareRootInformation_; ///< The 2x2 square root information matrix.

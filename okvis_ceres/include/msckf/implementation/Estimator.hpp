@@ -160,10 +160,8 @@ bool Estimator::addEpipolarConstraint(uint64_t landmarkId, uint64_t poseId,
   std::vector<okvis::Time> stateEpoch = {stateLeft.timestamp,
                                          stateRight.timestamp};
   std::vector<std::shared_ptr<const okvis::ImuMeasurementDeque>> imuMeasCanopy;
-  imuMeasCanopy.emplace_back(new okvis::ImuMeasurementDeque(
-           inertialMeasForStates_.findWindow(stateEpoch[0], half_window_)));
-  imuMeasCanopy.emplace_back(new okvis::ImuMeasurementDeque(
-           inertialMeasForStates_.findWindow(stateEpoch[1], half_window_)));
+  imuMeasCanopy.emplace_back(stateLeft.imuReadingWindow);
+  imuMeasCanopy.emplace_back(stateRight.imuReadingWindow);
 
   std::vector<double> tdAtCreation = {stateLeft.tdAtCreation,
                                       stateRight.tdAtCreation};
