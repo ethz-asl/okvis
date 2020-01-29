@@ -165,8 +165,8 @@ bool Estimator::addEpipolarConstraint(uint64_t landmarkId, uint64_t poseId,
   imuMeasCanopy.emplace_back(new okvis::ImuMeasurementDeque(
            inertialMeasForStates_.findWindow(stateEpoch[1], half_window_)));
 
-  std::vector<double> tdAtCreation = {stateLeft.tdAtCreation.toSec(),
-                                      stateRight.tdAtCreation.toSec()};
+  std::vector<double> tdAtCreation = {stateLeft.tdAtCreation,
+                                      stateRight.tdAtCreation};
 
   std::vector<okvis::SpeedAndBias,
               Eigen::aligned_allocator<okvis::SpeedAndBias>>

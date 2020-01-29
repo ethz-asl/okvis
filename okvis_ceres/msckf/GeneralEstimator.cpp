@@ -115,7 +115,7 @@ bool GeneralEstimator::addStates(
 
 
   // create a states object:
-  States states(asKeyframe, multiFrame->id(), correctedStateTime, tdEstimate);
+  States states(asKeyframe, multiFrame->id(), correctedStateTime, tdEstimate.toSec());
 
   // check if id was used before
   OKVIS_ASSERT_TRUE_DBG(Exception,

@@ -30,6 +30,13 @@ class LocalBearingVector;
 
 /// \brief The 2D keypoint reprojection error accounting for rolling shutter
 ///     skew and time offset and camera intrinsics.
+/// \warning A potential problem with this reprojection error happens when
+///     the provided IMU measurements do not cover camera observations to the
+///     extent of the rolling shutter effect. This is most likely to occur with
+///     observations in the most recent frame.
+///     Because MSCKF uses observations up to the second most recent frame,
+///     this problem should only happen to optimization-based estimator with
+///     undelayed observations.
 /// \tparam GEOMETRY_TYPE The camera gemetry type.
 /// \tparam PROJ_INTRINSIC_MODEL describes which subset of the projection
 ///     intrinsic parameters of the camera geometry model is represented and

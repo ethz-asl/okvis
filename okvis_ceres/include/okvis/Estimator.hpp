@@ -407,6 +407,11 @@ class Estimator : public VioBackendInterface
 
   size_t minTrackLength() const { return minTrackLength_; }
 
+  int cameraParamsMinimalDimen(int camIdx = 0) const {
+    return (fixCameraExtrinsicParams_[camIdx] ? 0 : camera_rig_.getMinimalExtrinsicDimen(camIdx)) +
+           (fixCameraIntrinsicParams_[camIdx] ? 0 : camera_rig_.getMinimalProjectionDimen(camIdx) +
+           camera_rig_.getDistortionDimen(camIdx)) + 2;  // 2 for td and tr
+  }
   ///@}
   /// @name Setters
   ///@{
@@ -669,7 +674,7 @@ class Estimator : public VioBackendInterface
     States() : isKeyframe(false), id(0), tdAtCreation(0) {}
     // _timestamp = image timestamp - imageDelay + _tdAtCreation
     States(bool isKeyframe, uint64_t id, okvis::Time _timestamp,
-           okvis::Duration _tdAtCreation = okvis::Duration())
+           double _tdAtCreation = 0.0)
         : isKeyframe(isKeyframe),
           id(id),
           timestamp(_timestamp),
@@ -679,10 +684,13 @@ class Estimator : public VioBackendInterface
     bool isKeyframe;
     uint64_t id;
     const okvis::Time timestamp;         // t_j, fixed once initialized
-    const okvis::Duration tdAtCreation;  // t_{d_j}, fixed once initialized
+    const double tdAtCreation;  // t_{d_j}, fixed once initialized
     // first estimate of position r_WB and velocity v_WB
-    Eigen::Matrix<double, 6, 1> linearizationPoint;
-    std::shared_ptr<const okvis::ImuMeasurementDeque> imuReadingWindow;
+    std::shared_ptr<Eigen::Matrix<double, 6, 1>> linearizationPoint;
+    // IMU measurements centering at state timestamp. It is initialized
+    // when IMU readings surpass state timestamp, and then updated
+    // when next state arrives.
+    std::shared_ptr<okvis::ImuMeasurementDeque> imuReadingWindow;
   };
 
   // the following keeps track of all the states at different time instances (key=poseId)
