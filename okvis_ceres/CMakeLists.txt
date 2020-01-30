@@ -69,6 +69,7 @@ if(BUILD_TESTS)
     test/TestImuError.cpp
     test/TestMap.cpp
     test/TestMarginalization.cpp
+    test/TestTransformMultiply.cpp
   )
   target_link_libraries(${PROJECT_TEST_NAME} 
     ${PROJECT_NAME} 

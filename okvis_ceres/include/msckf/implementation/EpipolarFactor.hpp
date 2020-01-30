@@ -125,7 +125,7 @@ bool EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
   Eigen::Map<const Eigen::Vector3d> t_BC_B(parameters[2]);
   const Eigen::Quaterniond q_BC(parameters[2][6], parameters[2][3],
                                 parameters[2][4], parameters[2][5]);
-  // TODO(jhuai): use GEOMETRY_TYPE::NumIntrinsics will lead to undefined
+  // Warn: use GEOMETRY_TYPE::NumIntrinsics will lead to undefined
   // reference to NumIntrinsics of 4 instantiated PinholeCamera template class.
   Eigen::VectorXd intrinsics(4 + kDistortionDim);
 

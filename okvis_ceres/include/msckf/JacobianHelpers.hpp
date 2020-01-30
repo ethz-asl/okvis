@@ -10,6 +10,7 @@
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
+#include <okvis/kinematics/Transformation.hpp>
 
 namespace okvis {
 namespace ceres {
@@ -22,6 +23,26 @@ struct SophusConstants {
 
   EIGEN_ALWAYS_INLINE static Scalar pi() { return static_cast<Scalar>(M_PI); }
 };
+
+// from sophus/so3.hpp
+template <typename Scalar>
+EIGEN_DEVICE_FUNC EIGEN_STRONG_INLINE static Eigen::Matrix<Scalar, 3, 1> vee(
+    const Eigen::Matrix<Scalar, 3, 3>& Omega) {
+  return static_cast<Scalar>(0.5) *
+         Eigen::Matrix<Scalar, 3, 1>(Omega(2, 1) - Omega(1, 2),
+                                     Omega(0, 2) - Omega(2, 0),
+                                     Omega(1, 0) - Omega(0, 1));
+}
+
+inline Eigen::Matrix<double, 6, 1> ominus(
+    const okvis::kinematics::Transformation& Tbar,
+    const okvis::kinematics::Transformation& T) {
+  Eigen::Matrix<double, 3, 3> dR = Tbar.C() * T.C().transpose();
+  Eigen::Matrix<double, 6, 1> delta;
+  delta.head<3>() = Tbar.r() - T.r();
+  delta.tail<3>() = vee(dR);
+  return delta;
+}
 
 /// Warn: Do not use sinc or its templated version for autodiff involving quaternions
 ///  as its real part may be calculated without considering the infinisimal input.
