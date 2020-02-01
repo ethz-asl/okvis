@@ -5,6 +5,7 @@
 #include <Eigen/Geometry>
 
 namespace msckf {
+// [x, y, z, w] usually expressed in the world frame.
 class HomogeneousPointParameterization
 {
 public:
@@ -58,6 +59,7 @@ public:
  }
 };
 
+// Expressed in an anchor camera frame [\alpha, \beta, 1, \rho] = [x, y, z, w]/z.
 class InverseDepthParameterization
 {
 public:
@@ -83,6 +85,10 @@ public:
   }
 };
 
+// [x, y, z, w, c, s]
+// [x, y, z, w] is the quaternion underlying unit bearing vector n such that
+// n = q(w, x, y, z) * [0, 0, 1]'.
+// c, s are cos(theta) and sin(theta) where \theta is the parallax angle.
 class ParallaxAngleParameterization {
 public:
   static const int kModelId = 2;
