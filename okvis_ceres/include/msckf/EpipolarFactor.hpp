@@ -206,13 +206,13 @@ class EpipolarFactor
   double dtij_dtr_[2];  ///< kpN for left and right obs
 
   /**
-   * @brief computePoseAndVelocityAtExposure compute T_WS at the time of exposure
+   * @brief poseAndVelocityAtObservation compute T_WS nad velocity at observing a feature.
    * @param[in/out] pairT_WS in order to avoid use of okvis::Transformation
    * @param[in/out] velAndOmega records the linear and angular velocity compensated by the gyro bias
    * @param[in] parameters as used in Evaluate()
    * @param[in] index 0 for left camera, 1 for right
    */
-  void computePoseAndVelocityAtExposure(
+  void poseAndVelocityAtObservation(
       std::pair<Eigen::Matrix<double, 3, 1>, Eigen::Quaternion<double>>*
           pairT_WS,
       Eigen::Matrix<double, 6, 1>* velAndOmega,

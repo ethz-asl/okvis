@@ -74,7 +74,7 @@ bool EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
 template <class GEOMETRY_TYPE, class EXTRINSIC_MODEL,
           class PROJ_INTRINSIC_MODEL>
 void EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
-    computePoseAndVelocityAtExposure(
+    poseAndVelocityAtObservation(
         std::pair<Eigen::Matrix<double, 3, 1>, Eigen::Quaternion<double>>*
             pair_T_WB,
         Eigen::Matrix<double, 6, 1>* velAndOmega,
@@ -144,12 +144,12 @@ bool EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
   std::pair<Eigen::Matrix<double, 3, 1>, Eigen::Quaternion<double>> pair_T_WB1(
       t_WB1_W, q_WB1);
   Eigen::Matrix<double, 6, 1> velAndOmega[2];
-  computePoseAndVelocityAtExposure(&pair_T_WB1, &velAndOmega[index], parameters,
+  poseAndVelocityAtObservation(&pair_T_WB1, &velAndOmega[index], parameters,
                                    index);
   index = 1;
   std::pair<Eigen::Matrix<double, 3, 1>, Eigen::Quaternion<double>> pair_T_WB2(
       t_WB2_W, q_WB2);
-  computePoseAndVelocityAtExposure(&pair_T_WB2, &velAndOmega[index], parameters,
+  poseAndVelocityAtObservation(&pair_T_WB2, &velAndOmega[index], parameters,
                                    index);
 
   // backProject to compute the obsDirections for the two observations
