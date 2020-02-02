@@ -63,6 +63,7 @@ if(BUILD_TESTS)
   set(PROJECT_TEST_NAME ${PROJECT_NAME}_test)
   add_executable(${PROJECT_TEST_NAME}
     test/test_main.cpp
+    test/TestBearingVectorJacobians.cpp
     test/TestEstimator.cpp
     test/TestHomogeneousPointError.cpp
     test/TestReprojectionError.cpp

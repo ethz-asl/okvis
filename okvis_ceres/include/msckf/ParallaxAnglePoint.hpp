@@ -2,6 +2,7 @@
 #define INCLUDE_MSCKF_PARALLAX_ANGLE_POINT_HPP_
 
 #include <random>
+#include <iostream>
 #include <Eigen/Geometry>
 
 namespace LWF {
@@ -217,7 +218,12 @@ public:
     }
 
     virtual void boxPlus(const mtDifVec& vecIn, AngleElement& stateOut) const {
-
+      double cd = std::cos(vecIn[0]);
+      double sd = std::sin(vecIn[0]);
+      double cSum = cs_[0] * cd - cs_[1] * sd;
+      double sSum = cs_[1] * cd + sd * cs_[0];
+      stateOut.cs_[0] = cSum;
+      stateOut.cs_[1] = sSum;
     }
 
     virtual void boxMinus(const AngleElement& stateIn, mtDifVec& vecOut) const {
@@ -230,7 +236,8 @@ public:
 
     }
     virtual void setIdentity() {
-
+      cs_[0] = 1;
+      cs_[1] = 0;
     }
     virtual void setRandom(unsigned int& s) {
         std::default_random_engine generator (s);
@@ -270,7 +277,7 @@ public:
 
     /**
      * @brief ParallaxAnglePoint
-     * @param bearing bearing vector in main anchor frame, not necessarily unit norm.
+     * @param bearing bearing vector in main anchor frame, not necessarily has unit norm.
      * @param cosTheta cos(\theta)
      */
     ParallaxAnglePoint(const Eigen::Vector3d& bearing, double cosTheta) : theta_(cosTheta) {
@@ -298,7 +305,13 @@ public:
     double getAngle() const {
       return theta_.getAngle();
     }
-private:
+    double cosTheta() const {
+      return theta_.data()[0];
+    }
+    double sinTheta() const {
+      return theta_.data()[1];
+    }
+
     NormalVectorElement n_;
     AngleElement theta_;
 };
