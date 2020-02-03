@@ -42,8 +42,6 @@ TEST_F(ParallaxAnglePointTest, GetTheta) {
   EXPECT_LT(std::fabs(pap_.getAngle() - vecAndTheta_[3]), eps);
 }
 
-
-
 class AngleElementTest : public ::testing::Test {
  protected:
   AngleElementTest() {}
