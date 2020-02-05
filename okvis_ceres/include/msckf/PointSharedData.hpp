@@ -49,16 +49,24 @@ struct StateInfoForOneKeypoint {
     Eigen::Vector3d lP_v_WBtij;
 };
 
+enum class PointSharedDataState {
+  Barebones = 0,
+  ImuInfoReady = 1,
+  NavStateReady = 2,
+  NavStateForJacReady = 3,
+};
+
 // Data shared by observations of a point landmark in computing Jacobians
 // relative to pose (T_WB) and velocity (v_WB) and camera time parameters.
 // The data of the class members may be updated in ceres EvaluationCallback.
 class PointSharedData {
  public:
+
   typedef std::vector<StateInfoForOneKeypoint,
                       Eigen::aligned_allocator<StateInfoForOneKeypoint>>
       StateInfoForObservationsType;
 
-  PointSharedData() {}
+  PointSharedData() : status_(PointSharedDataState::Barebones) {}
 
   // assume the observations are in the decreasing order of state age.
   void addKeypointObservation(
@@ -68,18 +76,6 @@ class PointSharedData {
     stateInfoForObservations_.emplace_back(kpi.frameId, kpi.cameraIndex,
                                            T_WBj_ptr, normalizedRow);
   }
-
-  /// @name Functions for anchors.
-  /// @{
-  void setAnchors(const std::vector<uint64_t>& anchorIds, const std::vector<int>& anchorSeqIds) {
-      anchorIds_ = anchorIds;
-      anchorSeqIds_ = anchorSeqIds;
-  }
-
-  const std::vector<int> anchorSeqIds() const {
-      return anchorSeqIds_;
-  }
-  /// @}
 
   /// @name Setters for data for IMU propagation.
   /// @{
@@ -112,6 +108,7 @@ class PointSharedData {
       std::shared_ptr<const okvis::ceres::ParameterBlock> trParamBlockPtr) {
     tdParamBlockPtr_ = tdParamBlockPtr;
     trParamBlockPtr_ = trParamBlockPtr;
+    status_ = PointSharedDataState::ImuInfoReady;
   }
   /// @}
 
@@ -136,6 +133,18 @@ class PointSharedData {
   /// @}
 
   void computeSharedJacobians();
+
+  /// @name Functions for anchors.
+  /// @{
+  void setAnchors(const std::vector<uint64_t>& anchorIds, const std::vector<int>& anchorSeqIds) {
+      anchorIds_ = anchorIds;
+      anchorSeqIds_ = anchorSeqIds;
+  }
+
+  const std::vector<int> anchorSeqIds() const {
+      return anchorSeqIds_;
+  }
+  /// @}
 
   /// @name functions for managing the main stateInfo list.
   /// @{
@@ -230,6 +239,10 @@ class PointSharedData {
   Eigen::Vector3d v_WBtij_ForJacobian(int index) const {
     return stateInfoForObservations_[index].lP_v_WBtij;
   }
+
+  PointSharedDataState status() const {
+    return status_;
+  }
   /// @}
 
  private:
@@ -243,6 +256,7 @@ class PointSharedData {
   std::shared_ptr<const okvis::ceres::ParameterBlock> trParamBlockPtr_;
   std::vector<std::shared_ptr<const okvis::ceres::ParameterBlock>> imuAugmentedParamBlockPtrs_;
   const okvis::ImuParameters* imuParameters_;
+  PointSharedDataState status_;
 };
 } // namespace msckf
 

@@ -1,4 +1,7 @@
 #include "msckf/PointSharedData.hpp"
+
+#include <glog/logging.h>
+
 #include <msckf/ImuRig.hpp>
 #include <msckf/ImuOdometry.h>
 #include <okvis/ceres/PoseParameterBlock.hpp>
@@ -6,6 +9,8 @@
 
 namespace msckf {
 void PointSharedData::computePoseAndVelocityAtObservation() {
+  CHECK(status_ == PointSharedDataState::ImuInfoReady)
+      << "Set IMU data, params, camera time params before calling this method.";
   int imuModelId = okvis::ImuModelNameToId(imuParameters_->model_type);
   Eigen::Matrix<double, -1, 1> vTGTSTA;
   okvis::getImuAugmentedStatesEstimate(
@@ -31,6 +36,7 @@ void PointSharedData::computePoseAndVelocityAtObservation() {
                                                   interpolatedInertialData);
       item.omega_Btij = interpolatedInertialData.measurement.gyroscopes;
     }
+    status_ = PointSharedDataState::NavStateReady;
     return;
   }
   for (auto& item : stateInfoForObservations_) {
@@ -57,10 +63,12 @@ void PointSharedData::computePoseAndVelocityAtObservation() {
     item.v_WBtij = sb.head<3>();
     item.omega_Btij = interpolatedInertialData.measurement.gyroscopes;
   }
+  status_ = PointSharedDataState::NavStateReady;
 }
 
 void PointSharedData::computePoseAndVelocityForJacobians(
     bool useLinearizationPoint) {
+  CHECK(status_ == PointSharedDataState::NavStateReady);
   if (useLinearizationPoint) {
     Eigen::Matrix<double, -1, 1> vTGTSTA;
     okvis::getImuAugmentedStatesEstimate(
@@ -97,7 +105,10 @@ void PointSharedData::computePoseAndVelocityForJacobians(
       item.lP_v_WBtij = item.v_WBtij;
     }
   }
+  status_ = PointSharedDataState::NavStateForJacReady;
 }
 
-void PointSharedData::computeSharedJacobians() {}
+void PointSharedData::computeSharedJacobians() {
+  CHECK(status_ == PointSharedDataState::NavStateForJacReady);
+}
 }
