@@ -52,24 +52,113 @@ struct StateInfoForOneKeypoint {
 // Data shared by observations of a point landmark in computing Jacobians
 // relative to pose (T_WB) and velocity (v_WB) and camera time parameters.
 // The data of the class members may be updated in ceres EvaluationCallback.
-class PointSharedData
-{
-public:
- typedef std::vector<StateInfoForOneKeypoint,
-                     Eigen::aligned_allocator<StateInfoForOneKeypoint>>
-     StateInfoForObservationsType;
+class PointSharedData {
+ public:
+  typedef std::vector<StateInfoForOneKeypoint,
+                      Eigen::aligned_allocator<StateInfoForOneKeypoint>>
+      StateInfoForObservationsType;
 
- PointSharedData() {}
+  PointSharedData() {}
 
- // assume the observations are in the decreasing order of state age.
- void addKeypointObservation(
-     const okvis::KeypointIdentifier& kpi,
-     std::shared_ptr<const okvis::ceres::ParameterBlock> T_WBj_ptr,
-     double normalizedRow) {
-   stateInfoForObservations_.emplace_back(kpi.frameId, kpi.cameraIndex,
-                                          T_WBj_ptr, normalizedRow);
+  // assume the observations are in the decreasing order of state age.
+  void addKeypointObservation(
+      const okvis::KeypointIdentifier& kpi,
+      std::shared_ptr<const okvis::ceres::ParameterBlock> T_WBj_ptr,
+      double normalizedRow) {
+    stateInfoForObservations_.emplace_back(kpi.frameId, kpi.cameraIndex,
+                                           T_WBj_ptr, normalizedRow);
   }
 
+  /// @name Functions for anchors.
+  /// @{
+  void setAnchors(const std::vector<uint64_t>& anchorIds, const std::vector<int>& anchorSeqIds) {
+      anchorIds_ = anchorIds;
+      anchorSeqIds_ = anchorSeqIds;
+  }
+
+  const std::vector<int> anchorSeqIds() const {
+      return anchorSeqIds_;
+  }
+  /// @}
+
+  /// @name Setters for data for IMU propagation.
+  /// @{
+  void setVelocityParameterBlockPtr(
+      int index,
+      std::shared_ptr<const okvis::ceres::ParameterBlock> speedAndBiasPtr) {
+    stateInfoForObservations_[index].speedAndBiasPtr = speedAndBiasPtr;
+  }
+
+  void setImuInfo(
+      int index, const okvis::Time stateEpoch, double td0,
+      std::shared_ptr<const okvis::ImuMeasurementDeque> imuMeasurements,
+      std::shared_ptr<const Eigen::Matrix<double, 6, 1>> positionVelocityPtr) {
+    stateInfoForObservations_[index].stateEpoch = stateEpoch;
+    stateInfoForObservations_[index].tdAtCreation = td0;
+    stateInfoForObservations_[index].imuMeasurementPtr = imuMeasurements;
+    stateInfoForObservations_[index].positionVelocityPtr = positionVelocityPtr;
+  }
+
+  void setImuAugmentedParameterPtrs(
+      std::vector<std::shared_ptr<const okvis::ceres::ParameterBlock>>&
+          imuAugmentedParamBlockPtrs,
+      const okvis::ImuParameters* imuParams) {
+    imuAugmentedParamBlockPtrs_ = imuAugmentedParamBlockPtrs;
+    imuParameters_ = imuParams;
+  }
+
+  void setCameraTimeParameterPtrs(
+      std::shared_ptr<const okvis::ceres::ParameterBlock> tdParamBlockPtr,
+      std::shared_ptr<const okvis::ceres::ParameterBlock> trParamBlockPtr) {
+    tdParamBlockPtr_ = tdParamBlockPtr;
+    trParamBlockPtr_ = trParamBlockPtr;
+  }
+  /// @}
+
+  /// @name functions for IMU propagation.
+  /// @{
+  /**
+   * @brief computePoseAndVelocityAtObservation.
+   *     for feature i, estimate $p_B^G(t_{f_i})$, $R_B^G(t_{f_i})$,
+   *     $v_B^G(t_{f_i})$, and $\omega_{GB}^B(t_{f_i})$ with the corresponding
+   *     states' LATEST ESTIMATES and imu measurements.
+   * @warning Call this function after setImuAugmentedParameterPtrs().
+   */
+  void computePoseAndVelocityAtObservation();
+
+  /**
+   * @brief computePoseAndVelocityForJacobians
+   * @warning Only call this function after
+   * computePoseAndVelocityAtObservation() has finished.
+   * @param useLinearizationPoint
+   */
+  void computePoseAndVelocityForJacobians(bool useLinearizationPoint);
+  /// @}
+
+  void computeSharedJacobians();
+
+  /// @name functions for managing the main stateInfo list.
+  /// @{
+  StateInfoForObservationsType::iterator begin() {
+    return stateInfoForObservations_.begin();
+  }
+
+  StateInfoForObservationsType::iterator end() {
+      return stateInfoForObservations_.end();
+  }
+
+  StateInfoForObservationsType::iterator erase(
+      StateInfoForObservationsType::iterator iter) {
+    return stateInfoForObservations_.erase(iter);
+  }
+
+  void removeBadObservations(const std::vector<bool>& projectStatus) {
+      removeUnsetMatrices<StateInfoForOneKeypoint>(&stateInfoForObservations_, projectStatus);
+  }
+  /// @}
+
+  /// @name Getters for frameIds.
+  /// @{
   size_t numObservations() const {
       return stateInfoForObservations_.size();
   }
@@ -90,18 +179,23 @@ public:
   uint64_t lastFrameId() const {
     return stateInfoForObservations_.back().frameId;
   }
+  /// @}
 
-  StateInfoForObservationsType::iterator begin() {
-    return stateInfoForObservations_.begin();
+  /// @name Getters
+  /// @{
+  okvis::Duration normalizedFeatureTime(int index) const {
+    return okvis::Duration(tdParamBlockPtr_->parameters()[0] +
+                           trParamBlockPtr_->parameters()[0] *
+                               stateInfoForObservations_[index].normalizedRow -
+                           stateInfoForObservations_[index].tdAtCreation);
   }
 
-  StateInfoForObservationsType::iterator end() {
-      return stateInfoForObservations_.end();
+  int cameraIndex(int index) const {
+    return stateInfoForObservations_[index].cameraId;
   }
 
-  StateInfoForObservationsType::iterator erase(
-      StateInfoForObservationsType::iterator iter) {
-    return stateInfoForObservations_.erase(iter);
+  double normalizedRow(int index) const {
+    return stateInfoForObservations_[index].normalizedRow;
   }
 
   std::vector<okvis::kinematics::Transformation,
@@ -119,84 +213,6 @@ public:
 
   void poseAtObservation(int index, okvis::kinematics::Transformation* T_WBtij) const {
     *T_WBtij = stateInfoForObservations_[index].T_WBtij;
-  }
-
-  void removeBadObservations(const std::vector<bool>& projectStatus) {
-      removeUnsetMatrices<StateInfoForOneKeypoint>(&stateInfoForObservations_, projectStatus);
-  }
-
-  void setAnchors(const std::vector<uint64_t>& anchorIds, const std::vector<int>& anchorSeqIds) {
-      anchorIds_ = anchorIds;
-      anchorSeqIds_ = anchorSeqIds;
-  }
-
-  const std::vector<int> anchorSeqIds() const {
-      return anchorSeqIds_;
-  }
-
-  /// @name Functions for propagating pose at observation.
-  /// @{
-  void setVelocityParameterBlockPtr(int index, std::shared_ptr<const okvis::ceres::ParameterBlock> speedAndBiasPtr) {
-      stateInfoForObservations_[index].speedAndBiasPtr = speedAndBiasPtr;
-  }
-
-  void setImuInfo(
-      int index, const okvis::Time stateEpoch, double td0,
-      std::shared_ptr<const okvis::ImuMeasurementDeque> imuMeasurements,
-      std::shared_ptr<const Eigen::Matrix<double, 6, 1>> positionVelocityPtr) {
-    stateInfoForObservations_[index].stateEpoch = stateEpoch;
-    stateInfoForObservations_[index].tdAtCreation = td0;
-    stateInfoForObservations_[index].imuMeasurementPtr = imuMeasurements;
-    stateInfoForObservations_[index].positionVelocityPtr = positionVelocityPtr;
-  }
-
-  void setImuAugmentedParameterPtrs(
-      std::vector<std::shared_ptr<const okvis::ceres::ParameterBlock>>&
-          imuAugmentedParamBlockPtrs, const okvis::ImuParameters* imuParams) {
-    imuAugmentedParamBlockPtrs_ = imuAugmentedParamBlockPtrs;
-    imuParameters_ = imuParams;
-  }
-
-  void setCameraTimeParameterPtrs(
-      std::shared_ptr<const okvis::ceres::ParameterBlock> tdParamBlockPtr,
-      std::shared_ptr<const okvis::ceres::ParameterBlock> trParamBlockPtr) {
-      tdParamBlockPtr_ = tdParamBlockPtr;
-      trParamBlockPtr_ = trParamBlockPtr;
-  }
-
-  /**
-   * @brief computePoseAndVelocityAtObservation.
-   *     for feature i, estimate $p_B^G(t_{f_i})$, $R_B^G(t_{f_i})$,
-   *     $v_B^G(t_{f_i})$, and $\omega_{GB}^B(t_{f_i})$ with the corresponding
-   *     states' LATEST ESTIMATES and imu measurements.
-   * @warning Call this function after setImuAugmentedParameterPtrs().
-   */
-  void computePoseAndVelocityAtObservation();
-
-  /**
-   * @brief computePoseAndVelocityForJacobians
-   * @warning Only call this function after computePoseAndVelocityAtObservation() has finished.
-   * @param useLinearizationPoint
-   */
-  void computePoseAndVelocityForJacobians(bool useLinearizationPoint);
-
-  void computeSharedJacobians();
-  /// @}
-
-  /// @name Getters
-  okvis::Duration normalizedFeatureTime(int index) const {
-    return okvis::Duration(tdParamBlockPtr_->parameters()[0] +
-                           trParamBlockPtr_->parameters()[0] *
-                               stateInfoForObservations_[index].normalizedRow -
-                           stateInfoForObservations_[index].tdAtCreation);
-  }
-
-  int cameraIndex(int index) const {
-    return stateInfoForObservations_[index].cameraId;
-  }
-
-  double normalizedRow(int index) const {
-    return stateInfoForObservations_[index].normalizedRow;
   }
 
   okvis::kinematics::Transformation T_WBtij(int index) const {
