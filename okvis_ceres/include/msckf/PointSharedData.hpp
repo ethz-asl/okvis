@@ -9,6 +9,7 @@
 
 #include <okvis/FrameTypedefs.hpp>
 #include <okvis/Measurements.hpp>
+#include <okvis/Parameters.hpp>
 #include <okvis/ceres/PoseParameterBlock.hpp>
 
 namespace msckf {
@@ -21,17 +22,22 @@ struct StateInfoForOneKeypoint {
     }
     StateInfoForOneKeypoint(
         uint64_t _frameId, int _camIdx,
-        std::shared_ptr<const okvis::ceres::ParameterBlock> T_WB_ptr)
-        : frameId(_frameId), cameraId(_camIdx), T_WBj_ptr(T_WB_ptr) {}
+        std::shared_ptr<const okvis::ceres::ParameterBlock> T_WB_ptr,
+        double _normalizedRow)
+        : frameId(_frameId),
+          cameraId(_camIdx),
+          T_WBj_ptr(T_WB_ptr),
+          normalizedRow(_normalizedRow) {}
 
     uint64_t frameId;
     int cameraId;
     std::shared_ptr<const okvis::ceres::ParameterBlock> T_WBj_ptr;
-    std::shared_ptr<const okvis::ceres::ParameterBlock> speedBiasPtr;
+    std::shared_ptr<const okvis::ceres::ParameterBlock> speedAndBiasPtr;
     // IMU measurements covering the state epoch.
     std::shared_ptr<const okvis::ImuMeasurementDeque> imuMeasurementPtr;
     okvis::Time stateEpoch;
     double tdAtCreation;
+    double normalizedRow; // v / imageHeight - 0.5.
     // linearization points at the state.
     std::shared_ptr<const Eigen::Matrix<double, 6, 1>> positionVelocityPtr;
     // Pose of the body frame in the world frame at the feature observation epoch.
@@ -53,13 +59,15 @@ public:
                      Eigen::aligned_allocator<StateInfoForOneKeypoint>>
      StateInfoForObservationsType;
 
- PointSharedData() : gravityNorm_(9.80665) {}
+ PointSharedData() {}
 
  // assume the observations are in the decreasing order of state age.
  void addKeypointObservation(
      const okvis::KeypointIdentifier& kpi,
-     std::shared_ptr<const okvis::ceres::ParameterBlock> T_WBj_ptr) {
-    stateInfoForObservations_.emplace_back(kpi.frameId, kpi.cameraIndex, T_WBj_ptr);
+     std::shared_ptr<const okvis::ceres::ParameterBlock> T_WBj_ptr,
+     double normalizedRow) {
+   stateInfoForObservations_.emplace_back(kpi.frameId, kpi.cameraIndex,
+                                          T_WBj_ptr, normalizedRow);
   }
 
   size_t numObservations() const {
@@ -128,23 +136,25 @@ public:
 
   /// @name Functions for propagating pose at observation.
   /// @{
-  void setVelocityParameterBlockPtr(int index, std::shared_ptr<const okvis::ceres::ParameterBlock> speedBiasPtr) {
-      stateInfoForObservations_[index].speedBiasPtr = speedBiasPtr;
+  void setVelocityParameterBlockPtr(int index, std::shared_ptr<const okvis::ceres::ParameterBlock> speedAndBiasPtr) {
+      stateInfoForObservations_[index].speedAndBiasPtr = speedAndBiasPtr;
   }
 
-  void setImuAugmentedParameterBlock(
-      std::shared_ptr<
-          const okvis::ceres::ParameterBlock> /*imuAugmentedParamsPtr*/) {}
-
   void setImuInfo(
-          int index,
-      const okvis::Time stateEpoch, double td0,
+      int index, const okvis::Time stateEpoch, double td0,
       std::shared_ptr<const okvis::ImuMeasurementDeque> imuMeasurements,
       std::shared_ptr<const Eigen::Matrix<double, 6, 1>> positionVelocityPtr) {
     stateInfoForObservations_[index].stateEpoch = stateEpoch;
     stateInfoForObservations_[index].tdAtCreation = td0;
     stateInfoForObservations_[index].imuMeasurementPtr = imuMeasurements;
     stateInfoForObservations_[index].positionVelocityPtr = positionVelocityPtr;
+  }
+
+  void setImuAugmentedParameterPtrs(
+      std::vector<std::shared_ptr<const okvis::ceres::ParameterBlock>>&
+          imuAugmentedParamBlockPtrs, const okvis::ImuParameters* imuParams) {
+    imuAugmentedParamBlockPtrs_ = imuAugmentedParamBlockPtrs;
+    imuParameters_ = imuParams;
   }
 
   void setCameraTimeParameterPtrs(
@@ -154,12 +164,56 @@ public:
       trParamBlockPtr_ = trParamBlockPtr;
   }
 
+  /**
+   * @brief computePoseAndVelocityAtObservation.
+   *     for feature i, estimate $p_B^G(t_{f_i})$, $R_B^G(t_{f_i})$,
+   *     $v_B^G(t_{f_i})$, and $\omega_{GB}^B(t_{f_i})$ with the corresponding
+   *     states' LATEST ESTIMATES and imu measurements.
+   * @warning Call this function after setImuAugmentedParameterPtrs().
+   */
   void computePoseAndVelocityAtObservation();
 
-  void computePoseAndVelocitWithFirstEstimates();
+  /**
+   * @brief computePoseAndVelocityForJacobians
+   * @warning Only call this function after computePoseAndVelocityAtObservation() has finished.
+   * @param useLinearizationPoint
+   */
+  void computePoseAndVelocityForJacobians(bool useLinearizationPoint);
 
   void computeSharedJacobians();
+  /// @}
 
+  /// @name Getters
+  okvis::Duration normalizedFeatureTime(int index) const {
+    return okvis::Duration(tdParamBlockPtr_->parameters()[0] +
+                           trParamBlockPtr_->parameters()[0] *
+                               stateInfoForObservations_[index].normalizedRow -
+                           stateInfoForObservations_[index].tdAtCreation);
+  }
+
+  int cameraIndex(int index) const {
+    return stateInfoForObservations_[index].cameraId;
+  }
+
+  double normalizedRow(int index) const {
+    return stateInfoForObservations_[index].normalizedRow;
+  }
+
+  okvis::kinematics::Transformation T_WBtij(int index) const {
+    return stateInfoForObservations_[index].T_WBtij;
+  }
+
+  Eigen::Vector3d omega_Btij(int index) const {
+    return stateInfoForObservations_[index].omega_Btij;
+  }
+
+  okvis::kinematics::Transformation T_WBtij_ForJacobian(int index) const {
+    return stateInfoForObservations_[index].lP_T_WBtij;
+  }
+
+  Eigen::Vector3d v_WBtij_ForJacobian(int index) const {
+    return stateInfoForObservations_[index].lP_v_WBtij;
+  }
   /// @}
 
  private:
@@ -171,7 +225,8 @@ public:
   std::vector<uint64_t> anchorIds_; // this is likely not necessary
   std::shared_ptr<const okvis::ceres::ParameterBlock> tdParamBlockPtr_;
   std::shared_ptr<const okvis::ceres::ParameterBlock> trParamBlockPtr_;
-  const double gravityNorm_;
+  std::vector<std::shared_ptr<const okvis::ceres::ParameterBlock>> imuAugmentedParamBlockPtrs_;
+  const okvis::ImuParameters* imuParameters_;
 };
 } // namespace msckf
 

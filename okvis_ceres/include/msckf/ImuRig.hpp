@@ -7,6 +7,8 @@
 #include <Eigen/StdVector>
 
 #include <msckf/ImuModels.hpp>
+#include <msckf/EuclideanParamBlockSized.hpp>
+
 #include <okvis/Parameters.hpp>
 
 namespace okvis {
@@ -99,5 +101,17 @@ class ImuRig {
 private:
   std::vector<ImuModel> imus_;
 };
+
+/**
+ * @brief getImuAugmentedStatesEstimate get augmented IMU parameters except for
+ *     biases from parameter blocks.
+ * @param imuAugmentedParameterPtrs[in]
+ * @param extraParams[out]
+ * @param imuModelId[in]
+ */
+void getImuAugmentedStatesEstimate(
+     std::vector<std::shared_ptr<const okvis::ceres::ParameterBlock>> imuAugmentedParameterPtrs,
+    Eigen::Matrix<double, Eigen::Dynamic, 1>* extraParams, int imuModelId);
+
 }  // namespace okvis
 #endif  // INCLUDE_MSCKF_IMU_RIG_HPP_

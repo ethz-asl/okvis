@@ -34,4 +34,24 @@ int ImuRig::addImu(const okvis::ImuParameters& imuParams) {
   imus_.emplace_back(modelId, euclideanParams, q_gyro_i);
   return static_cast<int>(imus_.size()) - 1;
 }
+
+void getImuAugmentedStatesEstimate(
+     std::vector<std::shared_ptr<const okvis::ceres::ParameterBlock>> imuAugmentedParameterPtrs,
+    Eigen::Matrix<double, Eigen::Dynamic, 1>* extraParams, int /*imuModelId*/) {
+  extraParams->resize(27, 1);
+  std::shared_ptr<const ceres::ShapeMatrixParamBlock> tgParamBlockPtr =
+      std::static_pointer_cast<const ceres::ShapeMatrixParamBlock>(imuAugmentedParameterPtrs[0]);
+  Eigen::Matrix<double, 9, 1> sm = tgParamBlockPtr->estimate();
+  extraParams->head<9>() = sm;
+
+  std::shared_ptr<const ceres::ShapeMatrixParamBlock> tsParamBlockPtr =
+      std::static_pointer_cast<const ceres::ShapeMatrixParamBlock>(imuAugmentedParameterPtrs[1]);
+  sm = tsParamBlockPtr->estimate();
+  extraParams->segment<9>(9) = sm;
+
+  std::shared_ptr<const ceres::ShapeMatrixParamBlock> taParamBlockPtr =
+      std::static_pointer_cast<const ceres::ShapeMatrixParamBlock>(imuAugmentedParameterPtrs[2]);
+  sm = taParamBlockPtr->estimate();
+  extraParams->segment<9>(18) = sm;
+}
 }  // namespace okvis

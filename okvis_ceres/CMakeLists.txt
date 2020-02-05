@@ -30,6 +30,7 @@ add_library(${PROJECT_NAME}
   msckf/CameraTimeParamBlock.cpp
   msckf/GeneralEstimator.cpp
   msckf/ImuRig.cpp
+  msckf/ImuOdometry.cpp
   msckf/InitialNavState.cpp
   msckf/PointLandmarkModels.cpp
   msckf/PointSharedData.cpp
