@@ -134,14 +134,20 @@ struct ImuParameters{
   Eigen::Matrix<double, 9, 1> Ts0;
   Eigen::Matrix<double, 9, 1> Ta0;
   std::string model_type; // 0 bg_ba, 1 bg_ba_Tg_Ts_Ta, 2, scaledmisaligned
-  ImuParameters() {
-      g0.setZero();
-      a0.setZero();
-      Eigen::Matrix<double, 9, 1> eye;
-      eye << 1, 0, 0, 0, 1, 0, 0, 0, 1;
-      Tg0 = eye;
-      Ts0.setZero();
-      Ta0 = eye;
+  ImuParameters()
+      : a_max(200.0),
+        g_max(10),
+        tau(3600.0),
+        g(9.80665),
+        g0(0, 0, 0),
+        a0(0, 0, 0),
+        rate(100),
+        model_type("BG_BA_TG_TS_TA") {
+    Eigen::Matrix<double, 9, 1> eye;
+    eye << 1, 0, 0, 0, 1, 0, 0, 0, 1;
+    Tg0 = eye;
+    Ts0.setZero();
+    Ta0 = eye;
   }
 };
 

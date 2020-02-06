@@ -736,7 +736,8 @@ class Estimator : public VioBackendInterface
   // initial nav state, (position, orientation, and velocity), and their stds.
   InitialNavState pvstd_;
 
-  // e.g., min observs to triang a landmark
+  // minimum track length for a feature track to be used in the estimator.
+  // It should be at least 3 for the track to be informative to the estimator.
   size_t minTrackLength_;
 
   // whether camera intrinsic parameters will be estimated? If true,

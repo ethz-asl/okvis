@@ -132,17 +132,29 @@ class PointSharedData {
   void computePoseAndVelocityForJacobians(bool useLinearizationPoint);
   /// @}
 
-  void computeSharedJacobians();
+  void computeSharedJacobians(int cameraObservationModelId);
 
   /// @name Functions for anchors.
   /// @{
-  void setAnchors(const std::vector<uint64_t>& anchorIds, const std::vector<int>& anchorSeqIds) {
-      anchorIds_ = anchorIds;
-      anchorSeqIds_ = anchorSeqIds;
+  void setAnchors(const std::vector<uint64_t>& anchorIds,
+                  const std::vector<int>& anchorSeqIds) {
+    anchorIds_ = anchorIds;
+    T_WBa_list_.clear();
+    T_WBa_list_.reserve(anchorIds.size());
+    for (auto idInSeq : anchorSeqIds) {
+      T_WBa_list_.push_back(stateInfoForObservations_[idInSeq].T_WBtij);
+    }
   }
 
-  const std::vector<int> anchorSeqIds() const {
-      return anchorSeqIds_;
+  const std::vector<uint64_t> anchorIds() const {
+      return anchorIds_;
+  }
+
+  const std::vector<
+      okvis::kinematics::Transformation,
+      Eigen::aligned_allocator<okvis::kinematics::Transformation>>&
+  T_WBa_list() const {
+    return T_WBa_list_;
   }
   /// @}
 
@@ -246,16 +258,25 @@ class PointSharedData {
   /// @}
 
  private:
+  // The items of stateInfoForObservations_ are added in an ordered manner
+  // by sequentially examining the ordered elements of MapPoint.observations.
   std::vector<StateInfoForOneKeypoint,
               Eigen::aligned_allocator<StateInfoForOneKeypoint>>
       stateInfoForObservations_;
 
-  std::vector<int> anchorSeqIds_;
-  std::vector<uint64_t> anchorIds_; // this is likely not necessary
+  std::vector<uint64_t> anchorIds_;
+  std::vector<okvis::kinematics::Transformation,
+              Eigen::aligned_allocator<okvis::kinematics::Transformation>>
+      T_WBa_list_;
+
   std::shared_ptr<const okvis::ceres::ParameterBlock> tdParamBlockPtr_;
   std::shared_ptr<const okvis::ceres::ParameterBlock> trParamBlockPtr_;
   std::vector<std::shared_ptr<const okvis::ceres::ParameterBlock>> imuAugmentedParamBlockPtrs_;
   const okvis::ImuParameters* imuParameters_;
+
+  // The structure of sharedJacobians is determined by an external cameraObservationModelId.
+  std::vector<Eigen::Matrix<double, -1, -1, Eigen::RowMajor>,
+      Eigen::aligned_allocator<Eigen::Matrix<double, -1, -1, Eigen::RowMajor>>> sharedJacobians_;
   PointSharedDataState status_;
 };
 } // namespace msckf

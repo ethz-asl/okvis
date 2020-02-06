@@ -227,8 +227,8 @@ void parseOptimizationParameters(cv::FileNode optNode,
     optParams->trackingRateThreshold = 0.5;
   }
   if (optNode["minTrackLength"].isInt()) {
-    optParams->minTrackLength =
-        static_cast<size_t>(static_cast<int>(optNode["minTrackLength"]));
+    optParams->minTrackLength = static_cast<size_t>(
+        std::max(static_cast<int>(optNode["minTrackLength"]), 3));
   } else {
     optParams->minTrackLength = 3u;
   }

@@ -2,6 +2,7 @@
 
 #include <glog/logging.h>
 
+#include <msckf/CameraRig.hpp>
 #include <msckf/ImuRig.hpp>
 #include <msckf/ImuOdometry.h>
 #include <okvis/ceres/PoseParameterBlock.hpp>
@@ -108,7 +109,10 @@ void PointSharedData::computePoseAndVelocityForJacobians(
   status_ = PointSharedDataState::NavStateForJacReady;
 }
 
-void PointSharedData::computeSharedJacobians() {
+void PointSharedData::computeSharedJacobians(int cameraObservationModelId) {
   CHECK(status_ == PointSharedDataState::NavStateForJacReady);
+  if (cameraObservationModelId == okvis::cameras::kChordalDistanceId) {
+
+  }
 }
 }
