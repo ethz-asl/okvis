@@ -217,11 +217,11 @@ class PointSharedData {
 
   /// @name Getters
   /// @{
-  okvis::Duration normalizedFeatureTime(int index) const {
-    return okvis::Duration(tdParamBlockPtr_->parameters()[0] +
-                           trParamBlockPtr_->parameters()[0] *
-                               stateInfoForObservations_[index].normalizedRow -
-                           stateInfoForObservations_[index].tdAtCreation);
+  double normalizedFeatureTime(int index) const {
+    return tdParamBlockPtr_->parameters()[0] +
+           trParamBlockPtr_->parameters()[0] *
+               stateInfoForObservations_[index].normalizedRow -
+           stateInfoForObservations_[index].tdAtCreation;
   }
 
   int cameraIndex(int index) const {
