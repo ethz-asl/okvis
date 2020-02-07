@@ -176,6 +176,19 @@ class PointSharedData {
   void removeBadObservations(const std::vector<bool>& projectStatus) {
       removeUnsetMatrices<StateInfoForOneKeypoint>(&stateInfoForObservations_, projectStatus);
   }
+
+  /**
+   * @brief removeExtraObservations
+   * @warning orderedSelectedFrameIds must be a subsets of stateInfoForObservations_
+   * @param orderedSelectedFrameIds
+   * @param imageNoise2dStdList
+   */
+  void removeExtraObservations(const std::vector<uint64_t>& orderedSelectedFrameIds,
+                               std::vector<double>* imageNoise2dStdList);
+
+  void removeExtraObservationsLegacy(
+      const std::vector<uint64_t>& orderedSelectedFrameIds,
+      std::vector<double>* imageNoise2dStdList);
   /// @}
 
   /// @name Getters for frameIds.

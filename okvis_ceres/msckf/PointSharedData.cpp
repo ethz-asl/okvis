@@ -1,5 +1,5 @@
 #include "msckf/PointSharedData.hpp"
-
+#include <iterator>
 #include <glog/logging.h>
 
 #include <msckf/CameraRig.hpp>
@@ -113,6 +113,64 @@ void PointSharedData::computeSharedJacobians(int cameraObservationModelId) {
   CHECK(status_ == PointSharedDataState::NavStateForJacReady);
   if (cameraObservationModelId == okvis::cameras::kChordalDistanceId) {
 
+  }
+}
+
+void PointSharedData::removeExtraObservations(
+    const std::vector<uint64_t>& orderedSelectedFrameIds,
+    std::vector<double>* imageNoise2dStdList) {
+  CHECK_EQ(imageNoise2dStdList->size(), 2u * stateInfoForObservations_.size());
+  auto stateIter = stateInfoForObservations_.begin();
+  auto keepStateIter = stateInfoForObservations_.begin();
+  auto selectedFrameIter = orderedSelectedFrameIds.begin();
+  auto noiseIter = imageNoise2dStdList->begin();
+  auto keepNoiseIter = imageNoise2dStdList->begin();
+
+  for (; selectedFrameIter != orderedSelectedFrameIds.end();
+       ++selectedFrameIter) {
+    while (stateIter->frameId != *selectedFrameIter) {
+      ++stateIter;
+      noiseIter += 2;
+    }
+    *keepStateIter = *stateIter;
+    ++stateIter;
+    ++keepStateIter;
+
+    *keepNoiseIter = *noiseIter;
+    ++keepNoiseIter;
+    ++noiseIter;
+    *keepNoiseIter = *noiseIter;
+    ++keepNoiseIter;
+    ++noiseIter;
+  }
+  size_t keepSize = orderedSelectedFrameIds.size();
+  size_t foundSize =
+      std::distance(stateInfoForObservations_.begin(), keepStateIter);
+  CHECK_EQ(orderedSelectedFrameIds.size(), foundSize);
+  stateInfoForObservations_.resize(keepSize);
+  imageNoise2dStdList->resize(keepSize * 2);
+}
+
+void PointSharedData::removeExtraObservationsLegacy(
+    const std::vector<uint64_t>& orderedSelectedFrameIds,
+    std::vector<double>* imageNoise2dStdList) {
+  auto itFrameIds = stateInfoForObservations_.begin();
+  auto itRoi = imageNoise2dStdList->begin();
+  size_t numPoses = stateInfoForObservations_.size();
+  for (size_t kale = 0; kale < numPoses; ++kale) {
+    uint64_t poseId = itFrameIds->frameId;
+    if (std::find(orderedSelectedFrameIds.begin(),
+                  orderedSelectedFrameIds.end(),
+                  poseId) == orderedSelectedFrameIds.end()) {
+      itFrameIds = stateInfoForObservations_.erase(itFrameIds);
+      itRoi = imageNoise2dStdList->erase(itRoi);
+      itRoi = imageNoise2dStdList->erase(itRoi);
+      continue;
+    } else {
+      ++itFrameIds;
+      ++itRoi;
+      ++itRoi;
+    }
   }
 }
 }
