@@ -120,6 +120,10 @@ class FrameTranslationOnlySacProblem : public TranslationOnlySacProblem {
       point_t error2 = (reprojection2 - f2);
       double error_squared1 = error1.transpose() * error1;
       double error_squared2 = error2.transpose() * error2;
+      // sigmaAngle is the hypotenuse of the right triangle with its two legs
+      // being the first two diagonal entries of covariance of a bearing vector
+      // observation. Concretely, sigma_c = 0.8 * 8 / 12;
+      // sigmaAngle = sqrt(2) * sigma_c * sigma_c / (fx * fx);
       scores.push_back(
           error_squared1 * 0.5 / adapterDerived_.getSigmaAngle1(indices[i])
               + error_squared2 * 0.5
