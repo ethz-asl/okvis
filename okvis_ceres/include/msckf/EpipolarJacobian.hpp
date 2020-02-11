@@ -10,18 +10,18 @@ namespace okvis {
 
 /**
  * @brief obsDirectionJacobian compute the Jacobian of the obsDirection
- *     relative to the camera parameters and its covariance
+ *     relative to the camera parameters and its covariance.
  * @param obsDirection [x/z, y/z, 1] backprojected undistorted coordinates.
  * @param cameraGeometry
- * @param pixelNoiseStd
+ * @param imageObservationCov covariance of image observation.
  * @param dfj_dXcam
- * @param cov_fj
+ * @param cov_fj cov([x/z, y/z, 1])
  * @return false if backprojected direction failed to project onto image.
  */
 inline bool obsDirectionJacobian(
     const Eigen::Vector3d& obsDirection,
     std::shared_ptr<const okvis::cameras::CameraBase> cameraGeometry,
-    int projOptModelId, double pixelNoiseStd,
+    int projOptModelId, const Eigen::Matrix2d& imageObservationCov,
     Eigen::Matrix<double, 3, Eigen::Dynamic>* dfj_dXcam,
     Eigen::Matrix3d* cov_fj) {
   const Eigen::Vector3d& fj = obsDirection;
@@ -40,9 +40,8 @@ inline bool obsDirectionJacobian(
   dfj_dXcam->topLeftCorner(2, cols) = -df12_dz * intrinsicsJacobian;
   dfj_dXcam->row(2).setZero();
   cov_fj->setZero();
-  cov_fj->topLeftCorner<2, 2>() = df12_dz * Eigen::Matrix2d::Identity() *
-                                  df12_dz.transpose() * pixelNoiseStd *
-                                  pixelNoiseStd;
+  cov_fj->topLeftCorner<2, 2>() = df12_dz * imageObservationCov *
+                                  df12_dz.transpose();
   return true;
 }
 

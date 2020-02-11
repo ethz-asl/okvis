@@ -63,9 +63,9 @@ class TransformMultiplyTest : public ::testing::Test {
 TEST_F(TransformMultiplyTest, translationJacobians) {
   Eigen::Matrix3d dp_dtheta_AB, dp_dtheta_BC, dp_dt_AB, dp_dt_BC;
   tmj_.dp_dtheta_AB(&dp_dtheta_AB);
-  tmj_.dp_dt_AB(&dp_dt_AB);
+  tmj_.dp_dp_AB(&dp_dt_AB);
   tmj_.dp_dtheta_BC(&dp_dtheta_BC);
-  tmj_.dp_dt_BC(&dp_dt_BC);
+  tmj_.dp_dp_BC(&dp_dt_BC);
   EXPECT_LT((dp_dt_AB - dp_ddelta_AB_.topLeftCorner<3, 3>())
                 .lpNorm<Eigen::Infinity>(),
             eps) << "dp_dt_AB\n" << dp_dt_AB << "\ndp_ddelta_AB_\n" << dp_ddelta_AB_.topLeftCorner<3, 3>();
@@ -83,20 +83,20 @@ TEST_F(TransformMultiplyTest, translationJacobians) {
 }
 
 TEST_F(TransformMultiplyTest, rotationJacobians) {
-  Eigen::Matrix3d dtheta_dtheta_AB, dtheta_dtheta_BC, dtheta_dt_AB,
-      dtheta_dt_BC;
+  Eigen::Matrix3d dtheta_dtheta_AB, dtheta_dtheta_BC, dtheta_dp_AB,
+      dtheta_dp_BC;
   tmj_.dtheta_dtheta_AB(&dtheta_dtheta_AB);
-  tmj_.dtheta_dt_AB(&dtheta_dt_AB);
+  tmj_.dtheta_dp_AB(&dtheta_dp_AB);
   tmj_.dtheta_dtheta_BC(&dtheta_dtheta_BC);
-  tmj_.dtheta_dt_BC(&dtheta_dt_BC);
-  EXPECT_LT((dtheta_dt_AB - dtheta_ddelta_AB_.topLeftCorner<3, 3>())
+  tmj_.dtheta_dp_BC(&dtheta_dp_BC);
+  EXPECT_LT((dtheta_dp_AB - dtheta_ddelta_AB_.topLeftCorner<3, 3>())
                 .lpNorm<Eigen::Infinity>(),
             eps);
   EXPECT_LT((dtheta_dtheta_AB - dtheta_ddelta_AB_.topRightCorner<3, 3>())
                 .lpNorm<Eigen::Infinity>(),
             eps) << "dtheta_dtheta_AB\n" << dtheta_dtheta_AB << "\ndtheta_ddelta_AB_.topRightCorner<3, 3>()\n"
                  << dtheta_ddelta_AB_.topRightCorner<3, 3>();
-  EXPECT_LT((dtheta_dt_BC - dtheta_ddelta_BC_.topLeftCorner<3, 3>())
+  EXPECT_LT((dtheta_dp_BC - dtheta_ddelta_BC_.topLeftCorner<3, 3>())
                 .lpNorm<Eigen::Infinity>(),
             eps);
   EXPECT_LT((dtheta_dtheta_BC - dtheta_ddelta_BC_.topRightCorner<3, 3>())

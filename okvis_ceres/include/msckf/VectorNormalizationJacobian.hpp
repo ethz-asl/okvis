@@ -8,6 +8,7 @@ namespace msckf {
 class VectorNormalizationJacobian
 {
 public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   VectorNormalizationJacobian(const Eigen::Vector3d& vecIn) : vecIn_(vecIn) {
 
   }

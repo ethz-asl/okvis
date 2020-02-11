@@ -13,6 +13,7 @@ namespace msckf {
 class SimpleImuPropagationJacobian
 {
 public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   SimpleImuPropagationJacobian(const okvis::Time startEpoch,
                                const okvis::Time endEpoch,
                                const okvis::kinematics::Transformation& endT_WB,
@@ -59,6 +60,23 @@ public:
 
   inline void dtheta_dt(Eigen::Vector3d* j) {
     (*j) = endq_WB_ * endOmega_WB_B_;
+  }
+
+  static void dp_dt(Eigen::Vector3d endV_WB_W, Eigen::Vector3d* j) {
+    (*j) = endV_WB_W;
+  }
+
+  static void dtheta_dt(Eigen::Vector3d endOmega_WB_B,
+                        Eigen::Quaterniond endq_WB, Eigen::Vector3d* j) {
+    (*j) = endq_WB * endOmega_WB_B;
+  }
+
+  static void dp_dv_WB(double deltaTime, Eigen::Matrix3d* j) {
+    j->setIdentity();
+    double stride = deltaTime;
+    (*j)(0, 0) = stride;
+    (*j)(1, 1) = stride;
+    (*j)(2, 2) = stride;
   }
 
 private:

@@ -147,8 +147,10 @@ class PointSharedData {
   }
 
   const std::vector<uint64_t> anchorIds() const {
-      return anchorIds_;
+    return anchorIds_;
   }
+
+  std::vector<int> anchorObservationIds() const;
 
   const std::vector<
       okvis::kinematics::Transformation,
@@ -267,6 +269,29 @@ class PointSharedData {
 
   PointSharedDataState status() const {
     return status_;
+  }
+  /// @}
+
+  /// @name Getters for parameter blocks
+  /// @{
+  std::shared_ptr<const okvis::ceres::ParameterBlock> poseParameterBlockPtr(
+      int index) const {
+    return stateInfoForObservations_.at(index).T_WBj_ptr;
+  }
+
+  std::shared_ptr<const okvis::ceres::ParameterBlock>
+  speedAndBiasParameterBlockPtr(int index) const {
+    return stateInfoForObservations_.at(index).speedAndBiasPtr;
+  }
+
+  std::shared_ptr<const okvis::ceres::ParameterBlock>
+  cameraTimeDelayParameterBlockPtr() const {
+    return tdParamBlockPtr_;
+  }
+
+  std::shared_ptr<const okvis::ceres::ParameterBlock>
+  frameReadoutTimeParameterBlockPtr() const {
+    return trParamBlockPtr_;
   }
   /// @}
 

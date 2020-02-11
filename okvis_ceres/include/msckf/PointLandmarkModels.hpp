@@ -3,14 +3,16 @@
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
-
+#include <ceres/ceres.h>
+#include <msckf/ParallaxAnglePoint.hpp>
 namespace msckf {
 // [x, y, z, w] usually expressed in the world frame.
 class HomogeneousPointParameterization
 {
 public:
  static const int kModelId = 0;
-
+ static const int kGlobalDim = 4;
+ static const int kLocalDim = 3;
  template <class Scalar>
  static Eigen::Matrix<Scalar, 4, 1> bearingVectorInWorld(
      const std::pair<Eigen::Matrix<Scalar, 3, 1>, Eigen::Quaternion<Scalar>>&
@@ -64,6 +66,9 @@ class InverseDepthParameterization
 {
 public:
   static const int kModelId = 1;
+  static const int kGlobalDim = 4;
+  static const int kLocalDim = 3;
+
   template <class Scalar>
   static Eigen::Matrix<Scalar, 4, 1> bearingVectorInWorld(
           const std::pair<Eigen::Matrix<Scalar, 3, 1>, Eigen::Quaternion<Scalar>>& pairT_WBj,
@@ -74,26 +79,21 @@ public:
 
   }
 
-  template <class Scalar>
-  static Eigen::Matrix<Scalar, 4, 1> bearingVectorInCamera(
-          const std::pair<Eigen::Matrix<Scalar, 3, 1>, Eigen::Quaternion<Scalar>>& pairT_WBj,
-          const std::pair<Eigen::Matrix<Scalar, 3, 1>, Eigen::Quaternion<Scalar>>* pairT_WBm,
-          const std::pair<Eigen::Matrix<Scalar, 3, 1>, Eigen::Quaternion<Scalar>>* pairT_WBa,
-          const std::pair<Eigen::Matrix<Scalar, 3, 1>, Eigen::Quaternion<Scalar>>& pairT_BC,
-          const Scalar* parameters) {
-
-  }
 };
 
 // [x, y, z, w, c, s]
 // [x, y, z, w] is the quaternion underlying unit bearing vector n such that
 // n = q(w, x, y, z) * [0, 0, 1]'.
 // c, s are cos(theta) and sin(theta) where \theta is the parallax angle.
-class ParallaxAngleParameterization {
+class ParallaxAngleParameterization final: public ::ceres::LocalParameterization {
 public:
   static const int kModelId = 2;
+  static const int kGlobalDim = 6;
+  static const int kLocalDim = 3;
+
+  // compute dNij_d(n_i, theta_i)
   template <class Scalar>
-  static Eigen::Matrix<Scalar, 4, 1> bearingVectorInWorld(
+  static Eigen::Matrix<Scalar, 4, 1> bearingVectorInWorldJacobian(
           const std::pair<Eigen::Matrix<Scalar, 3, 1>, Eigen::Quaternion<Scalar>>& pairT_WBj,
           const std::pair<Eigen::Matrix<Scalar, 3, 1>, Eigen::Quaternion<Scalar>>* pairT_WBm,
           const std::pair<Eigen::Matrix<Scalar, 3, 1>, Eigen::Quaternion<Scalar>>* pairT_WBa,
@@ -102,14 +102,64 @@ public:
 
   }
 
-  template <class Scalar>
-  static Eigen::Matrix<Scalar, 4, 1> bearingVectorInCamera(
-          const std::pair<Eigen::Matrix<Scalar, 3, 1>, Eigen::Quaternion<Scalar>>& pairT_WBj,
-          const std::pair<Eigen::Matrix<Scalar, 3, 1>, Eigen::Quaternion<Scalar>>* pairT_WBm,
-          const std::pair<Eigen::Matrix<Scalar, 3, 1>, Eigen::Quaternion<Scalar>>* pairT_WBa,
-          const std::pair<Eigen::Matrix<Scalar, 3, 1>, Eigen::Quaternion<Scalar>>& pairT_BC,
-          const Scalar* parameters) {
+  // Generalization of the addition operation,
+  //
+  //   x_plus_delta = Plus(x, delta)
+  //
+  // with the condition that Plus(x, 0) = x.
+  bool Plus(const double* x, const double* delta, double* x_plus_delta) const {
+    return plus(x, delta, x_plus_delta);
+  }
 
+  // The jacobian of Plus(x, delta) w.r.t delta at delta = 0.
+  //
+  // jacobian is a row-major GlobalSize() x LocalSize() matrix.
+  bool ComputeJacobian(const double* /*x*/, double* jacobian) const {
+    Eigen::Map<Eigen::Matrix<double, kGlobalDim, kLocalDim, Eigen::RowMajor>> j(jacobian);
+    j.setIdentity();
+    return true;
+  }
+
+  // Size of x.
+  int GlobalSize() const final {
+    return kGlobalDim;
+  }
+
+  // Size of delta.
+  int LocalSize() const final {
+    return kLocalDim;
+  }
+
+  /// \brief Generalization of the addition operation,
+  ///        x_plus_delta = Plus(x, delta)
+  ///        with the condition that Plus(x, 0) = x.
+  /// @param[in] x Variable.
+  /// @param[in] delta Perturbation.
+  /// @param[out] x_plus_delta Perturbed x.
+  static bool plus(const double* x, const double* delta, double* x_plus_delta) {
+    Eigen::Map<const Eigen::Vector3d> _delta(delta);
+    LWF::ParallaxAnglePoint pap(x[3], x[0], x[1], x[2], x[4], x[5]);
+    pap.boxPlus(_delta, pap);
+
+    const double* bearingData = pap.n_.data();
+    x_plus_delta[0] = bearingData[0];
+    x_plus_delta[1] = bearingData[1];
+    x_plus_delta[2] = bearingData[2];
+    x_plus_delta[3] = bearingData[3];
+    const double* thetaData = pap.theta_.data();
+    x_plus_delta[4] = thetaData[0];
+    x_plus_delta[5] = thetaData[1];
+    return true;
+  }
+
+  /// \brief Computes the Jacobian from minimal space to naively overparameterised space as used by ceres.
+  /// @param[in] x Variable.
+  /// @param[out] jacobian the Jacobian (dimension minDim x dim).
+  /// \return True on success.
+  static bool liftJacobian(const double* /*x*/, double* jacobian) {
+    Eigen::Map<Eigen::Matrix<double, kLocalDim, kGlobalDim, Eigen::RowMajor>> j(jacobian);
+    j.setIdentity();
+    return true;
   }
 };
 

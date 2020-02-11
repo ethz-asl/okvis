@@ -72,7 +72,7 @@ namespace okvis {
 //  }
 //};
 
-class Extrinsic_p_CB : public ::ceres::LocalParameterization {
+class Extrinsic_p_CB final : public ::ceres::LocalParameterization {
   // of T_BC only p_CB is variable.
  public:
   static const int kModelId = 1;
@@ -160,7 +160,7 @@ class Extrinsic_p_CB : public ::ceres::LocalParameterization {
     return true;
   }
 
-  virtual bool Plus(const double *x, const double *delta, double *x_plus_delta) const {
+  bool Plus(const double *x, const double *delta, double *x_plus_delta) const final {
     // transform to okvis::kinematics framework
     std::pair<Eigen::Matrix<double, 3, 1>, Eigen::Quaternion<double>> T(
           Eigen::Vector3d(x[0], x[1], x[2]),
@@ -176,17 +176,18 @@ class Extrinsic_p_CB : public ::ceres::LocalParameterization {
     return true;
   }
 
-  virtual bool ComputeJacobian(const double */*x*/, double *jacobian) const {
+  bool ComputeJacobian(const double */*x*/, double *jacobian) const final {
     Eigen::Map<Eigen::Matrix<double, kGlobalDim, kNumParams, Eigen::RowMajor>> j(jacobian);
     j.setIdentity();
     return true;
   }
 
-  virtual int GlobalSize() const { return kGlobalDim; }
-  virtual int LocalSize() const { return kNumParams; }
+  int GlobalSize() const final { return kGlobalDim; }
+  int LocalSize() const final { return kNumParams; }
 };
 
-class Extrinsic_p_BC_q_BC : public ::ceres::LocalParameterization {
+// This is different from PoseLocalParameterization in liftJacobian() and ComputeJacobian().
+class Extrinsic_p_BC_q_BC final : public ::ceres::LocalParameterization {
   // T_BC is represented by p_BC and R_BC in the states.
  public:
   static const int kModelId = 2;
@@ -317,7 +318,7 @@ class Extrinsic_p_BC_q_BC : public ::ceres::LocalParameterization {
     return true;
   }
 
-  virtual bool Plus(const double *x, const double *delta, double *x_plus_delta) const {
+  bool Plus(const double *x, const double *delta, double *x_plus_delta) const final {
     // transform to okvis::kinematics framework
     std::pair<Eigen::Matrix<double, 3, 1>, Eigen::Quaternion<double>> T(
           Eigen::Vector3d(x[0], x[1], x[2]),
@@ -338,14 +339,14 @@ class Extrinsic_p_BC_q_BC : public ::ceres::LocalParameterization {
     return true;
   }
 
-  virtual bool ComputeJacobian(const double */*x*/, double *jacobian) const {
+  bool ComputeJacobian(const double */*x*/, double *jacobian) const final {
     Eigen::Map<Eigen::Matrix<double, kGlobalDim, kNumParams, Eigen::RowMajor>> j(jacobian);
     j.setIdentity();
     return true;
   }
 
-  virtual int GlobalSize() const { return kGlobalDim; }
-  virtual int LocalSize() const { return kNumParams; }
+  int GlobalSize() const final { return kGlobalDim; }
+  int LocalSize() const final { return kNumParams; }
 };
 
 #ifndef EXTRINSIC_MODEL_CASES

@@ -8,13 +8,24 @@
 namespace msckf {
 class DirectionFromParallaxAngleJacobian {
  public:
-
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   DirectionFromParallaxAngleJacobian() {}
+
+  void initialize(const std::pair<Eigen::Vector3d, Eigen::Quaterniond>& T_WCmi,
+                  const Eigen::Vector3d& p_WCai, const Eigen::Vector3d& p_WCtij,
+                  const LWF::ParallaxAnglePoint& pap) {
+    T_WCmi_ = T_WCmi;
+    p_WCai_ = p_WCai;
+    p_WCtij_ = p_WCtij;
+    pap_ = pap;
+    computeIntermediates();
+  }
 
   void initialize(const okvis::kinematics::Transformation& T_WCmi,
                   const Eigen::Vector3d& p_WCai, const Eigen::Vector3d& p_WCtij,
                   const LWF::ParallaxAnglePoint& pap) {
-    T_WCmi_ = T_WCmi;
+    T_WCmi_.first = T_WCmi.r();
+    T_WCmi_.second = T_WCmi.q();
     p_WCai_ = p_WCai;
     p_WCtij_ = p_WCtij;
     pap_ = pap;
@@ -25,10 +36,19 @@ class DirectionFromParallaxAngleJacobian {
   // observing frame is different. When they are the same, dN_dp_WCai and
   // dN_dp_WCtij should be combined for the Jacobian w.r.t p_WCai or p_WCtij.
   DirectionFromParallaxAngleJacobian(
-      const okvis::kinematics::Transformation& T_WCmi,
+      const std::pair<Eigen::Vector3d, Eigen::Quaterniond>& T_WCmi,
       const Eigen::Vector3d& p_WCai, const Eigen::Vector3d& p_WCtij,
       const LWF::ParallaxAnglePoint& pap)
       : T_WCmi_(T_WCmi), p_WCai_(p_WCai),
+        p_WCtij_(p_WCtij), pap_(pap) {
+    computeIntermediates();
+  }
+
+  DirectionFromParallaxAngleJacobian(
+      const okvis::kinematics::Transformation& T_WCmi,
+      const Eigen::Vector3d& p_WCai, const Eigen::Vector3d& p_WCtij,
+      const LWF::ParallaxAnglePoint& pap)
+      : T_WCmi_(T_WCmi.r(), T_WCmi.q()), p_WCai_(p_WCai),
         p_WCtij_(p_WCtij), pap_(pap) {
     computeIntermediates();
   }
@@ -47,7 +67,7 @@ class DirectionFromParallaxAngleJacobian {
 
   void dN_dtheta_WCmi(Eigen::Matrix3d* j) const {
     dN_dWni(j);
-    (*j) *= (-okvis::kinematics::crossMx(T_WCmi_.q() * pap_.getVec()));
+    (*j) *= (-okvis::kinematics::crossMx(T_WCmi_.second * pap_.getVec()));
   }
 
   void dN_dp_WCai(Eigen::Matrix3d* j) const {
@@ -89,9 +109,9 @@ class DirectionFromParallaxAngleJacobian {
   }
 
   void computeIntermediates() {
-    a_ = T_WCmi_.r() - p_WCai_;
-    b_ = T_WCmi_.r() - p_WCtij_;
-    W_ni_ = T_WCmi_.q() * pap_.getVec();
+    a_ = T_WCmi_.first - p_WCai_;
+    b_ = T_WCmi_.first - p_WCtij_;
+    W_ni_ = T_WCmi_.second * pap_.getVec();
     ct_ = pap_.cosTheta();
     st_ = pap_.sinTheta();
     axn_ = a_.cross(W_ni_);
@@ -103,7 +123,7 @@ class DirectionFromParallaxAngleJacobian {
     }
   }
 
-  okvis::kinematics::Transformation T_WCmi_;
+  std::pair<Eigen::Vector3d, Eigen::Quaterniond> T_WCmi_;
   Eigen::Vector3d p_WCai_;
   Eigen::Vector3d p_WCtij_;
   LWF::ParallaxAnglePoint pap_;

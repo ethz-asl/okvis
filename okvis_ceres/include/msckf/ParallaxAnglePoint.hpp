@@ -74,6 +74,8 @@ class NormalVectorElement
       : e_x(1, 0, 0), e_y(0, 1, 0), e_z(0, 0, 1) {
     q_ = q;
   }
+  NormalVectorElement(double w, double x, double y, double z)
+      : q_(w, x, y, z), e_x(1, 0, 0), e_y(0, 1, 0), e_z(0, 0, 1) {}
   virtual ~NormalVectorElement(){};
   Eigen::Vector3d getVec() const { return q_ * e_z; }
   Eigen::Vector3d getPerp1() const { return q_ * e_x; }
@@ -213,7 +215,7 @@ class AngleElement : ElementBase<AngleElement, AngleElement, 1> {
   AngleElement() {}
 
   AngleElement(double cosTheta) { setFromCosine(cosTheta); }
-
+  AngleElement(double ct, double st) : cs_(ct, st) {}
   virtual void boxPlus(const mtDifVec& vecIn, AngleElement& stateOut) const {
     double cd = std::cos(vecIn[0]);
     double sd = std::sin(vecIn[0]);
@@ -264,6 +266,7 @@ class AngleElement : ElementBase<AngleElement, AngleElement, 1> {
 class ParallaxAnglePoint {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  typedef Eigen::Matrix<double, 3, 1> mtDifVec;
   ParallaxAnglePoint() {}
   virtual ~ParallaxAnglePoint() {}
   /**
@@ -276,6 +279,12 @@ class ParallaxAnglePoint {
       : theta_(cosTheta) {
     n_.setFromVector(bearing);
   }
+
+  ParallaxAnglePoint(const NormalVectorElement& n, const AngleElement& theta)
+      : n_(n), theta_(theta) {}
+
+  ParallaxAnglePoint(double w, double x, double y, double z, double ct, double st)
+      : n_(w, x, y, z), theta_(ct, st) {}
 
   void copy(std::vector<double>* parameters) const {
     parameters->resize(6);
@@ -292,10 +301,16 @@ class ParallaxAnglePoint {
     n_.setRandom(s);
     theta_.setRandom(s);
   }
+
   Eigen::Vector3d getVec() const { return n_.getVec(); }
   double getAngle() const { return theta_.getAngle(); }
   double cosTheta() const { return theta_.data()[0]; }
   double sinTheta() const { return theta_.data()[1]; }
+
+  virtual void boxPlus(const mtDifVec& vecIn, ParallaxAnglePoint& stateOut) const {
+    n_.boxPlus(vecIn.head<2>(), stateOut.n_);
+    theta_.boxPlus(vecIn.tail<1>(), stateOut.theta_);
+  }
 
   NormalVectorElement n_;
   AngleElement theta_;

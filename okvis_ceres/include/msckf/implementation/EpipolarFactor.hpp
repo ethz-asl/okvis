@@ -173,10 +173,9 @@ bool EpipolarFactor<GEOMETRY_TYPE, EXTRINSIC_MODEL, PROJ_INTRINSIC_MODEL>::
   int projOptModelId = PROJ_INTRINSIC_MODEL::kModelId;
   bool directionJacOk = true;
   for (int j = 0; j < 2; ++j) {
-    double pixelNoiseStd = covariance_[j](0, 0);
     bool projectOk =
         obsDirectionJacobian(xy1[j], cameraGeometryBase_, projOptModelId,
-                             pixelNoiseStd, &dfj_dXcam[j], &cov_fj[j]);
+                             covariance_[j], &dfj_dXcam[j], &cov_fj[j]);
     if (!projectOk) {
       directionJacOk = false;
     }
