@@ -30,7 +30,7 @@ RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDMA
     RsReprojectionError(
         std::shared_ptr<const camera_geometry_t> cameraGeometry,
         const measurement_t& measurement,
-        const covariance_t& information,
+        const covariance_t& covariance,
         std::shared_ptr<const okvis::ImuMeasurementDeque> imuMeasCanopy,
         std::shared_ptr<const Eigen::Matrix<double, 6, 1>> posVelAtLinearization,
         okvis::Time stateEpoch, double tdAtCreation, double gravityMag)
@@ -40,16 +40,16 @@ RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDMA
       tdAtCreation_(tdAtCreation),
       gravityMag_(gravityMag) {
   setMeasurement(measurement);
-  setInformation(information);
+  setCovariance(covariance);
   setCameraGeometry(cameraGeometry);
 }
 
 template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
           class EXTRINSIC_MODEL, class LANDMARK_MODEL, class IMU_MODEL>
 void RsReprojectionError<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDMARK_MODEL, IMU_MODEL>::
-    setInformation(const covariance_t& information) {
-  information_ = information;
-  covariance_ = information.inverse();
+    setCovariance(const covariance_t& covariance) {
+  information_ = covariance.inverse();
+  covariance_ = covariance;
   // perform the Cholesky decomposition on order to obtain the correct error
   // weighting
   Eigen::LLT<Eigen::Matrix2d> lltOfInformation(information_);

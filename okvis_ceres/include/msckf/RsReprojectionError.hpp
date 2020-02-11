@@ -129,7 +129,7 @@ class RsReprojectionError
   RsReprojectionError(
       std::shared_ptr<const camera_geometry_t> cameraGeometry,
       const measurement_t& measurement,
-      const covariance_t& information,
+      const covariance_t& covariance,
       std::shared_ptr<const okvis::ImuMeasurementDeque> imuMeasCanopy,
       std::shared_ptr<const Eigen::Matrix<double, 6, 1>> posVelAtLinearization,
       okvis::Time stateEpoch, double tdAtCreation, double gravityMag);
@@ -157,7 +157,7 @@ class RsReprojectionError
 
   /// \brief Set the information.
   /// @param[in] information The information (weight) matrix.
-  virtual void setInformation(const covariance_t& information);
+  virtual void setCovariance(const covariance_t& information);
 
   // getters
   /// \brief Get the measurement.

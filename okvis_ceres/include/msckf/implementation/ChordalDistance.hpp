@@ -427,7 +427,7 @@ bool ChordalDistance<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDM
           dunit_fj_dfj * dfj_dXcam.rightCols<kDistortionDim>();
       if (jacobiansMinimal) {
         if (jacobiansMinimal[6]) {
-          Eigen::Map<ProjectionIntrinsicJacType> jM(jacobiansMinimal[6]);
+          Eigen::Map<DistortionJacType> jM(jacobiansMinimal[6]);
           jM = j;
         }
       }
