@@ -371,38 +371,50 @@ bool ChordalDistance<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDM
     if (jacobians[4]) {
       Eigen::Map<Eigen::Matrix<double, kNumResiduals, 7, Eigen::RowMajor>> j(
           jacobians[4]);
-      Eigen::Matrix<double, kNumResiduals, 6, Eigen::RowMajor> jMinimal;
-      Eigen::Matrix3d dtheta_WCtmi_dtheta_BC, dp_WCtmi_dtheta_BC;
-      T_WCtmi_jacobian.dtheta_dtheta_BC(&dtheta_WCtmi_dtheta_BC);
-      T_WCtmi_jacobian.dp_dtheta_BC(&dp_WCtmi_dtheta_BC);
-      Eigen::Matrix3d dp_WCtai_dtheta_BC;
-      T_WCtai_jacobian.dp_dtheta_BC(&dp_WCtai_dtheta_BC);
-      Eigen::Matrix3d dp_WCtij_dtheta_BC;
-      T_WCtij_jacobian.dp_dtheta_BC(&dp_WCtij_dtheta_BC);
-      Eigen::Matrix3d dtheta_WCtij_dtheta_BC;
-      T_WCtij_jacobian.dtheta_dtheta_BC(&dtheta_WCtij_dtheta_BC);
-      jMinimal.rightCols<3>() =
-          squareRootInformation_ *
-          (de_dN * (dN_dtheta_WCtmi * dtheta_WCtmi_dtheta_BC +
-                    dN_dp_WCtmi * dp_WCtmi_dtheta_BC +
-                    dN_dp_WCtai * dp_WCtai_dtheta_BC +
-                    dN_dp_WCtij * dp_WCtij_dtheta_BC) +
-           okvis::kinematics::crossMx(pair_T_WCtij.second * unit_fj) *
-               dtheta_WCtij_dtheta_BC);
+      Eigen::Matrix<double, kNumResiduals, EXTRINSIC_MODEL::kNumParams, Eigen::RowMajor> jMinimal;
       Eigen::Matrix3d dp_WCtmi_dp_BC, dp_WCtai_dp_BC, dp_WCtij_dp_BC;
       T_WCtmi_jacobian.dp_dp_BC(&dp_WCtmi_dp_BC);
       T_WCtai_jacobian.dp_dp_BC(&dp_WCtai_dp_BC);
       T_WCtij_jacobian.dp_dp_BC(&dp_WCtij_dp_BC);
-      jMinimal.leftCols<3>() =
+      jMinimal.template leftCols<3>() =
           squareRootInformation_ * de_dN *
           (dN_dp_WCtmi * dp_WCtmi_dp_BC + dN_dp_WCtai * dp_WCtai_dp_BC +
            dN_dp_WCtij * dp_WCtij_dp_BC);
-      Eigen::Matrix<double, 6, 7, Eigen::RowMajor> jLift;
-      PoseLocalParameterization::liftJacobian(parameters[4], jLift.data());
+      Eigen::Matrix<double, EXTRINSIC_MODEL::kNumParams, 7, Eigen::RowMajor> jLift;
+      switch (EXTRINSIC_MODEL::kModelId) {
+        case Extrinsic_p_CB::kModelId:
+          jMinimal.template leftCols<3>() = -jMinimal.template leftCols<3>() *
+              pair_T_BC.second.toRotationMatrix();
+          EXTRINSIC_MODEL::liftJacobian(parameters[4], jLift.data());
+          break;
+        case Extrinsic_p_BC_q_BC::kModelId:
+        default:
+          {
+            Eigen::Matrix3d dtheta_WCtmi_dtheta_BC, dp_WCtmi_dtheta_BC;
+            T_WCtmi_jacobian.dtheta_dtheta_BC(&dtheta_WCtmi_dtheta_BC);
+            T_WCtmi_jacobian.dp_dtheta_BC(&dp_WCtmi_dtheta_BC);
+            Eigen::Matrix3d dp_WCtai_dtheta_BC;
+            T_WCtai_jacobian.dp_dtheta_BC(&dp_WCtai_dtheta_BC);
+            Eigen::Matrix3d dp_WCtij_dtheta_BC;
+            T_WCtij_jacobian.dp_dtheta_BC(&dp_WCtij_dtheta_BC);
+            Eigen::Matrix3d dtheta_WCtij_dtheta_BC;
+            T_WCtij_jacobian.dtheta_dtheta_BC(&dtheta_WCtij_dtheta_BC);
+            jMinimal.template rightCols<3>() =
+                squareRootInformation_ *
+                (de_dN * (dN_dtheta_WCtmi * dtheta_WCtmi_dtheta_BC +
+                          dN_dp_WCtmi * dp_WCtmi_dtheta_BC +
+                          dN_dp_WCtai * dp_WCtai_dtheta_BC +
+                          dN_dp_WCtij * dp_WCtij_dtheta_BC) +
+                 okvis::kinematics::crossMx(pair_T_WCtij.second * unit_fj) *
+                     dtheta_WCtij_dtheta_BC);
+            PoseLocalParameterization::liftJacobian(parameters[4], jLift.data());
+          }
+          break;
+      }
       j = jMinimal * jLift;
       if (jacobiansMinimal) {
         if (jacobiansMinimal[4]) {
-          Eigen::Map<Eigen::Matrix<double, kNumResiduals, 6, Eigen::RowMajor>>
+          Eigen::Map<Eigen::Matrix<double, kNumResiduals, EXTRINSIC_MODEL::kNumParams, Eigen::RowMajor>>
               jM(jacobiansMinimal[4]);
           jM = jMinimal;
         }
