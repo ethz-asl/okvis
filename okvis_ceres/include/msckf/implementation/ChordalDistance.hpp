@@ -35,7 +35,9 @@ ChordalDistance<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDMARK_M
         std::shared_ptr<const camera_geometry_t> cameraGeometry,
         const Eigen::Vector2d& imageObservation,
         const Eigen::Matrix2d& observationCovariance,
+        int observationIndex,
         std::shared_ptr<const msckf::PointSharedData> pointDataPtr) :
+    observationIndex_(observationIndex),
     pointDataPtr_(pointDataPtr) {
   measurement_ = imageObservation;
   observationCovariance_ = observationCovariance;
@@ -347,9 +349,8 @@ bool ChordalDistance<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDM
                                LANDMARK_MODEL::kGlobalDim, Eigen::RowMajor>>
           j(jacobians[3]);
       Eigen::Matrix<double, kNumResiduals, LANDMARK_MODEL::kLocalDim,
-                    Eigen::RowMajor>
-          jMinimal;
-      jMinimal.leftCols<2>() = dN_dni;
+                    Eigen::RowMajor> jMinimal;
+      jMinimal.template topLeftCorner<kNumResiduals, 2>() = dN_dni;
       jMinimal.col(2) = dN_dthetai;
       jMinimal = squareRootInformation_ * de_dN * jMinimal;
       Eigen::Matrix<double, LANDMARK_MODEL::kLocalDim,

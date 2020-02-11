@@ -1558,22 +1558,23 @@ void poseAndVelocityAtObservation(
     bool use_RK4) {
   Eigen::Map<const Eigen::Matrix<double, 27, 1>> vTGTSTA(imuAugmentedParams);
   IMUErrorModel<double> iem(sb->tail<6>(), vTGTSTA, true);
+  const double wedge = 5e-8;
   if (use_RK4) {
-    if (featureTime >= Duration()) {
+    if (featureTime >= Duration(wedge)) {
       IMUOdometry::propagation_RungeKutta(imuMeas, imuParameters, *T_WB, *sb,
                                           vTGTSTA, stateEpoch,
                                           stateEpoch + featureTime);
-    } else {
+    } else if (featureTime <= Duration(-wedge)) {
       IMUOdometry::propagationBackward_RungeKutta(imuMeas, imuParameters, *T_WB,
                                                   *sb, vTGTSTA, stateEpoch,
                                                   stateEpoch + featureTime);
     }
   } else {
     Eigen::Vector3d tempV_WS = sb->head<3>();
-    if (featureTime >= Duration()) {
+    if (featureTime >= Duration(wedge)) {
       IMUOdometry::propagation(imuMeas, imuParameters, *T_WB, tempV_WS, iem,
                                stateEpoch, stateEpoch + featureTime);
-    } else {
+    } else if (featureTime <= Duration(-wedge)) {
       IMUOdometry::propagationBackward(imuMeas, imuParameters, *T_WB, tempV_WS,
                                        iem, stateEpoch,
                                        stateEpoch + featureTime);

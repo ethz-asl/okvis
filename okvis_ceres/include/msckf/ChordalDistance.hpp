@@ -105,6 +105,7 @@ class ChordalDistance
       std::shared_ptr<const camera_geometry_t> cameraGeometry,
       const Eigen::Vector2d& imageObservation,
       const Eigen::Matrix2d& observationCovariance,
+      int observationIndex,
       std::shared_ptr<const msckf::PointSharedData> pointDataPtr);
 
   /// \brief Trivial destructor.
