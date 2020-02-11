@@ -6,12 +6,17 @@
  */
 #include "ceres/internal/autodiff.h"
 
+#include <okvis/ceres/MarginalizationError.hpp>
 #include <okvis/kinematics/Transformation.hpp>
 #include <okvis/kinematics/operators.hpp>
 
+#include <msckf/DirectionFromParallaxAngleJacobian.hpp>
 #include <msckf/JacobianHelpers.hpp>
 #include <msckf/Measurements.hpp>
 #include <msckf/SimpleImuOdometry.hpp>
+#include <msckf/SimpleImuPropagationJacobian.hpp>
+#include <msckf/TransformMultiplyJacobian.hpp>
+#include <msckf/VectorNormalizationJacobian.hpp>
 
 /// \brief okvis Main namespace of this package.
 namespace okvis {
@@ -28,25 +33,13 @@ template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
 ChordalDistance<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDMARK_MODEL, IMU_MODEL>::
     ChordalDistance(
         std::shared_ptr<const camera_geometry_t> cameraGeometry,
-        const measurement_t& measurement,
-        const covariance_t& information,
+        const Eigen::Vector2d& imageObservation,
+        const Eigen::Matrix2d& observationCovariance,
         std::shared_ptr<const msckf::PointSharedData> pointDataPtr) :
     pointDataPtr_(pointDataPtr) {
-  setMeasurement(measurement);
-  setInformation(information);
-  setCameraGeometry(cameraGeometry);
-}
-
-template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
-          class EXTRINSIC_MODEL, class LANDMARK_MODEL, class IMU_MODEL>
-void ChordalDistance<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDMARK_MODEL, IMU_MODEL>::
-    setInformation(const covariance_t& information) {
-  information_ = information;
-  covariance_ = information.inverse();
-  // perform the Cholesky decomposition on order to obtain the correct error
-  // weighting
-  Eigen::LLT<Eigen::Matrix2d> lltOfInformation(information_);
-  squareRootInformation_ = lltOfInformation.matrixL().transpose();
+  measurement_ = imageObservation;
+  observationCovariance_ = observationCovariance;
+  cameraGeometryBase_ = cameraGeometry;
 }
 
 template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
@@ -63,175 +56,507 @@ bool ChordalDistance<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDM
     EvaluateWithMinimalJacobians(double const* const* parameters,
                                  double* residuals, double** jacobians,
                                  double** jacobiansMinimal) const {
-  return EvaluateWithMinimalJacobiansAnalytic(parameters, residuals, jacobians,
-                                              jacobiansMinimal);
-}
-
-template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
-          class EXTRINSIC_MODEL, class LANDMARK_MODEL, class IMU_MODEL>
-bool ChordalDistance<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDMARK_MODEL, IMU_MODEL>::
-    EvaluateWithMinimalJacobiansAnalytic(double const* const* parameters,
-                                 double* residuals, double** jacobians,
-                                 double** jacobiansMinimal) const {
   // We avoid the use of okvis::kinematics::Transformation here due to
   // quaternion normalization and so forth. This only matters in order to be
   // able to check Jacobians with numeric differentiation chained, first w.r.t.
   // q and then d_alpha.
 
-  Eigen::Map<const Eigen::Vector3d> t_WB_W0(parameters[0]);
-  const Eigen::Quaterniond q_WB0(parameters[0][6], parameters[0][3],
-                                 parameters[0][4], parameters[0][5]);
-
-  // the point in world coordinates
-  Eigen::Map<const Eigen::Vector4d> hp_W(&parameters[1][0]);
-
-  Eigen::Matrix<double, 3, 1> t_BC_B(parameters[2][0], parameters[2][1], parameters[2][2]);
-  Eigen::Quaternion<double> q_BC(parameters[2][6], parameters[2][3], parameters[2][4],
-                                 parameters[2][5]);
-  double trLatestEstimate = parameters[5][0];
-  double tdLatestEstimate = parameters[6][0];
-
-  double ypixel(measurement_[1]);
-  uint32_t height = cameraGeometryBase_->imageHeight();
-  double kpN = ypixel / height - 0.5;
-  double relativeFeatureTime = tdLatestEstimate + trLatestEstimate * kpN - tdAtCreation_;
-  std::pair<Eigen::Matrix<double, 3, 1>, Eigen::Quaternion<double>> pairT_WB(
-      t_WB_W0, q_WB0);
-  Eigen::Matrix<double, 9, 1> speedBgBa =
-      Eigen::Map<const Eigen::Matrix<double, 9, 1>>(parameters[7]);
-
-  const okvis::Time t_start = stateEpoch_;
-  const okvis::Time t_end = stateEpoch_ + okvis::Duration(relativeFeatureTime);
-  const double wedge = 5e-8;
-  if (relativeFeatureTime >= wedge) {
-    okvis::ceres::predictStates(*imuMeasCanopy_, gravityMag_, pairT_WB,
-                                speedBgBa, t_start, t_end);
-  } else if (relativeFeatureTime <= -wedge) {
-    okvis::ceres::predictStatesBackward(*imuMeasCanopy_, gravityMag_, pairT_WB,
-                                        speedBgBa, t_start, t_end);
-  }
-
-  Eigen::Quaterniond q_WB = pairT_WB.second;
-  Eigen::Vector3d t_WB_W = pairT_WB.first;
-
-  // transform the point into the camera:
-  Eigen::Matrix3d C_BC = q_BC.toRotationMatrix();
-  Eigen::Matrix3d C_CB = C_BC.transpose();
-  Eigen::Matrix4d T_CB = Eigen::Matrix4d::Identity();
-  T_CB.topLeftCorner<3, 3>() = C_CB;
-  T_CB.topRightCorner<3, 1>() = -C_CB * t_BC_B;
-  Eigen::Matrix3d C_WB = q_WB.toRotationMatrix();
-  Eigen::Matrix3d C_BW = C_WB.transpose();
-  Eigen::Matrix4d T_BW = Eigen::Matrix4d::Identity();
-  T_BW.topLeftCorner<3, 3>() = C_BW;
-  T_BW.topRightCorner<3, 1>() = -C_BW * t_WB_W;
-  Eigen::Vector4d hp_B = T_BW * hp_W;
-  Eigen::Vector4d hp_C = T_CB * hp_B;
-
-  // calculate the reprojection error
-  measurement_t kp;
-  Eigen::Matrix<double, 2, 4> Jh;
-  Eigen::Matrix<double, 2, 4> Jh_weighted;
-  Eigen::Matrix<double, 2, Eigen::Dynamic> Jpi;
-  Eigen::Matrix<double, 2, Eigen::Dynamic> Jpi_weighted;
-  if (jacobians != NULL) {
-    cameraGeometryBase_->projectHomogeneous(hp_C, &kp, &Jh, &Jpi);
-    Jh_weighted = squareRootInformation_ * Jh;
-    Jpi_weighted = squareRootInformation_ * Jpi;
-  } else {
-    cameraGeometryBase_->projectHomogeneous(hp_C, &kp);
-  }
-
-  measurement_t error = kp - measurement_;
-
-  // weight:
-  measurement_t weighted_error = squareRootInformation_ * error;
-
-  // assign:
-  residuals[0] = weighted_error[0];
-  residuals[1] = weighted_error[1];
-
-  // check validity:
-  bool valid = true;
-  if (fabs(hp_C[3]) > 1.0e-8) {
-    Eigen::Vector3d p_C = hp_C.template head<3>() / hp_C[3];
-    if (p_C[2] < 0.2) {  // 20 cm - not very generic... but reasonable
-      // std::cout<<"INVALID POINT"<<std::endl;
-      valid = false;
+  LWF::ParallaxAnglePoint pap;
+  pap.set(parameters[3]);
+  std::vector<int> anchorObservationIndices =
+      pointDataPtr_->anchorObservationIds();
+  if (anchorObservationIndices[0] == observationIndex_) {
+    Eigen::Vector3d xy1;
+    bool backProjectOk = cameraGeometryBase_->backProject(measurement_, &xy1);
+    msckf::VectorNormalizationJacobian unit_fj_jacobian(xy1);
+    Eigen::Vector3d unit_fj = unit_fj_jacobian.normalized();
+    Eigen::Vector3d error = pap.n_.getVec() - unit_fj;
+    // weight
+    int projOptModelId = PROJ_INTRINSIC_MODEL::kModelId;
+    Eigen::Matrix<double, 3, Eigen::Dynamic> dfj_dXcam;
+    Eigen::Matrix3d cov_fj;
+    bool projectOk =
+        obsDirectionJacobian(xy1, cameraGeometryBase_, projOptModelId,
+                             observationCovariance_, &dfj_dXcam, &cov_fj);
+    Eigen::Matrix3d dunit_fj_dfj;
+    unit_fj_jacobian.dxi_dvec(&dunit_fj_dfj);
+    Eigen::Matrix<double, kNumResiduals, Eigen::Dynamic> dunit_fj_dXcam =
+        dunit_fj_dfj * dfj_dXcam;
+    covariance_ = dunit_fj_dfj * cov_fj * dunit_fj_dfj.transpose();
+    Eigen::Matrix3d pinvCovSqrt;
+    okvis::ceres::MarginalizationError::pseudoInverseSymmSqrt(
+        covariance_, pinvCovSqrt, std::numeric_limits<double>::epsilon());
+    squareRootInformation_.noalias() = pinvCovSqrt.transpose();
+    Eigen::Vector3d weighted_error = squareRootInformation_ * error;
+    // assign
+    Eigen::Map<Eigen::Vector3d> resvec(residuals);
+    resvec = weighted_error;
+    bool valid = backProjectOk && projectOk;
+    if (jacobians != NULL) {
+      setJacobiansZero(jacobians, jacobiansMinimal);
+      if (!valid) {
+        return false;
+      }
+      // compute de/du, de/dxcam.
+      if (jacobians[3]) {
+        Eigen::Matrix3d jMinimal;
+        jMinimal.topLeftCorner<3, 2>() = pap.n_.getM();
+        jMinimal.col(2).setZero();
+        jMinimal = (squareRootInformation_ * jMinimal).eval();
+        Eigen::Matrix<double, LANDMARK_MODEL::kLocalDim,
+                      LANDMARK_MODEL::kGlobalDim, Eigen::RowMajor>
+            jLift;
+        LANDMARK_MODEL::liftJacobian(parameters[3], jLift.data());
+        Eigen::Map<Eigen::Matrix<double, kNumResiduals,
+                                 LANDMARK_MODEL::kGlobalDim, Eigen::RowMajor>>
+            j(jacobians[3]);
+        j = jMinimal * jLift;
+        if (jacobiansMinimal) {
+          if (jacobiansMinimal[3]) {
+            Eigen::Map<
+                Eigen::Matrix<double, kNumResiduals, LANDMARK_MODEL::kLocalDim,
+                              Eigen::RowMajor>>
+                jM(jacobiansMinimal[3]);
+            jM = jMinimal;
+          }
+        }
+      }
+      if (jacobians[5]) {
+        Eigen::Map<ProjectionIntrinsicJacType> j(jacobians[5]);
+        j.noalias() =
+            -squareRootInformation_ *
+            dunit_fj_dXcam.topLeftCorner<3, kProjectionIntrinsicDim>();
+        if (jacobiansMinimal) {
+          if (jacobiansMinimal[5]) {
+            Eigen::Map<ProjectionIntrinsicJacType> jM(jacobiansMinimal[5]);
+            jM = j;
+          }
+        }
+      }
+      if (jacobians[6]) {
+        Eigen::Map<DistortionJacType> j(jacobians[6]);
+        j.noalias() = -squareRootInformation_ *
+                      dunit_fj_dXcam.topRightCorner<3, kDistortionDim>();
+        if (jacobiansMinimal) {
+          if (jacobiansMinimal[6]) {
+            Eigen::Map<DistortionJacType> jM(jacobiansMinimal[6]);
+            jM = j;
+          }
+        }
+      }
     }
+    return true;
   }
+
+  Eigen::Matrix<double, 3, 1> t_BC_B(parameters[4][0], parameters[4][1],
+                                     parameters[4][2]);
+  Eigen::Quaternion<double> q_BC(parameters[4][6], parameters[4][3],
+                                 parameters[4][4], parameters[4][5]);
+  std::pair<Eigen::Vector3d, Eigen::Quaterniond> pair_T_BC(t_BC_B, q_BC);
+
+  // compute N_{i,j}.
+  okvis::kinematics::Transformation T_WBtij =
+      pointDataPtr_->T_WBtij(observationIndex_);
+  okvis::kinematics::Transformation T_WBtmi =
+      pointDataPtr_->T_WBtij(anchorObservationIndices[0]);
+  okvis::kinematics::Transformation T_WBtai =
+      pointDataPtr_->T_WBtij(anchorObservationIndices[1]);
+
+  msckf::TransformMultiplyJacobian T_WCtij_jacobian(
+      std::make_pair(T_WBtij.r(), T_WBtij.q()), pair_T_BC);
+  msckf::TransformMultiplyJacobian T_WCtmi_jacobian(
+      std::make_pair(T_WBtmi.r(), T_WBtmi.q()), pair_T_BC);
+  msckf::TransformMultiplyJacobian T_WCtai_jacobian(
+      std::make_pair(T_WBtai.r(), T_WBtai.q()), pair_T_BC);
+  std::pair<Eigen::Vector3d, Eigen::Quaterniond> pair_T_WCtij =
+      T_WCtij_jacobian.multiply();
+  std::pair<Eigen::Vector3d, Eigen::Quaterniond> pair_T_WCtmi =
+      T_WCtmi_jacobian.multiply();
+  std::pair<Eigen::Vector3d, Eigen::Quaterniond> pair_T_WCtai =
+      T_WCtai_jacobian.multiply();
+
+  msckf::DirectionFromParallaxAngleJacobian NijFunction(
+      pair_T_WCtmi, pair_T_WCtai.first, pair_T_WCtij.first, pap);
+  Eigen::Vector3d Nij = NijFunction.evaluate();
+  msckf::VectorNormalizationJacobian unit_Nij_jacobian(Nij);
+  Eigen::Vector3d unit_Nij = unit_Nij_jacobian.normalized();
+
+  // compute R_{WC(t_{i,j})} * f_{i,j}.
+  Eigen::Vector3d xy1;
+  bool backProjectOk = cameraGeometryBase_->backProject(measurement_, &xy1);
+  msckf::VectorNormalizationJacobian unit_fj_jacobian(xy1);
+  Eigen::Vector3d unit_fj = unit_fj_jacobian.normalized();
+  Eigen::Vector3d error = unit_Nij - pair_T_WCtij.second * unit_fj;
+
+  // weight and assign: compute Jacobians and covariance for the obs direction.
+  Eigen::Matrix<double, 3, Eigen::Dynamic> dfj_dXcam;
+  Eigen::Matrix3d cov_fj;
+  int projOptModelId = PROJ_INTRINSIC_MODEL::kModelId;
+  bool projectOk =
+      obsDirectionJacobian(xy1, cameraGeometryBase_, projOptModelId,
+                           observationCovariance_, &dfj_dXcam, &cov_fj);
+  Eigen::Matrix3d dunit_fj_dfj;
+  unit_fj_jacobian.dxi_dvec(&dunit_fj_dfj);
+  Eigen::Matrix3d dRf_dfj =
+      pair_T_WCtij.second.toRotationMatrix() * dunit_fj_dfj;
+  covariance_ = dRf_dfj * cov_fj * dRf_dfj.transpose();
+  Eigen::Matrix3d pinvCovSqrt;
+  okvis::ceres::MarginalizationError::pseudoInverseSymmSqrt(
+      covariance_, pinvCovSqrt, std::numeric_limits<double>::epsilon());
+  squareRootInformation_.noalias() = pinvCovSqrt.transpose();
+  Eigen::Vector3d weighted_error = squareRootInformation_ * error;
+  Eigen::Map<Eigen::Vector3d> resvec(residuals);
+  resvec = weighted_error;
+  bool valid = backProjectOk && projectOk;
 
   // calculate jacobians, if required
-  // This is pretty close to Paul Furgale's thesis. eq. 3.100 on page 40
   if (jacobians != NULL) {
     if (!valid) {
       setJacobiansZero(jacobians, jacobiansMinimal);
-      return true;
+      return false;
     }
-    std::pair<Eigen::Matrix<double, 3, 1>, Eigen::Quaternion<double>> lP_T_WB = pairT_WB;
-    SpeedAndBiases lP_sb = speedBgBa;
-    if (posVelAtLinearization_) {
-      // compute p_WB, v_WB at (t_{f_i,j}) that use FIRST ESTIMATES of
-      // position and velocity, i.e., their linearization point
-      lP_T_WB = std::make_pair(posVelAtLinearization_->head<3>(), q_WB0);
-      lP_sb = Eigen::Map<const Eigen::Matrix<double, 9, 1>>(parameters[7]);
-      lP_sb.head<3>() = posVelAtLinearization_->tail<3>();
-      if (relativeFeatureTime >= wedge) {
-        okvis::ceres::predictStates(*imuMeasCanopy_, gravityMag_, lP_T_WB,
-                                    lP_sb, t_start, t_end);
-      } else if (relativeFeatureTime <= -wedge) {
-        okvis::ceres::predictStatesBackward(*imuMeasCanopy_, gravityMag_, lP_T_WB,
-                                            lP_sb, t_start, t_end);
+    // use first estimates.
+    okvis::kinematics::Transformation T_WBtij_forJac =
+        pointDataPtr_->T_WBtij_ForJacobian(observationIndex_);
+    okvis::kinematics::Transformation T_WBtmi_forJac =
+        pointDataPtr_->T_WBtij_ForJacobian(anchorObservationIndices[0]);
+    okvis::kinematics::Transformation T_WBtai_forJac =
+        pointDataPtr_->T_WBtij_ForJacobian(anchorObservationIndices[1]);
+
+    msckf::TransformMultiplyJacobian T_WCtij_jacobian(
+        std::make_pair(T_WBtij_forJac.r(), T_WBtij_forJac.q()), pair_T_BC);
+    msckf::TransformMultiplyJacobian T_WCtmi_jacobian(
+        std::make_pair(T_WBtmi_forJac.r(), T_WBtmi_forJac.q()), pair_T_BC);
+    msckf::TransformMultiplyJacobian T_WCtai_jacobian(
+        std::make_pair(T_WBtai_forJac.r(), T_WBtai_forJac.q()), pair_T_BC);
+    std::pair<Eigen::Vector3d, Eigen::Quaterniond> pair_T_WCtij =
+        T_WCtij_jacobian.multiply();
+    std::pair<Eigen::Vector3d, Eigen::Quaterniond> pair_T_WCtmi =
+        T_WCtmi_jacobian.multiply();
+    std::pair<Eigen::Vector3d, Eigen::Quaterniond> pair_T_WCtai =
+        T_WCtai_jacobian.multiply();
+    msckf::DirectionFromParallaxAngleJacobian directionFromParallaxAngleJacobian(
+        pair_T_WCtmi, pair_T_WCtai.first, pair_T_WCtij.first, pap);
+    Eigen::Vector3d lP_Nij = directionFromParallaxAngleJacobian.evaluate();
+    msckf::VectorNormalizationJacobian unit_Nij_jacobian(lP_Nij);
+    Eigen::Matrix3d de_dN;
+    unit_Nij_jacobian.dxi_dvec(&de_dN);
+    Eigen::Matrix3d dN_dp_WCtij;
+    directionFromParallaxAngleJacobian.dN_dp_WCtij(&dN_dp_WCtij);
+    Eigen::Matrix3d dN_dtheta_WCtmi;
+    directionFromParallaxAngleJacobian.dN_dtheta_WCmi(&dN_dtheta_WCtmi);
+    Eigen::Matrix3d dN_dp_WCtmi;
+    directionFromParallaxAngleJacobian.dN_dp_WCmi(&dN_dp_WCtmi);
+    Eigen::Matrix3d dN_dp_WCtai;
+    directionFromParallaxAngleJacobian.dN_dp_WCai(&dN_dp_WCtai);
+    Eigen::Matrix<double, 3, 2> dN_dni;
+    directionFromParallaxAngleJacobian.dN_dni(&dN_dni);
+    Eigen::Matrix<double, 3, 1> dN_dthetai;
+    directionFromParallaxAngleJacobian.dN_dthetai(&dN_dthetai);
+    Eigen::Matrix3d dp_WCtij_dp_WBtij;
+    T_WCtij_jacobian.dp_dp_AB(&dp_WCtij_dp_WBtij);
+    Eigen::Matrix3d dp_WCtmi_dp_WBtmi;
+    T_WCtmi_jacobian.dp_dp_AB(&dp_WCtmi_dp_WBtmi);
+    Eigen::Matrix3d dp_WCtmi_dtheta_WBtmi;
+    T_WCtmi_jacobian.dp_dtheta_AB(&dp_WCtmi_dtheta_WBtmi);
+    Eigen::Matrix3d dtheta_WCtmi_dtheta_WBtmi;
+    T_WCtmi_jacobian.dtheta_dtheta_AB(&dtheta_WCtmi_dtheta_WBtmi);
+    Eigen::Matrix3d dp_WCtai_dp_WBtai;
+    T_WCtai_jacobian.dp_dp_AB(&dp_WCtai_dp_WBtai);
+    // T_WBj
+    if (jacobians[0]) {
+      Eigen::Matrix<double, kNumResiduals, 6> jMinimal;
+      Eigen::Matrix3d dtheta_dtheta_WBtij;
+      T_WCtij_jacobian.dtheta_dtheta_AB(&dtheta_dtheta_WBtij);
+      jMinimal.leftCols<3>() = de_dN * dN_dp_WCtij * dp_WCtij_dp_WBtij;
+      if (anchorObservationIndices[1] == observationIndex_) {
+        jMinimal.leftCols<3>() += de_dN * dN_dp_WCtai * dp_WCtai_dp_WBtai;
       }
-      C_BW = lP_T_WB.second.toRotationMatrix().transpose();
-      t_WB_W = lP_T_WB.first;
-      T_BW.topLeftCorner<3, 3>() = C_BW;
-      T_BW.topRightCorner<3, 1>() = -C_BW * t_WB_W;
-      hp_B = T_BW * hp_W;
-      hp_C = T_CB * hp_B;
+      jMinimal.rightCols<3>() =
+          okvis::kinematics::crossMx(pair_T_WCtij.second * unit_fj) *
+          dtheta_dtheta_WBtij;
+      jMinimal = (squareRootInformation_ * jMinimal).eval();
+      Eigen::Map<Eigen::Matrix<double, kNumResiduals, 7, Eigen::RowMajor>> j(
+          jacobians[0]);
+      Eigen::Matrix<double, 6, 7, Eigen::RowMajor> jLift;
+      PoseLocalParameterization::liftJacobian(parameters[0], jLift.data());
+      j = jMinimal * jLift;
+      if (jacobiansMinimal) {
+        if (jacobiansMinimal[0]) {
+          Eigen::Map<Eigen::Matrix<double, kNumResiduals, 6, Eigen::RowMajor>>
+              jM(jacobiansMinimal[0]);
+          jM = jMinimal;
+        }
+      }
     }
+    // T_WBm
+    if (jacobians[1]) {
+      Eigen::Matrix<double, kNumResiduals, 6, Eigen::RowMajor> jMinimal;
+      jMinimal.leftCols<3>() =
+          squareRootInformation_ * de_dN * dN_dp_WCtmi * dp_WCtmi_dp_WBtmi;
+      jMinimal.rightCols<3>() = squareRootInformation_ * de_dN *
+                                (dN_dtheta_WCtmi * dtheta_WCtmi_dtheta_WBtmi +
+                                 dN_dp_WCtmi * dp_WCtmi_dtheta_WBtmi);
+      Eigen::Map<Eigen::Matrix<double, kNumResiduals, 7, Eigen::RowMajor>> j(
+          jacobians[1]);
+      Eigen::Matrix<double, 6, 7, Eigen::RowMajor> jLift;
+      PoseLocalParameterization::liftJacobian(parameters[1], jLift.data());
+      j = jMinimal * jLift;
+      if (jacobiansMinimal) {
+        if (jacobiansMinimal[1]) {
+          Eigen::Map<Eigen::Matrix<double, kNumResiduals, 6, Eigen::RowMajor>>
+              jM(jacobiansMinimal[1]);
+          jM = jMinimal;
+        }
+      }
+    }
+    // T_WBa
+    if (jacobians[2]) {
+      Eigen::Matrix<double, kNumResiduals, 6, Eigen::RowMajor> jMinimal;
+      Eigen::Map<Eigen::Matrix<double, kNumResiduals, 7, Eigen::RowMajor>> j(
+          jacobians[2]);
+      if (anchorObservationIndices[1] == observationIndex_) {
+        Eigen::Map<Eigen::Matrix<double, kNumResiduals, 7, Eigen::RowMajor>> jj(
+            jacobians[0]);
+        j = jj;
+      } else {
+        jMinimal.leftCols(3) =
+            squareRootInformation_ * de_dN * dN_dp_WCtai * dp_WCtai_dp_WBtai;
+        jMinimal.rightCols(3).setZero();
+        Eigen::Matrix<double, 6, 7, Eigen::RowMajor> jLift;
+        PoseLocalParameterization::liftJacobian(parameters[2], jLift.data());
+        j = jMinimal * jLift;
+      }
+      if (jacobiansMinimal) {
+        if (jacobiansMinimal[2]) {
+          Eigen::Map<Eigen::Matrix<double, kNumResiduals, 6, Eigen::RowMajor>>
+              jM(jacobiansMinimal[2]);
+          if (anchorObservationIndices[1] == observationIndex_) {
+            Eigen::Map<Eigen::Matrix<double, kNumResiduals, 6, Eigen::RowMajor>>
+                jjM(jacobiansMinimal[0]);
+            jM = jjM;
+          } else {
+            jM = jMinimal;
+          }
+        }
+      }
+    }
+    // point landmark
+    if (jacobians[3]) {
+      Eigen::Map<Eigen::Matrix<double, kNumResiduals,
+                               LANDMARK_MODEL::kGlobalDim, Eigen::RowMajor>>
+          j(jacobians[3]);
+      Eigen::Matrix<double, kNumResiduals, LANDMARK_MODEL::kLocalDim,
+                    Eigen::RowMajor>
+          jMinimal;
+      jMinimal.leftCols<2>() = dN_dni;
+      jMinimal.col(2) = dN_dthetai;
+      jMinimal = squareRootInformation_ * de_dN * jMinimal;
+      Eigen::Matrix<double, LANDMARK_MODEL::kLocalDim,
+                    LANDMARK_MODEL::kGlobalDim, Eigen::RowMajor>
+          jLift;
+      LANDMARK_MODEL::liftJacobian(parameters[3], jLift.data());
+      j = jMinimal * jLift;
+      if (jacobiansMinimal) {
+        if (jacobiansMinimal[3]) {
+          Eigen::Map<Eigen::Matrix<double, kNumResiduals,
+                                   LANDMARK_MODEL::kLocalDim, Eigen::RowMajor>>
+              jM(jacobiansMinimal[3]);
+          jM = jMinimal;
+        }
+      }
+    }
+    // T_BC
+    if (jacobians[4]) {
+      Eigen::Map<Eigen::Matrix<double, kNumResiduals, 7, Eigen::RowMajor>> j(
+          jacobians[4]);
+      Eigen::Matrix<double, kNumResiduals, 6, Eigen::RowMajor> jMinimal;
+      Eigen::Matrix3d dtheta_WCtmi_dtheta_BC, dp_WCtmi_dtheta_BC;
+      T_WCtmi_jacobian.dtheta_dtheta_BC(&dtheta_WCtmi_dtheta_BC);
+      T_WCtmi_jacobian.dp_dtheta_BC(&dp_WCtmi_dtheta_BC);
+      Eigen::Matrix3d dp_WCtai_dtheta_BC;
+      T_WCtai_jacobian.dp_dtheta_BC(&dp_WCtai_dtheta_BC);
+      Eigen::Matrix3d dp_WCtij_dtheta_BC;
+      T_WCtij_jacobian.dp_dtheta_BC(&dp_WCtij_dtheta_BC);
+      Eigen::Matrix3d dtheta_WCtij_dtheta_BC;
+      T_WCtij_jacobian.dtheta_dtheta_BC(&dtheta_WCtij_dtheta_BC);
+      jMinimal.rightCols<3>() =
+          squareRootInformation_ *
+          (de_dN * (dN_dtheta_WCtmi * dtheta_WCtmi_dtheta_BC +
+                    dN_dp_WCtmi * dp_WCtmi_dtheta_BC +
+                    dN_dp_WCtai * dp_WCtai_dtheta_BC +
+                    dN_dp_WCtij * dp_WCtij_dtheta_BC) +
+           okvis::kinematics::crossMx(pair_T_WCtij.second * unit_fj) *
+               dtheta_WCtij_dtheta_BC);
+      Eigen::Matrix3d dp_WCtmi_dp_BC, dp_WCtai_dp_BC, dp_WCtij_dp_BC;
+      T_WCtmi_jacobian.dp_dp_BC(&dp_WCtmi_dp_BC);
+      T_WCtai_jacobian.dp_dp_BC(&dp_WCtai_dp_BC);
+      T_WCtij_jacobian.dp_dp_BC(&dp_WCtij_dp_BC);
+      jMinimal.leftCols<3>() =
+          squareRootInformation_ * de_dN *
+          (dN_dp_WCtmi * dp_WCtmi_dp_BC + dN_dp_WCtai * dp_WCtai_dp_BC +
+           dN_dp_WCtij * dp_WCtij_dp_BC);
+      Eigen::Matrix<double, 6, 7, Eigen::RowMajor> jLift;
+      PoseLocalParameterization::liftJacobian(parameters[4], jLift.data());
+      j = jMinimal * jLift;
+      if (jacobiansMinimal) {
+        if (jacobiansMinimal[4]) {
+          Eigen::Map<Eigen::Matrix<double, kNumResiduals, 6, Eigen::RowMajor>>
+              jM(jacobiansMinimal[4]);
+          jM = jMinimal;
+        }
+      }
+    }
+    // projection intrinsic
+    if (jacobians[5]) {
+      Eigen::Map<ProjectionIntrinsicJacType> j(jacobians[5]);
+      j = -squareRootInformation_ * pair_T_WCtij.second.toRotationMatrix() *
+          dunit_fj_dfj * dfj_dXcam.leftCols<kProjectionIntrinsicDim>();
+      if (jacobiansMinimal) {
+        if (jacobiansMinimal[5]) {
+          Eigen::Map<ProjectionIntrinsicJacType> jM(jacobiansMinimal[5]);
+          jM = j;
+        }
+      }
+    }
+    // distortion
+    if (jacobians[6]) {
+      Eigen::Map<DistortionJacType> j(jacobians[6]);
+      j = -squareRootInformation_ * pair_T_WCtij.second.toRotationMatrix() *
+          dunit_fj_dfj * dfj_dXcam.rightCols<kDistortionDim>();
+      if (jacobiansMinimal) {
+        if (jacobiansMinimal[6]) {
+          Eigen::Map<ProjectionIntrinsicJacType> jM(jacobiansMinimal[6]);
+          jM = j;
+        }
+      }
+    }
+    // readout time
+    Eigen::Vector3d v_WBtij =
+        pointDataPtr_->v_WBtij_ForJacobian(observationIndex_);
+    Eigen::Vector3d omega_Btij = pointDataPtr_->omega_Btij(observationIndex_);
+    Eigen::Vector3d v_WBtmi =
+        pointDataPtr_->v_WBtij_ForJacobian(anchorObservationIndices[0]);
+    Eigen::Vector3d omega_Btmi =
+        pointDataPtr_->omega_Btij(anchorObservationIndices[0]);
+    Eigen::Vector3d v_WBtai =
+        pointDataPtr_->v_WBtij_ForJacobian(anchorObservationIndices[1]);
+    Eigen::Vector3d omega_Btai =
+        pointDataPtr_->omega_Btij(anchorObservationIndices[1]);
+    Eigen::Vector3d dtheta_WCtmi_dt, dtheta_WCtij_dt;
+    Eigen::Vector3d dp_WCtmi_dt, dp_WCtai_dt, dp_WCtij_dt;
+    T_WCtmi_jacobian.setVelocity(v_WBtmi, omega_Btmi);
+    T_WCtmi_jacobian.dp_dt(&dp_WCtmi_dt);
+    T_WCtmi_jacobian.dtheta_dt(&dtheta_WCtmi_dt);
+    T_WCtij_jacobian.setVelocity(v_WBtij, omega_Btij);
+    T_WCtij_jacobian.dp_dt(&dp_WCtij_dt);
+    T_WCtij_jacobian.dtheta_dt(&dtheta_WCtij_dt);
+    T_WCtai_jacobian.setVelocity(v_WBtai, omega_Btai);
+    T_WCtai_jacobian.dp_dt(&dp_WCtai_dt);
+    if (jacobians[7]) {
+      Eigen::Map<Eigen::Matrix<double, kNumResiduals, 1>> j(jacobians[7]);
+      double rowj = pointDataPtr_->normalizedRow(observationIndex_);
+      double rowm = pointDataPtr_->normalizedRow(anchorObservationIndices[0]);
+      double rowa = pointDataPtr_->normalizedRow(anchorObservationIndices[1]);
 
-    Eigen::Matrix<double, 4, 6> dhC_deltaTWS;
-    Eigen::Matrix<double, 4, 4> dhC_deltahpW;
-    Eigen::Matrix<double, 4, EXTRINSIC_MODEL::kNumParams> dhC_dExtrinsic;
-    Eigen::Vector4d dhC_td;
-    Eigen::Matrix<double, 4, 9> dhC_sb;
-
-    Eigen::Vector3d p_BP_W = hp_W.head<3>() - t_WB_W * hp_W[3];
-    Eigen::Matrix<double, 4, 6> dhS_deltaTWS;
-    dhS_deltaTWS.topLeftCorner<3, 3>() = -C_BW * hp_W[3];
-    dhS_deltaTWS.topRightCorner<3, 3>() =
-        C_BW * okvis::kinematics::crossMx(p_BP_W);
-    dhS_deltaTWS.row(3).setZero();
-    dhC_deltaTWS = T_CB * dhS_deltaTWS;
-    dhC_deltahpW = T_CB * T_BW;
-
-    EXTRINSIC_MODEL::dhC_dExtrinsic_HPP(hp_C, C_CB, &dhC_dExtrinsic);
-
-    okvis::ImuMeasurement queryValue;
-    okvis::ceres::interpolateInertialData(*imuMeasCanopy_, t_end, queryValue);
-    queryValue.measurement.gyroscopes -= lP_sb.segment<3>(3);
-    Eigen::Vector3d p =
-        okvis::kinematics::crossMx(queryValue.measurement.gyroscopes) *
-            hp_B.head<3>() +
-        C_BW * lP_sb.head<3>() * hp_W[3];
-    dhC_td.head<3>() = -C_CB * p;
-    dhC_td[3] = 0;
-
-    Eigen::Matrix3d dhC_vW = -C_CB * C_BW * relativeFeatureTime * hp_W[3];
-    Eigen::Matrix3d dhC_bg =
-        -C_CB * C_BW *
-        okvis::kinematics::crossMx(hp_W.head<3>() - hp_W[3] * t_WB_W) *
-        relativeFeatureTime * q_WB0.toRotationMatrix();
-
-    dhC_sb.row(3).setZero();
-    dhC_sb.topRightCorner<3, 3>().setZero();
-    dhC_sb.topLeftCorner<3, 3>() = dhC_vW;
-    dhC_sb.block<3, 3>(0, 3) = dhC_bg;
-
-    assignJacobians(parameters, jacobians, jacobiansMinimal, Jh_weighted,
-                    Jpi_weighted, dhC_deltaTWS, dhC_deltahpW, dhC_dExtrinsic,
-                    dhC_td, kpN, dhC_sb);
+      j = squareRootInformation_ * de_dN *
+              (dN_dtheta_WCtmi * dtheta_WCtmi_dt * rowm +
+               dN_dp_WCtmi * dp_WCtmi_dt * rowm +
+               dN_dp_WCtai * dp_WCtai_dt * rowa +
+               dN_dp_WCtij * dp_WCtij_dt * rowj) +
+          squareRootInformation_ *
+              okvis::kinematics::crossMx(pair_T_WCtij.second * unit_fj) *
+              dtheta_WCtij_dt * rowj;
+      if (jacobiansMinimal) {
+        if (jacobiansMinimal[7]) {
+          Eigen::Map<Eigen::Matrix<double, kNumResiduals, 1>> jM(
+              jacobiansMinimal[7]);
+          jM = j;
+        }
+      }
+    }
+    // camera time delay
+    if (jacobians[8]) {
+      Eigen::Map<Eigen::Matrix<double, kNumResiduals, 1>> j(jacobians[8]);
+      j = squareRootInformation_ * de_dN *
+              (dN_dtheta_WCtmi * dtheta_WCtmi_dt + dN_dp_WCtmi * dp_WCtmi_dt +
+               dN_dp_WCtai * dp_WCtai_dt + dN_dp_WCtij * dp_WCtij_dt) +
+          squareRootInformation_ *
+              okvis::kinematics::crossMx(pair_T_WCtij.second * unit_fj) *
+              dtheta_WCtij_dt;
+      if (jacobiansMinimal) {
+        if (jacobiansMinimal[8]) {
+          Eigen::Map<Eigen::Matrix<double, kNumResiduals, 1>> jM(
+              jacobiansMinimal[8]);
+          jM = j;
+        }
+      }
+    }
+    // speed and biases for observing frame.
+    if (jacobians[9]) {
+      double featureTime =
+          pointDataPtr_->normalizedFeatureTime(observationIndex_);
+      Eigen::Matrix3d de_dv_WBj =
+          de_dN * dN_dp_WCtij * dp_WCtij_dp_WBtij * featureTime;
+      if (observationIndex_ == anchorObservationIndices[1]) {
+        de_dv_WBj += de_dN * dN_dp_WCtai * dp_WCtai_dp_WBtai * featureTime;
+      }
+      de_dv_WBj = squareRootInformation_ * de_dv_WBj;
+      Eigen::Map<Eigen::Matrix<double, kNumResiduals, 9, Eigen::RowMajor>> j(
+          jacobians[9]);
+      j.leftCols(3) = de_dv_WBj;
+      j.rightCols(6).setZero();
+      if (jacobiansMinimal) {
+        if (jacobiansMinimal[9]) {
+          Eigen::Map<Eigen::Matrix<double, kNumResiduals, 9, Eigen::RowMajor>>
+              jM(jacobiansMinimal[9]);
+          jM = j;
+        }
+      }
+    }
+    // speed and biases for main anchor.
+    if (jacobians[10]) {
+      double featureTime =
+          pointDataPtr_->normalizedFeatureTime(anchorObservationIndices[0]);
+      Eigen::Matrix3d de_dv_WBm = squareRootInformation_ * de_dN * dN_dp_WCtmi *
+                                  dp_WCtmi_dp_WBtmi * featureTime;
+      Eigen::Map<Eigen::Matrix<double, kNumResiduals, 9, Eigen::RowMajor>> j(
+          jacobians[10]);
+      j.leftCols(3) = de_dv_WBm;
+      j.rightCols(6).setZero();
+      if (jacobiansMinimal) {
+        if (jacobiansMinimal[10]) {
+          Eigen::Map<Eigen::Matrix<double, kNumResiduals, 9, Eigen::RowMajor>>
+              jM(jacobiansMinimal[10]);
+          jM = j;
+        }
+      }
+    }
+    // speed and biases for associate anchor.
+    if (jacobians[11]) {
+      Eigen::Map<Eigen::Matrix<double, kNumResiduals, 9, Eigen::RowMajor>> j(
+          jacobians[11]);
+      if (observationIndex_ == anchorObservationIndices[1]) {
+        Eigen::Map<Eigen::Matrix<double, kNumResiduals, 9, Eigen::RowMajor>> jj(
+            jacobians[9]);
+        j = jj;
+      } else {
+        double featureTime =
+            pointDataPtr_->normalizedFeatureTime(anchorObservationIndices[1]);
+        Eigen::Matrix3d de_dv_WBa = squareRootInformation_ * de_dN *
+                                    dN_dp_WCtai * dp_WCtai_dp_WBtai *
+                                    featureTime;
+        j.leftCols(3) = de_dv_WBa;
+        j.rightCols(6).setZero();
+      }
+      if (jacobiansMinimal) {
+        if (jacobiansMinimal[11]) {
+          Eigen::Map<Eigen::Matrix<double, kNumResiduals, 9, Eigen::RowMajor>>
+              jM(jacobiansMinimal[11]);
+          jM = j;
+        }
+      }
+    }
   }
   return true;
 }
@@ -240,155 +565,19 @@ template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
           class EXTRINSIC_MODEL, class LANDMARK_MODEL, class IMU_MODEL>
 void ChordalDistance<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDMARK_MODEL, IMU_MODEL>::
     setJacobiansZero(double** jacobians, double** jacobiansMinimal) const {
-  zeroJacobian<7, 6, 2>(0, jacobians, jacobiansMinimal);
-  zeroJacobian<4, 3, 2>(1, jacobians, jacobiansMinimal);
-  zeroJacobian<7, EXTRINSIC_MODEL::kNumParams, 2>(2, jacobians, jacobiansMinimal);
+  zeroJacobian<7, 6, kNumResiduals>(0, jacobians, jacobiansMinimal);
+  zeroJacobian<7, 6, kNumResiduals>(1, jacobians, jacobiansMinimal);
+  zeroJacobian<7, 6, kNumResiduals>(2, jacobians, jacobiansMinimal);
+  zeroJacobian<LANDMARK_MODEL::kGlobalDim, LANDMARK_MODEL::kLocalDim, kNumResiduals>(3, jacobians, jacobiansMinimal);
+  zeroJacobian<7, EXTRINSIC_MODEL::kNumParams, kNumResiduals>(4, jacobians, jacobiansMinimal);
   zeroJacobian<PROJ_INTRINSIC_MODEL::kNumParams,
-               PROJ_INTRINSIC_MODEL::kNumParams, 2>(3, jacobians,
-                                                    jacobiansMinimal);
-  zeroJacobian<kDistortionDim, kDistortionDim, 2>(4, jacobians,
-                                                  jacobiansMinimal);
-  zeroJacobian<1, 1, 2>(5, jacobians, jacobiansMinimal);
-  zeroJacobian<1, 1, 2>(6, jacobians, jacobiansMinimal);
-  zeroJacobian<9, 9, 2>(7, jacobians, jacobiansMinimal);
+               PROJ_INTRINSIC_MODEL::kNumParams, kNumResiduals>(5, jacobians, jacobiansMinimal);
+  zeroJacobian<kDistortionDim, kDistortionDim, kNumResiduals>(6, jacobians, jacobiansMinimal);
+  zeroJacobian<1, 1, kNumResiduals>(7, jacobians, jacobiansMinimal);
+  zeroJacobian<1, 1, kNumResiduals>(8, jacobians, jacobiansMinimal);
+  zeroJacobian<9, 9, kNumResiduals>(9, jacobians, jacobiansMinimal);
+  zeroJacobian<9, 9, kNumResiduals>(10, jacobians, jacobiansMinimal);
+  zeroJacobian<9, 9, kNumResiduals>(11, jacobians, jacobiansMinimal);
 }
-
-template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
-          class EXTRINSIC_MODEL, class LANDMARK_MODEL, class IMU_MODEL>
-void ChordalDistance<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDMARK_MODEL, IMU_MODEL>::
-    assignJacobians(
-        double const* const* parameters, double** jacobians,
-        double** jacobiansMinimal,
-        const Eigen::Matrix<double, 2, 4>& Jh_weighted,
-        const Eigen::Matrix<double, 2, Eigen::Dynamic>& Jpi_weighted,
-        const Eigen::Matrix<double, 4, 6>& dhC_deltaTWS,
-        const Eigen::Matrix<double, 4, 4>& dhC_deltahpW,
-        const Eigen::Matrix<double, 4, EXTRINSIC_MODEL::kNumParams>& dhC_dExtrinsic,
-        const Eigen::Vector4d& dhC_td, double kpN,
-        const Eigen::Matrix<double, 4, 9>& dhC_sb) const {
-  if (jacobians[0] != NULL) {
-    Eigen::Matrix<double, 2, 6, Eigen::RowMajor> J0_minimal;
-    J0_minimal = Jh_weighted * dhC_deltaTWS;
-    // pseudo inverse of the local parametrization Jacobian
-    Eigen::Matrix<double, 6, 7, Eigen::RowMajor> J_lift;
-    PoseLocalParameterization::liftJacobian(parameters[0], J_lift.data());
-
-    // hallucinate Jacobian w.r.t. state
-    Eigen::Map<Eigen::Matrix<double, 2, 7, Eigen::RowMajor>> J0(jacobians[0]);
-    J0 = J0_minimal * J_lift;
-    if (jacobiansMinimal != NULL) {
-      if (jacobiansMinimal[0] != NULL) {
-        Eigen::Map<Eigen::Matrix<double, 2, 6, Eigen::RowMajor>>
-            J0_minimal_mapped(jacobiansMinimal[0]);
-        J0_minimal_mapped = J0_minimal;
-      }
-    }
-  }
-
-  if (jacobians[1] != NULL) {
-    Eigen::Map<Eigen::Matrix<double, 2, 4, Eigen::RowMajor>> J1(jacobians[1]);
-    J1 = Jh_weighted * dhC_deltahpW;
-    if (jacobiansMinimal != NULL) {
-      if (jacobiansMinimal[1] != NULL) {
-        Eigen::Map<Eigen::Matrix<double, 2, 3, Eigen::RowMajor>>
-            J1_minimal_mapped(jacobiansMinimal[1]);
-        Eigen::Matrix<double, 4, 3> S;
-        S.setZero();
-        S.topLeftCorner<3, 3>().setIdentity();
-        J1_minimal_mapped = J1 * S;
-      }
-    }
-  }
-
-  if (jacobians[2] != NULL) {
-    // compute the minimal version
-    Eigen::Matrix<double, 2, EXTRINSIC_MODEL::kNumParams, Eigen::RowMajor>
-        J2_minimal = Jh_weighted * dhC_dExtrinsic;
-    Eigen::Map<Eigen::Matrix<double, 2, 7, Eigen::RowMajor>> J2(jacobians[2]);
-    Eigen::Matrix<double, EXTRINSIC_MODEL::kNumParams, 7, Eigen::RowMajor> J_lift;
-    if (EXTRINSIC_MODEL::kNumParams == 6) {
-      // Warn: This relates to the parameterization of
-      // CameraSensorStates::T_SCi in addStates, and ReprojectionError liftJacobian
-      PoseLocalParameterization::liftJacobian(parameters[2], J_lift.data());
-      J2 = J2_minimal * J_lift;
-    } else {
-      EXTRINSIC_MODEL::liftJacobian(parameters[2], J_lift.data());
-      J2 = J2_minimal * J_lift;
-    }
-    if (jacobiansMinimal != NULL) {
-      if (jacobiansMinimal[2] != NULL) {
-        Eigen::Map<Eigen::Matrix<double, 2, EXTRINSIC_MODEL::kNumParams, Eigen::RowMajor>>
-            J2_minimal_mapped(jacobiansMinimal[2]);
-        J2_minimal_mapped = J2_minimal;
-      }
-    }
-  }
-
-  // camera intrinsics
-  if (jacobians[3] != NULL) {
-    Eigen::Map<ProjectionIntrinsicJacType> J1(jacobians[3]);
-    Eigen::Matrix<double, 2, Eigen::Dynamic> Jpi_weighted_copy = Jpi_weighted;
-    PROJ_INTRINSIC_MODEL::kneadIntrinsicJacobian(&Jpi_weighted_copy);
-    J1 = Jpi_weighted_copy
-        .template topLeftCorner<2, PROJ_INTRINSIC_MODEL::kNumParams>();
-    if (jacobiansMinimal != NULL) {
-      if (jacobiansMinimal[3] != NULL) {
-        Eigen::Map<ProjectionIntrinsicJacType> J1_minimal_mapped(jacobiansMinimal[3]);
-        J1_minimal_mapped = J1;
-      }
-    }
-  }
-
-  if (jacobians[4] != NULL) {
-    Eigen::Map<DistortionJacType> J1(jacobians[4]);
-    J1 = Jpi_weighted.template topRightCorner<2, kDistortionDim>();
-    if (jacobiansMinimal != NULL) {
-      if (jacobiansMinimal[4] != NULL) {
-        Eigen::Map<DistortionJacType>
-            J1_minimal_mapped(jacobiansMinimal[4]);
-        J1_minimal_mapped = J1;
-      }
-    }
-  }
-
-  if (jacobians[5] != NULL) {
-    Eigen::Map<Eigen::Matrix<double, 2, 1>> J1(jacobians[5]);
-    J1 = Jh_weighted * dhC_td * kpN;
-    if (jacobiansMinimal != NULL) {
-      if (jacobiansMinimal[5] != NULL) {
-        Eigen::Map<Eigen::Matrix<double, 2, 1>>
-            J1_minimal_mapped(jacobiansMinimal[5]);
-        J1_minimal_mapped = J1;
-      }
-    }
-  }
-
-  // t_d
-  if (jacobians[6] != NULL) {
-    Eigen::Map<Eigen::Matrix<double, 2, 1>> J1(jacobians[6]);
-    J1 = Jh_weighted * dhC_td;
-    if (jacobiansMinimal != NULL) {
-      if (jacobiansMinimal[6] != NULL) {
-        Eigen::Map<Eigen::Matrix<double, 2, 1>> J1_minimal_mapped(
-            jacobiansMinimal[6]);
-        J1_minimal_mapped = J1;
-      }
-    }
-  }
-
-  // speed and gyro biases and accel biases
-  if (jacobians[7] != NULL) {
-    Eigen::Map<Eigen::Matrix<double, 2, 9, Eigen::RowMajor>> J1(jacobians[7]);
-    J1 = Jh_weighted * dhC_sb;
-    if (jacobiansMinimal != NULL) {
-      if (jacobiansMinimal[7] != NULL) {
-        Eigen::Map<Eigen::Matrix<double, 2, 9, Eigen::RowMajor>>
-            J1_minimal_mapped(jacobiansMinimal[7]);
-        J1_minimal_mapped = J1;
-      }
-    }
-  }
-}
-
 }  // namespace ceres
 }  // namespace okvis

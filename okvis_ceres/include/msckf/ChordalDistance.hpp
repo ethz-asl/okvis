@@ -25,10 +25,9 @@
 namespace okvis {
 namespace ceres {
 
-
-/// \brief The 2D keypoint reprojection error accounting for rolling shutter
-///     skew and time offset and camera intrinsics.
-/// \warning A potential problem with this reprojection error happens when
+/// \brief The chordal distance (N_{i,j} - R_{C(t_{i,j})} * f_{i,j}) accounting
+/// for rolling shutter skew and time offset and camera intrinsics.
+/// \warning A potential problem with this error term happens when
 ///     the provided IMU measurements do not cover camera observations to the
 ///     extent of the rolling shutter effect. This is most likely to occur with
 ///     observations in the most recent frame.
@@ -48,20 +47,20 @@ namespace ceres {
 ///     constant values from a provided extrinsic entity, e.g., T_BC.
 ///     Its kNumParams should not be zero.
 template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,
-          class EXTRINSIC_MODEL=Extrinsic_p_BC_q_BC,
-          class LANDMARK_MODEL=msckf::HomogeneousPointParameterization,
-          class IMU_MODEL=Imu_BG_BA>
+          class EXTRINSIC_MODEL = Extrinsic_p_BC_q_BC,
+          class LANDMARK_MODEL = msckf::ParallaxAngleParameterization,
+          class IMU_MODEL = Imu_BG_BA>
 class ChordalDistance
     : public ::ceres::SizedCostFunction<
-          2 /* number of residuals */, 7 /* pose */, 4 /* landmark */,
-          7 /* variable dim of extrinsics */,
-          PROJ_INTRINSIC_MODEL::kNumParams /* variable dim of proj intrinsics
-                                              (e.g., f, cx, cy) */,
+          3 /* residuals */, 7 /* observing frame pose */, 7 /* main anchor */,
+          7 /* associate anchor */, LANDMARK_MODEL::kGlobalDim /* landmark */,
+          7 /* camera extrinsic */,
+          PROJ_INTRINSIC_MODEL::kNumParams /* camera projection intrinsic */,
           GEOMETRY_TYPE::distortion_t::NumDistortionIntrinsics,
-          1 /* frame readout time */,
-          1 /* time offset between visual and inertial data */,
-          9 /* velocity and biases */
-          >,
+          1 /* frame readout time */, 1 /* camera time delay */,
+          9 /* velocity and biases of observing frame */,
+          9 /* velocity and biases of main anchor */,
+          9 /* velocity and biases of associate anchor */>,
       public ErrorInterface {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -69,44 +68,25 @@ class ChordalDistance
 
   /// \brief Make the camera geometry type accessible.
   typedef GEOMETRY_TYPE camera_geometry_t;
-
+  static const int kProjectionIntrinsicDim = PROJ_INTRINSIC_MODEL::kNumParams;
   static const int kDistortionDim = GEOMETRY_TYPE::distortion_t::NumDistortionIntrinsics;
-
+  static const int kNumResiduals = 3;
   /// \brief The base class type.
   typedef ::ceres::SizedCostFunction<
-      2, 7, 4, 7, PROJ_INTRINSIC_MODEL::kNumParams,
-      GEOMETRY_TYPE::distortion_t::NumDistortionIntrinsics, 1, 1, 9>
+      kNumResiduals, 7, 7, 7, LANDMARK_MODEL::kGlobalDim, 7, PROJ_INTRINSIC_MODEL::kNumParams,
+      GEOMETRY_TYPE::distortion_t::NumDistortionIntrinsics, 1, 1, 9, 9, 9>
       base_t;
 
   typedef typename std::conditional<
       (PROJ_INTRINSIC_MODEL::kNumParams > 1),
-      Eigen::Matrix<double, 2, PROJ_INTRINSIC_MODEL::kNumParams,
+      Eigen::Matrix<double, kNumResiduals, PROJ_INTRINSIC_MODEL::kNumParams,
                     Eigen::RowMajor>,
-      Eigen::Matrix<double, 2, PROJ_INTRINSIC_MODEL::kNumParams> >::type
+      Eigen::Matrix<double, kNumResiduals, PROJ_INTRINSIC_MODEL::kNumParams> >::type
       ProjectionIntrinsicJacType;
 
-  typedef typename std::conditional<
-      (PROJ_INTRINSIC_MODEL::kNumParams > 1),
-      Eigen::Matrix<double, 4, PROJ_INTRINSIC_MODEL::kNumParams,
-                    Eigen::RowMajor>,
-      Eigen::Matrix<double, 4, PROJ_INTRINSIC_MODEL::kNumParams>>::type
-      ProjectionIntrinsicJacType4;
-
   typedef typename std::conditional<(kDistortionDim > 1),
-      Eigen::Matrix<double, 2, kDistortionDim, Eigen::RowMajor>,
-      Eigen::Matrix<double, 2, kDistortionDim>>::type DistortionJacType;
-
-  /// \brief Number of residuals (2)
-  static const int kNumResiduals = 2;
-
-  /// \brief The keypoint type (measurement type).
-  typedef Eigen::Vector2d keypoint_t;
-
-  /// \brief Measurement type (2D).
-  typedef Eigen::Vector2d measurement_t;
-
-  /// \brief Covariance / information matrix type (2x2).
-  typedef Eigen::Matrix2d covariance_t;
+      Eigen::Matrix<double, kNumResiduals, kDistortionDim, Eigen::RowMajor>,
+      Eigen::Matrix<double, kNumResiduals, kDistortionDim>>::type DistortionJacType;
 
   /// \brief Default constructor.
   ChordalDistance();
@@ -118,29 +98,18 @@ class ChordalDistance
    * @param cameraId The id of the camera in the okvis::cameras::NCameraSystem.
    * @param measurement
    * @param information The information (weight) matrix.
-   * @param imuMeasCanopy imu meas in the neighborhood of stateEpoch for
-   *     compensating the rolling shutter effect.
-   * @param stateEpoch epoch of the pose state and speed and biases
-   * @param tdAtCreation the time offset at the creation of the state.
-   * @param gravityMag
+   * @param pointDataPtr shared data of the landmark to compute propagated
+   * poses and velocities at observation epochs.
    */
   ChordalDistance(
       std::shared_ptr<const camera_geometry_t> cameraGeometry,
-      const measurement_t& measurement,
-      const covariance_t& information,
+      const Eigen::Vector2d& imageObservation,
+      const Eigen::Matrix2d& observationCovariance,
       std::shared_ptr<const msckf::PointSharedData> pointDataPtr);
 
   /// \brief Trivial destructor.
   virtual ~ChordalDistance()
   {
-  }
-
-  // setters
-  /// \brief Set the measurement.
-  /// @param[in] measurement The measurement.
-  virtual void setMeasurement(const measurement_t& measurement)
-  {
-    measurement_ = measurement;
   }
 
   /// \brief Set the underlying camera model.
@@ -149,32 +118,6 @@ class ChordalDistance
       std::shared_ptr<const camera_geometry_t> cameraGeometry)
   {
     cameraGeometryBase_ = cameraGeometry;
-  }
-
-  /// \brief Set the information.
-  /// @param[in] information The information (weight) matrix.
-  virtual void setInformation(const covariance_t& information);
-
-  // getters
-  /// \brief Get the measurement.
-  /// \return The measurement vector.
-  virtual const measurement_t& measurement() const
-  {
-    return measurement_;
-  }
-
-  /// \brief Get the information matrix.
-  /// \return The information (weight) matrix.
-  virtual const covariance_t& information() const
-  {
-    return information_;
-  }
-
-  /// \brief Get the covariance matrix.
-  /// \return The inverse information (covariance) matrix.
-  virtual const covariance_t& covariance() const
-  {
-    return covariance_;
   }
 
   // error term and Jacobian implementation
@@ -201,26 +144,6 @@ class ChordalDistance
                                             double* residuals,
                                             double** jacobians,
                                             double** jacobiansMinimal) const;
-
-  bool EvaluateWithMinimalJacobiansAnalytic(double const* const * parameters,
-                                            double* residuals,
-                                            double** jacobians,
-                                            double** jacobiansMinimal) const;
-
-  bool EvaluateWithMinimalJacobiansGlobalAutoDiff(double const* const * parameters,
-                                            double* residuals,
-                                            double** jacobians,
-                                            double** jacobiansMinimal) const;
-
-  void assignJacobians(
-      double const* const* parameters, double** jacobians,
-      double** jacobiansMinimal, const Eigen::Matrix<double, 2, 4>& Jh_weighted,
-      const Eigen::Matrix<double, 2, Eigen::Dynamic>& Jpi_weighted,
-      const Eigen::Matrix<double, 4, 6>& dhC_deltaTWS,
-      const Eigen::Matrix<double, 4, 4>& dhC_deltahpW,
-      const Eigen::Matrix<double, 4, EXTRINSIC_MODEL::kNumParams>& dhC_dExtrinsic,
-      const Eigen::Vector4d& dhC_td, double kpN,
-      const Eigen::Matrix<double, 4, 9>& dhC_sb) const;
 
   void setJacobiansZero(double** jacobians, double** jacobiansMinimal) const;
 
@@ -252,26 +175,18 @@ class ChordalDistance
   }
 
  protected:
-//  uint64_t cameraId_; ///< ID of the camera.
-  measurement_t measurement_; ///< The (2D) measurement.
+  Eigen::Vector2d measurement_; ///< The image observation.
 
   /// Warn: cameraGeometryBase_ may be updated with
   /// a ceres EvaluationCallback prior to Evaluate().
-  // The camera model shared by all ChordalDistance.
   std::shared_ptr<const camera_geometry_t> cameraGeometryBase_;
 
-  // const after initialization
-  std::shared_ptr<const okvis::ImuMeasurementDeque> imuMeasCanopy_;
-  std::shared_ptr<const Eigen::Matrix<double, 6, 1>> posVelAtLinearization_;
   // weighting related
-  covariance_t information_; ///< The 2x2 information matrix.
-  covariance_t squareRootInformation_; ///< The 2x2 square root information matrix.
-  covariance_t covariance_; ///< The 2x2 covariance matrix.
+  Eigen::Matrix2d observationCovariance_;
+  mutable Eigen::Matrix3d squareRootInformation_; // updated in Evaluate()
+  mutable Eigen::Matrix3d covariance_;
 
-  okvis::Time stateEpoch_; ///< The timestamp of the set of robot states related to this error term.
-  double tdAtCreation_; /// time offset at the creation of the states
-  double gravityMag_; ///< gravity in the world frame is [0, 0, -gravityMag_].
-
+  int observationIndex_; ///< Index of the observation in the map point shared data.
   std::shared_ptr<const msckf::PointSharedData> pointDataPtr_;
 };
 
