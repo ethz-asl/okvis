@@ -65,7 +65,11 @@ struct ExtrinsicsEstimationParameters
       : sigma_absolute_translation(0.0),
         sigma_absolute_orientation(0.0),
         sigma_c_relative_translation(0.0),
-        sigma_c_relative_orientation(0.0)
+        sigma_c_relative_orientation(0.0),
+        sigma_focal_length(0.0),
+        sigma_principal_point(0.0),
+        sigma_td(0.0),
+        sigma_tr(0.0)
   {
   }
 
@@ -88,7 +92,6 @@ struct ExtrinsicsEstimationParameters
   }
 
  public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   // absolute (prior) w.r.t frame S
   double sigma_absolute_translation; ///< Absolute translation stdev. [m]
   double sigma_absolute_orientation; ///< Absolute orientation stdev. [rad]
@@ -97,11 +100,11 @@ struct ExtrinsicsEstimationParameters
   double sigma_c_relative_translation; ///< Relative translation noise density. [m/sqrt(Hz)]
   double sigma_c_relative_orientation; ///< Relative orientation noise density. [rad/sqrt(Hz)]
 
-  double sigma_focal_length;
-  double sigma_principal_point;
-  std::vector<double> sigma_distortion;  ///< e.g., k1, k2, p1, p2, [k3]
-  double sigma_td;
-  double sigma_tr;
+  double sigma_focal_length;  ///< stdev. of horizontal and vertical focal lengths.
+  double sigma_principal_point;  ///< stdev. of principal point coordinates.
+  std::vector<double> sigma_distortion;  ///< stdev. of camera distortion
+  double sigma_td;                       ///< camera time delay stdev. [sec]
+  double sigma_tr;                       ///< frame readout time stdev. [sec]
 };
 
 /*!
