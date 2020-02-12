@@ -135,15 +135,6 @@ class VioParametersReader{
   okvis::VioParameters vioParameters_;
 
   /**
-   * @brief Parses booleans from a cv::FileNode. OpenCV sadly has no implementation like this.
-   * @param[in] node The file node.
-   * @param[out] val The parsed value.
-   * @return True if parsing was successful. If it returns false then the variable \e val has not
-   *         been changed.
-   */
-  bool parseBoolean(cv::FileNode node, bool& val) const;
-
-  /**
    * @brief Get the camera calibration. This looks for the calibration in the
    *        configuration file first. If this fails it will directly get the calibration
    *        from the sensor, if useDriver is set to true.
@@ -177,6 +168,14 @@ class VioParametersReader{
   void print(const CameraCalibration& cc) const;
 };
 
+/**
+ * @brief Parses booleans from a cv::FileNode. OpenCV sadly has no implementation like this.
+ * @param[in] node The file node.
+ * @param[out] val The parsed value.
+ * @return True if parsing was successful. If it returns false then the variable \e val has not
+ *         been changed.
+ */
+bool parseBoolean(cv::FileNode node, bool& val);
 }
 
 #endif /* INCLUDE_OKVIS_VIOPARAMETERSREADER_HPP_ */

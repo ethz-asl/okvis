@@ -206,10 +206,13 @@ void parseOptimizationParameters(cv::FileNode optNode,
   } else {
     optParams->keyframeInsertionMatchingRatioThreshold = 0.2;
   }
-  if (optNode["algorithm"].isInt()) {
-    optNode["algorithm"] >> optParams->algorithm;
+  if (optNode["algorithm"].isString()) {
+    std::string description = (std::string)optNode["algorithm"];
+    optParams->algorithm = okvis::EstimatorAlgorithmNameToId(description);
+    LOG(INFO) << "Algorithm " << description << " is used for estimation.";
   } else {
-    optParams->algorithm = 0;
+    optParams->algorithm = okvis::EstimatorAlgorithm::OKVIS;
+    LOG(INFO) << "Algorithm OKVIS::Estimator is used for estimation.";
   }
   if (optNode["keyframeTranslationThreshold"].isReal()) {
     optNode["keyframeTranslationThreshold"] >> optParams->translationThreshold;
@@ -249,22 +252,30 @@ void parseOptimizationParameters(cv::FileNode optNode,
   }
   LOG(INFO) << "Max depth in triangulation is set to "
             << optParams->triangulationMaxDepth;
-  if (optNode["numClonedStates"].isInt()) {
-    optParams->numClonedStates = static_cast<int>(optNode["numClonedStates"]);
-    optParams->numKeyframes = 0;
-    optParams->numImuFrames = optParams->numClonedStates;
-    LOG(INFO) << "Num cloned states is set to " << optParams->numClonedStates
-              << ". By providing numCLonedStates, we assume MSCKF is to be "
-                 "used, and numKeyframes is reset to "
-              << optParams->numKeyframes << " and numImuFrames reset to "
-              << optParams->numImuFrames;
+
+  LOG(INFO) << "If MSCKF is used, number of cloned states is set to be the sum "
+               "of numKeyframes " << optParams->numKeyframes
+            << " and numImuFrames " << optParams->numImuFrames;
+
+  optParams->useEpipolarConstraint = false;
+  parseBoolean(optNode["useEpipolarConstraint"], optParams->useEpipolarConstraint);
+  LOG(INFO) << "Use epipolar constraint? " << optParams->useEpipolarConstraint;
+
+  if (optNode["cameraObservationModelId"].isInt()) {
+    optParams->cameraObservationModelId =
+        static_cast<int>(optNode["cameraObservationModelId"]);
   } else {
-    optParams->numClonedStates =
-        optParams->numKeyframes + optParams->numImuFrames;
-    LOG(INFO)
-        << "Num cloned states is set to sum of numKeyframes and numImuFrames "
-        << optParams->numClonedStates;
+    optParams->cameraObservationModelId = 0;
   }
+  LOG(INFO) << "Camera observation model Id "
+            << optParams->cameraObservationModelId;
+
+  if (optNode["landmarkModelId"].isInt()) {
+    optParams->landmarkModelId = static_cast<int>(optNode["landmarkModelId"]);
+  } else {
+    optParams->landmarkModelId = 0;
+  }
+  LOG(INFO) << "Landmark model Id " << optParams->landmarkModelId;
 }
 
 // Read and parse a config file.
@@ -791,7 +802,7 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
 }
 
 // Parses booleans from a cv::FileNode. OpenCV sadly has no implementation like this.
-bool VioParametersReader::parseBoolean(cv::FileNode node, bool& val) const {
+bool parseBoolean(cv::FileNode node, bool& val) {
   if (node.isInt()) {
     val = (int) (node) != 0;
     return true;

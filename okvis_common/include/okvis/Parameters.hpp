@@ -42,6 +42,8 @@
 #define INCLUDE_OKVIS_PARAMETERS_HPP_
 
 #include <deque>
+#include <string>
+#include <unordered_map>
 #include <vector>
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Woverloaded-virtual"
@@ -264,6 +266,48 @@ struct WindParameters{
   double updateFrequency; ///< Related state estimates are inserted at this frequency. [Hz]
 };
 
+enum class EstimatorAlgorithm {
+  OKVIS = 0,  ///< Okvis aboriginal estimator.
+  General = 1,  ///< Estimator adapted to use only epipolar constraints.
+  Priorless = 2,  ///< Estimator adapted for investigations.
+  // The above algorithms are paired with ThreadedKFVio,
+  // and the below algorithms are paired with HybridVio.
+  MSCKF = 4,  ///< MSCKF with first estimate Jacobians and second latest marginalization.
+  TFVIO = 5,  ///< Triangulate-free VIO with only epipolar constraints.
+};
+
+inline EstimatorAlgorithm EstimatorAlgorithmNameToId(std::string description) {
+  std::transform(description.begin(), description.end(), description.begin(),
+                 ::toupper);
+  std::unordered_map<std::string, EstimatorAlgorithm> descriptionToId{
+      {"OKVIS", EstimatorAlgorithm::OKVIS},
+      {"GENERAL", EstimatorAlgorithm::General},
+      {"PRIORLESS", EstimatorAlgorithm::Priorless},
+      {"MSCKF", EstimatorAlgorithm::MSCKF},
+      {"TFVIO", EstimatorAlgorithm::TFVIO}};
+  auto iter = descriptionToId.find(description);
+  if (iter == descriptionToId.end()) {
+    return EstimatorAlgorithm::OKVIS;
+  } else {
+    return iter->second;
+  }
+}
+
+inline std::string EstimatorAlgorithmIdToName(EstimatorAlgorithm id) {
+  std::unordered_map<EstimatorAlgorithm, std::string> idToDescription{
+      {EstimatorAlgorithm::OKVIS, "OKVIS"},
+      {EstimatorAlgorithm::General, "General"},
+      {EstimatorAlgorithm::Priorless, "Priorless"},
+      {EstimatorAlgorithm::MSCKF, "MSCKF"},
+      {EstimatorAlgorithm::TFVIO, "TFVIO"}};
+  auto iter = idToDescription.find(id);
+  if (iter == idToDescription.end()) {
+    return "OKVIS";
+  } else {
+    return iter->second;
+  }
+}
+
 /**
  * @brief Parameters for optimization and related things (detection).
  */
@@ -280,21 +324,32 @@ struct Optimization{
   int numImuFrames; ///< Number of IMU frames.
   float keyframeInsertionOverlapThreshold;
   float keyframeInsertionMatchingRatioThreshold;
-  int algorithm;
-  // parameters for determining keyframes in msckf
+  EstimatorAlgorithm algorithm;
+  // parameters for determining keyframes in msckf.
   double translationThreshold;
   double rotationThreshold;
   double trackingRateThreshold;
   size_t minTrackLength;
-  // parameter to check motion of a feature for triangulation
+  // parameter to check motion of a feature for triangulation.
   double triangulationTranslationThreshold;
   double triangulationMaxDepth;
-  int numClonedStates; ///< Max number of cloned nav states in MSCKF
+  bool useEpipolarConstraint;
+  int cameraObservationModelId;
+  int landmarkModelId;
   Optimization()
-      : translationThreshold(0.4),
+      : keyframeInsertionOverlapThreshold(0.6),
+        keyframeInsertionMatchingRatioThreshold(0.2),
+        algorithm(EstimatorAlgorithm::OKVIS),
+        translationThreshold(0.4),
         rotationThreshold(0.2618),
         trackingRateThreshold(0.5),
-        minTrackLength(3u) {}
+        minTrackLength(3u),
+        triangulationTranslationThreshold(-1.0),
+        triangulationMaxDepth(1000.0),
+        useEpipolarConstraint(false),
+        cameraObservationModelId(0),
+        landmarkModelId(0)
+  {}
 };
 
 /**

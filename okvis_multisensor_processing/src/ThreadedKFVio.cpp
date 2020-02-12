@@ -85,13 +85,13 @@ ThreadedKFVio::ThreadedKFVio(okvis::VioParameters& parameters)
           2 * max_camera_input_queue_size * parameters.imu.rate
               / parameters.sensors_information.cameraRate) {
   switch (parameters.optimization.algorithm) {
-    case 1:
+    case EstimatorAlgorithm::General:
       estimator_.reset(new okvis::GeneralEstimator());
       break;
-    case 2:
+    case EstimatorAlgorithm::Priorless:
       estimator_.reset(new okvis::PriorlessEstimator());
       break;
-    case 0:
+    case EstimatorAlgorithm::OKVIS:
     default:
       estimator_.reset(new okvis::Estimator());
       break;

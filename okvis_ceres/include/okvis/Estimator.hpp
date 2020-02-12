@@ -412,6 +412,14 @@ class Estimator : public VioBackendInterface
            (fixCameraIntrinsicParams_[camIdx] ? 0 : camera_rig_.getMinimalProjectionDimen(camIdx) +
            camera_rig_.getDistortionDimen(camIdx)) + 2;  // 2 for td and tr
   }
+
+  int landmarkModelId() const {
+    return landmarkModelId_;
+  }
+
+  int cameraObservationModelId() const {
+    return cameraObservationModelId_;
+  }
   ///@}
   /// @name Setters
   ///@{
@@ -469,7 +477,7 @@ class Estimator : public VioBackendInterface
     mapPtr_ = mapPtr;
   }
 
-  void resetInitialNavState(const InitialNavState& rhs) {
+  void setInitialNavState(const InitialNavState& rhs) {
      pvstd_ = rhs;
   }
 
@@ -479,6 +487,17 @@ class Estimator : public VioBackendInterface
     minTrackLength_ = minTrackLength;
   }
 
+  void setUseEpipolarConstraint(bool use) {
+    useEpipolarConstraint_ = use;
+  }
+
+  void setCameraObservationModel(int cameraObservationModelId) {
+    cameraObservationModelId_ = cameraObservationModelId;
+  }
+
+  void setLandmarkModel(int landmarkModelId) {
+    landmarkModelId_ = landmarkModelId;
+  }
   ///@}
 
   /**
@@ -563,7 +582,14 @@ class Estimator : public VioBackendInterface
   static const okvis::Duration half_window_;
 
  protected:
-
+  template<class GEOMETRY_TYPE>
+  ::ceres::ResidualBlockId addPointFrameResidual(
+      uint64_t landmarkId,
+      uint64_t poseId,
+      size_t camIdx,
+      const Eigen::Vector2d& measurement,
+      const Eigen::Matrix2d& information,
+      std::shared_ptr<const GEOMETRY_TYPE> cameraGeometry);
   /**
    * @brief Remove an observation from a landmark.
    * @param residualBlockId Residual ID for this landmark.
@@ -749,15 +775,12 @@ class Estimator : public VioBackendInterface
   // when the extrinsic noise is zero.
   std::vector<bool> fixCameraExtrinsicParams_;
 
-  template<class GEOMETRY_TYPE>
-  ::ceres::ResidualBlockId addPointFrameResidual(
-      uint64_t landmarkId,
-      uint64_t poseId,
-      size_t camIdx,
-      const Eigen::Vector2d& measurement,
-      const Eigen::Matrix2d& information,
-      std::shared_ptr<const GEOMETRY_TYPE> cameraGeometry);  
+  // use epipolar constraints in case of low disparity or triangulation failure?
+  bool useEpipolarConstraint_;
 
+  int cameraObservationModelId_; // see CameraRig.hpp
+
+  int landmarkModelId_; // see PointLandmarkModels.hpp
 };
 
 /**

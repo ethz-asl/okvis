@@ -62,7 +62,10 @@ Estimator::Estimator(
       cauchyLossFunctionPtr_(new ::ceres::CauchyLoss(1)),
       huberLossFunctionPtr_(new ::ceres::HuberLoss(1)),
       marginalizationResidualId_(0),
-      minTrackLength_(3u)
+      minTrackLength_(3u),
+      useEpipolarConstraint_(false),
+      cameraObservationModelId_(0),
+      landmarkModelId_(0)
 {
 }
 
@@ -73,7 +76,10 @@ Estimator::Estimator()
       cauchyLossFunctionPtr_(new ::ceres::CauchyLoss(1)),
       huberLossFunctionPtr_(new ::ceres::HuberLoss(1)),
       marginalizationResidualId_(0),
-      minTrackLength_(3u)
+      minTrackLength_(3u),
+      useEpipolarConstraint_(false),
+      cameraObservationModelId_(0),
+      landmarkModelId_(0)
 {
 }
 
