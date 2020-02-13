@@ -1127,16 +1127,19 @@ bool Estimator::print(std::ostream& stream) const {
   okvis::Time currentTime = statesMap_.rbegin()->second.timestamp;
   assert(multiFramePtrMap_.rbegin()->first == poseId);
 
-  Eigen::IOFormat SpaceInitFmt(Eigen::StreamPrecision, Eigen::DontAlignCols,
+  Eigen::IOFormat spaceInitFmt(Eigen::StreamPrecision, Eigen::DontAlignCols,
                                " ", " ", "", "", "", "");
   Eigen::Quaterniond q_WS = T_WS.q();
   if (q_WS.w() < 0) {
     q_WS.coeffs() *= -1;
   }
-  stream << currentTime << " " << multiFramePtrMap_.rbegin()->second->idInSource
+  std::stringstream time;
+  time << currentTime.sec << std::setw(9) << std::setfill('0')
+       << currentTime.nsec; // setfill is sticky but setw is not.
+  stream << time.str() << " " << multiFramePtrMap_.rbegin()->second->idInSource
          << " " << std::setfill(' ')
-         << T_WS.r().transpose().format(SpaceInitFmt) << " "
-         << q_WS.coeffs().transpose().format(SpaceInitFmt);
+         << T_WS.r().transpose().format(spaceInitFmt) << " "
+         << q_WS.coeffs().transpose().format(spaceInitFmt);
   // imu sensor states
   const int imuIdx = 0;
   const States stateInQuestion = statesMap_.rbegin()->second;
@@ -1148,7 +1151,7 @@ bool Estimator::print(std::ostream& stream) const {
       std::static_pointer_cast<ceres::SpeedAndBiasParameterBlock>(
           mapPtr_->parameterBlockPtr(SBId));
   SpeedAndBiases sb = sbParamBlockPtr->estimate();
-  stream << " " << sb.transpose().format(SpaceInitFmt);
+  stream << " " << sb.transpose().format(spaceInitFmt);
   return true;
 }
 

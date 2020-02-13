@@ -64,10 +64,8 @@
 
 #include <msckf/BoundedImuDeque.hpp>
 #include <msckf/CameraRig.hpp>
-#include <msckf/InitialNavState.hpp>
 #include <msckf/ImuRig.hpp>
-#include <fstream> // ONLY for debug output
-#include <iomanip> // std::setfill, std::setw
+#include <msckf/InitialNavState.hpp>
 
 /// \brief okvis Main namespace of this package.
 namespace okvis {

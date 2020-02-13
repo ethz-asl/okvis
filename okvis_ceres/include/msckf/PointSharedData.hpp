@@ -170,11 +170,6 @@ class PointSharedData {
       return stateInfoForObservations_.end();
   }
 
-  StateInfoForObservationsType::iterator erase(
-      StateInfoForObservationsType::iterator iter) {
-    return stateInfoForObservations_.erase(iter);
-  }
-
   void removeBadObservations(const std::vector<bool>& projectStatus) {
       removeUnsetMatrices<StateInfoForOneKeypoint>(&stateInfoForObservations_, projectStatus);
   }
@@ -269,6 +264,10 @@ class PointSharedData {
 
   PointSharedDataState status() const {
     return status_;
+  }
+
+  double gravityNorm() const {
+    return imuParameters_->g;
   }
   /// @}
 
