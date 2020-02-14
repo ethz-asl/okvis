@@ -1,5 +1,7 @@
 #include <msckf/ParallaxAnglePoint.hpp>
-#include <ceres/tiny_solver.h>
+#include <msckf/ceres/tiny_solver.h>
+#include <msckf/BearingResiduals.hpp>
+#include <msckf/PointLandmarkModels.hpp>
 
 
 namespace LWF {
@@ -33,6 +35,23 @@ bool ParallaxAnglePoint::optimizePosition(
         okvis::kinematics::Transformation,
         Eigen::aligned_allocator<okvis::kinematics::Transformation>>& T_WC_list,
     const std::vector<int>& anchorIndices) {
+  std::shared_ptr<msckf::SimplePointSharedData> pointDataPtr(
+        new msckf::SimplePointSharedData());
+  pointDataPtr->T_WC_list = T_WC_list;
+  pointDataPtr->anchorIndices = anchorIndices;
+  pointDataPtr->unitBearingList.reserve(observationsxy1.size());
+  for (auto& xy1 : observationsxy1) {
+    pointDataPtr->unitBearingList.emplace_back(xy1.normalized());
+  }
+  msckf::BearingResiduals f(pointDataPtr, 0.01);
+  Eigen::Matrix<double, 6, 1> x;
+  copy(&x);
+  msckf::ceres::TinySolver<msckf::BearingResiduals> solver;
+  solver.options.max_num_iterations = 15;
+  msckf::ParallaxAngleParameterization localPap;
+  solver.localParameterization_ = &localPap;
+  solver.Solve(f, &x);
+  set(x.data());
   return true;
 }
 } // namespace LWF

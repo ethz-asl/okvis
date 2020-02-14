@@ -25,6 +25,8 @@ add_library(${PROJECT_NAME}
   include/okvis/Estimator.hpp
   include/okvis/ceres/CeresIterationCallback.hpp
 
+  msckf/ceres/corrector.cc
+  msckf/BearingResiduals.cpp
   msckf/BoundedImuDeque.cpp
   msckf/CameraRig.cpp
   msckf/CameraTimeParamBlock.cpp
@@ -67,6 +69,8 @@ if(BUILD_TESTS)
   add_executable(${PROJECT_TEST_NAME}
     test/test_main.cpp
     test/TestBearingVectorJacobians.cpp
+    test/TestBearingResiduals.cpp
+    test/TestCeresTinySolver.cpp
     test/TestEstimator.cpp
     test/TestHomogeneousPointError.cpp
     test/TestReprojectionError.cpp

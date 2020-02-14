@@ -13,7 +13,8 @@ public:
 
   }
 
-  void dxi_dvec(Eigen::Matrix3d* j) const {
+  template<typename MatrixType>
+  void dxi_dvec(MatrixType* j) const {
     normalizationJacobian(vecIn_, j);
   }
 
@@ -21,7 +22,8 @@ public:
     return vecIn_.normalized();
   }
 
-  static void normalizationJacobian(const Eigen::Vector3d& vecIn, Eigen::Matrix3d* j) {
+  template<typename MatrixType>
+  static void normalizationJacobian(const Eigen::Vector3d& vecIn, MatrixType* j) {
     double norm = vecIn.norm();
     CHECK_GT(norm, 1e-6);
     double invNorm = 1.0 / norm;

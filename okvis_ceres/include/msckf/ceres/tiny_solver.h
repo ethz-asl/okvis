@@ -42,6 +42,8 @@
 // Ceres, so it is possible to take this file alone and put it in another
 // project without the rest of Ceres.
 //
+// Changelog: use boxplus operator for entities on manifolds.
+//
 // Algorithm based off of:
 //
 // [1] K. Madsen, H. Nielsen, O. Tingleoff.
@@ -55,6 +57,8 @@
 #include <cmath>
 
 #include "Eigen/Dense"
+#include "ceres/local_parameterization.h"
+
 namespace msckf {
 namespace ceres {
 
@@ -127,17 +131,18 @@ namespace ceres {
 template<typename Function,
          typename LinearSolver = Eigen::LDLT<
            Eigen::Matrix<typename Function::Scalar,
-                         Function::NUM_PARAMETERS,
-                         Function::NUM_PARAMETERS> > >
+                         Function::NUM_LOCAL_PARAMETERS,
+                         Function::NUM_LOCAL_PARAMETERS> > >
 class TinySolver {
  public:
   enum {
     NUM_RESIDUALS = Function::NUM_RESIDUALS,
-    NUM_PARAMETERS = Function::NUM_PARAMETERS
+    NUM_PARAMETERS = Function::NUM_PARAMETERS,
+    NUM_LOCAL_PARAMETERS = Function::NUM_LOCAL_PARAMETERS
   };
   typedef typename Function::Scalar Scalar;
   typedef typename Eigen::Matrix<Scalar, NUM_PARAMETERS, 1> Parameters;
-
+  typedef typename Eigen::Matrix<Scalar, NUM_LOCAL_PARAMETERS, 1> Delta;
   enum Status {
     GRADIENT_TOO_SMALL,            // eps > max(J'*f(x))
     RELATIVE_STEP_SIZE_TOO_SMALL,  // eps > ||dx|| / (||x|| + eps)
@@ -207,7 +212,7 @@ class TinySolver {
   }
 
   const Summary& Solve(const Function& function, Parameters* x_and_min) {
-    Initialize<NUM_RESIDUALS, NUM_PARAMETERS>(function);
+    Initialize<NUM_RESIDUALS, NUM_PARAMETERS, NUM_LOCAL_PARAMETERS>(function);
     assert(x_and_min);
     Parameters& x = *x_and_min;
     summary = Summary();
@@ -256,7 +261,8 @@ class TinySolver {
         summary.status = RELATIVE_STEP_SIZE_TOO_SMALL;
         break;
       }
-      x_new_ = x + dx_;
+
+      Plus<NUM_PARAMETERS, NUM_LOCAL_PARAMETERS>(x, dx_, &x_new_);
 
       // TODO(keir): Add proper handling of errors from user eval of cost
       // functions.
@@ -307,16 +313,18 @@ class TinySolver {
 
   Options options;
   Summary summary;
+  const ::ceres::LocalParameterization* localParameterization_;
 
  private:
   // Preallocate everything, including temporary storage needed for solving the
   // linear system. This allows reusing the intermediate storage across solves.
   LinearSolver linear_solver_;
   Scalar cost_;
-  Parameters dx_, x_new_, g_, jacobi_scaling_, lm_diagonal_, lm_step_;
+  Delta dx_, g_, jacobi_scaling_, lm_diagonal_, lm_step_;
+  Parameters x_new_;
   Eigen::Matrix<Scalar, NUM_RESIDUALS, 1> error_, f_x_new_;
-  Eigen::Matrix<Scalar, NUM_RESIDUALS, NUM_PARAMETERS> jacobian_;
-  Eigen::Matrix<Scalar, NUM_PARAMETERS, NUM_PARAMETERS> jtj_, jtj_regularized_;
+  Eigen::Matrix<Scalar, NUM_RESIDUALS, NUM_LOCAL_PARAMETERS> jacobian_;
+  Eigen::Matrix<Scalar, NUM_LOCAL_PARAMETERS, NUM_LOCAL_PARAMETERS> jtj_, jtj_regularized_;
 
   // The following definitions are needed for template metaprogramming.
   template <bool Condition, typename T>
@@ -336,10 +344,10 @@ class TinySolver {
 
   // The number of parameters is dynamically sized and the number of
   // residuals is statically sized.
-  template <int R, int P>
+  template <int R, int P, int L>
   typename enable_if<(R == Eigen::Dynamic && P != Eigen::Dynamic), void>::type
   Initialize(const Function& function) {
-    Initialize(function.NumResiduals(), P);
+    Initialize(function.NumResiduals(), P, L);
   }
 
   // The number of parameters is statically sized and the number of
@@ -355,18 +363,32 @@ class TinySolver {
   typename enable_if<(R != Eigen::Dynamic && P != Eigen::Dynamic), void>::type
   Initialize(const Function& /* function */) {}
 
-  void Initialize(int num_residuals, int num_parameters) {
-    dx_.resize(num_parameters);
+  void Initialize(int num_residuals, int num_parameters, int num_local_parameters) {
+    dx_.resize(num_local_parameters);
     x_new_.resize(num_parameters);
-    g_.resize(num_parameters);
-    jacobi_scaling_.resize(num_parameters);
-    lm_diagonal_.resize(num_parameters);
-    lm_step_.resize(num_parameters);
+    g_.resize(num_local_parameters);
+    jacobi_scaling_.resize(num_local_parameters);
+    lm_diagonal_.resize(num_local_parameters);
+    lm_step_.resize(num_local_parameters);
     error_.resize(num_residuals);
     f_x_new_.resize(num_residuals);
-    jacobian_.resize(num_residuals, num_parameters);
-    jtj_.resize(num_parameters, num_parameters);
-    jtj_regularized_.resize(num_parameters, num_parameters);
+    jacobian_.resize(num_residuals, num_local_parameters);
+    jtj_.resize(num_local_parameters, num_local_parameters);
+    jtj_regularized_.resize(num_local_parameters, num_local_parameters);
+  }
+
+  template <int G, int L>
+  typename enable_if<(G == L), void>::type Plus(const Parameters& x,
+                                                const Delta& delta,
+                                                Parameters* x_delta) {
+    (*x_delta) = x + delta;
+  }
+
+  template <int G, int L>
+  typename enable_if<(G != L), void>::type Plus(const Parameters& x,
+                                                const Delta& delta,
+                                                Parameters* x_delta) {
+    localParameterization_->Plus(x.data(), delta.data(), x_delta->data());
   }
 };
 

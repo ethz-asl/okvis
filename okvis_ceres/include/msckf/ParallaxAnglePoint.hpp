@@ -293,6 +293,11 @@ class ParallaxAnglePoint {
     memcpy(parameters->data() + 4, theta_.data(), sizeof(double) * 2);
   }
 
+  void copy(Eigen::Matrix<double, 6, 1>* parameters) const {
+    memcpy(parameters->data(), n_.data(), sizeof(double) * 4);
+    memcpy(parameters->data() + 4, theta_.data(), sizeof(double) * 2);
+  }
+
   void set(const double* parameters) {
     n_ = NormalVectorElement(Eigen::Map<const Eigen::Quaterniond>(parameters));
     theta_.set(parameters + 4);
