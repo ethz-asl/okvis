@@ -1,9 +1,10 @@
 #ifndef INCLUDE_MSCKF_PARALLAX_ANGLE_POINT_HPP_
 #define INCLUDE_MSCKF_PARALLAX_ANGLE_POINT_HPP_
 
-#include <Eigen/Geometry>
 #include <iostream>
 #include <random>
+#include <Eigen/Geometry>
+#include <okvis/kinematics/Transformation.hpp> // for optimizing a PAP point.
 
 namespace LWF {
 typedef Eigen::Quaterniond QPD;
@@ -312,8 +313,27 @@ class ParallaxAnglePoint {
     theta_.boxPlus(vecIn.tail<1>(), stateOut.theta_);
   }
 
+  bool initializePosition(
+      const std::vector<Eigen::Vector3d,
+                        Eigen::aligned_allocator<Eigen::Vector3d>>&
+          observationsxy1,
+      const std::vector<
+          okvis::kinematics::Transformation,
+          Eigen::aligned_allocator<okvis::kinematics::Transformation>>& T_WC_list,
+      const std::vector<int>& anchorIndices);
+
   NormalVectorElement n_;
   AngleElement theta_;
+
+private:
+  bool optimizePosition(
+      const std::vector<Eigen::Vector3d,
+                        Eigen::aligned_allocator<Eigen::Vector3d>>&
+          observationsxy1,
+      const std::vector<
+          okvis::kinematics::Transformation,
+          Eigen::aligned_allocator<okvis::kinematics::Transformation>>& T_WC_list,
+      const std::vector<int>& anchorIndices);
 };
 
 }  // namespace LWF

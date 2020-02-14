@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <msckf/ParallaxAnglePoint.hpp>
+#include "SimulatedMotionForParallaxAngleTest.hpp"
 
 class ParallaxAnglePointTest : public ::testing::Test {
  protected:
@@ -92,4 +93,15 @@ TEST_F(AngleElementTest, boxMinusJac) {
   angle2.boxMinus(angle0_, deltah);
 
   EXPECT_NEAR(jac(0, 0), (deltah(0, 0) - delta(0, 0)) / h, 1e-7);
+}
+
+TEST(ParallaxAnglePoint, initialize) {
+  simul::SimulatedMotionForParallaxAngleTest smpat(simul::MotionType::Sideways);
+  LWF::ParallaxAnglePoint refPap = smpat.pap();
+  EXPECT_EQ(smpat.observationListStatus_, simul::SimulatedMotionForParallaxAngleTest::Healthy);
+  LWF::ParallaxAnglePoint pap;
+  pap.initializePosition(smpat.observations(), smpat.T_WC_list(),
+                         smpat.anchorIndices());
+  EXPECT_LT((pap.getVec() - refPap.getVec()).lpNorm<Eigen::Infinity>(), 1e-6);
+  EXPECT_NEAR(pap.getAngle(), refPap.getAngle(), 1e-6);
 }
