@@ -52,12 +52,15 @@ inline Eigen::Matrix3d RotY(double theta) {
 
 class SimulatedMotionForParallaxAngleTest {
  public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   enum ProjectionListStatus {
     Healthy = 0,
     MainAnchorFailed = 1,
     AssociateAnchorFailed = 2,
   };
-  SimulatedMotionForParallaxAngleTest(MotionType motion) : motionType_(motion) {
+  SimulatedMotionForParallaxAngleTest(MotionType motion,
+                                      bool addOutlierObservation)
+      : motionType_(motion) {
     srand((unsigned int)time(0));  // comment this for deterministic behavior
     const double a = 1.0;
     const double root3 = std::sqrt(3.0);
@@ -70,35 +73,7 @@ class SimulatedMotionForParallaxAngleTest {
     observationListStatus_ = Healthy;
     switch (motionType_) {
       case Sideways:
-        pW_ << a, -a, root3 * a;
-        T_WCm_ = okvis::kinematics::Transformation(
-            Eigen::Vector3d(0, 0, 0), Eigen::Quaterniond::Identity());
-        T_WCa_ = okvis::kinematics::Transformation(
-            Eigen::Vector3d(2 * a, 0, 0), Eigen::Quaterniond::Identity());
-        T_WCj_ = okvis::kinematics::Transformation(
-            Eigen::Vector3d(a, 0, 0), Eigen::Quaterniond::Identity());
-        T_WC_list_.push_back(T_WCm_);
-        T_WC_list_.push_back(T_WCa_);
-        T_WC_list_.push_back(T_WCj_);
-
-        for (size_t j = 0; j < T_WC_list_.size(); ++j) {
-          Eigen::Vector3d xy1;
-          bool projectOk = computeObservationXY1(pW_, T_WC_list_.at(j), &xy1, true);
-          observationsxy1_.push_back(xy1);
-          projectionStatus.push_back(projectOk);
-        }
-        if (!projectionStatus[0]) {
-          observationListStatus_ = MainAnchorFailed;
-        }
-        if (!projectionStatus[1]) {
-          observationListStatus_ = AssociateAnchorFailed;
-        }
-        msckf::removeUnsetMatrices<okvis::kinematics::Transformation>(
-            &T_WC_list_, projectionStatus);
-        msckf::removeUnsetMatrices<Eigen::Vector3d>(&observationsxy1_,
-                                                    projectionStatus);
-        anchorObservationIndices_.push_back(0);
-        anchorObservationIndices_.push_back(1);
+        simulateSidewaysMotion(a, addOutlierObservation);
         break;
       case Forward:
         pW_ << 0, -a, (2+root3)* a;
@@ -298,6 +273,55 @@ class SimulatedMotionForParallaxAngleTest {
       return false;
     }
     return true;
+  }
+
+  void simulateSidewaysMotion(double a, bool addOutlier) {
+    const double root3 = std::sqrt(3.0);
+    std::vector<bool> projectionStatus;
+    projectionStatus.reserve(8);
+    pW_ << a, -a, root3 * a;
+    T_WCm_ = okvis::kinematics::Transformation(Eigen::Vector3d(0, 0, 0),
+                                               Eigen::Quaterniond::Identity());
+    T_WCa_ = okvis::kinematics::Transformation(Eigen::Vector3d(2 * a, 0, 0),
+                                               Eigen::Quaterniond::Identity());
+    T_WCj_ = okvis::kinematics::Transformation(Eigen::Vector3d(a, 0, 0),
+                                               Eigen::Quaterniond::Identity());
+    T_WC_list_.push_back(T_WCm_);
+    T_WC_list_.push_back(T_WCa_);
+    T_WC_list_.push_back(T_WCj_);
+    int augmentedObservations = 4;
+    for (size_t j = 0; j < augmentedObservations; ++j) {
+      T_WC_list_.emplace_back(Eigen::Vector3d(a + 0.4 * a * (j + 1), 0, 0),
+                              Eigen::Quaterniond::Identity());
+    }
+    for (size_t j = 0; j < T_WC_list_.size(); ++j) {
+      Eigen::Vector3d xy1;
+      bool projectOk = computeObservationXY1(pW_, T_WC_list_.at(j), &xy1, true);
+      observationsxy1_.push_back(xy1);
+      projectionStatus.push_back(projectOk);
+    }
+    if (!projectionStatus[0]) {
+      observationListStatus_ = MainAnchorFailed;
+    }
+    if (!projectionStatus[1]) {
+      observationListStatus_ = AssociateAnchorFailed;
+    }
+    msckf::removeUnsetMatrices<okvis::kinematics::Transformation>(
+        &T_WC_list_, projectionStatus);
+    msckf::removeUnsetMatrices<Eigen::Vector3d>(&observationsxy1_,
+                                                projectionStatus);
+    if (addOutlier) {
+      std::random_device rd;
+      std::mt19937 gen(rd());
+      std::uniform_int_distribution<> dis(2, T_WC_list_.size() - 1);
+      int outlierIndex = dis(gen);
+      std::cout << "real " << observationsxy1_[outlierIndex].transpose() << std::endl;
+      observationsxy1_[outlierIndex] = Eigen::Vector3d::Random();
+      observationsxy1_[outlierIndex][2] = 1.0;
+      std::cout << "outlier " << observationsxy1_[outlierIndex].transpose() << std::endl;
+    }
+    anchorObservationIndices_.push_back(0);
+    anchorObservationIndices_.push_back(1);
   }
 
   okvis::kinematics::Transformation T_WCm_;

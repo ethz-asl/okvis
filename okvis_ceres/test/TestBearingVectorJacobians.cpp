@@ -23,21 +23,21 @@ TEST(VectorNormalizationJacobian, Evaluate) {
   EXPECT_LT((numericJac - jac).lpNorm<Eigen::Infinity>(), eps);
 }
 
-#define DirectionFromParallaxAngleSubTest(METHOD, JACTYPE, EPS)            \
-  TEST(DirectionFromParallaxAngle, METHOD) {                               \
-    for (int i = simul::MotionType::Sideways;                              \
-         i <= simul::MotionType::AssociateObserver; i++) {                 \
-      simul::MotionType mt = static_cast<simul::MotionType>(i);            \
-      simul::SimulatedMotionForParallaxAngleTest simulatedMotion(mt);      \
-      JACTYPE numericJac;                                                  \
-      simulatedMotion.METHOD(&numericJac);                                 \
-      JACTYPE analyticJac;                                                 \
-      simulatedMotion.dfpaj_.METHOD(&analyticJac);                         \
-      EXPECT_LT((numericJac - analyticJac).lpNorm<Eigen::Infinity>(), EPS) \
-          << #METHOD << ", " << mt << ", numeric\n"                        \
-          << numericJac << "\nanalytic\n"                                  \
-          << analyticJac;                                                  \
-    }                                                                      \
+#define DirectionFromParallaxAngleSubTest(METHOD, JACTYPE, EPS)              \
+  TEST(DirectionFromParallaxAngle, METHOD) {                                 \
+    for (int i = simul::MotionType::Sideways;                                \
+         i <= simul::MotionType::AssociateObserver; i++) {                   \
+      simul::MotionType mt = static_cast<simul::MotionType>(i);              \
+      simul::SimulatedMotionForParallaxAngleTest simulatedMotion(mt, false); \
+      JACTYPE numericJac;                                                    \
+      simulatedMotion.METHOD(&numericJac);                                   \
+      JACTYPE analyticJac;                                                   \
+      simulatedMotion.dfpaj_.METHOD(&analyticJac);                           \
+      EXPECT_LT((numericJac - analyticJac).lpNorm<Eigen::Infinity>(), EPS)   \
+          << #METHOD << ", " << mt << ", numeric\n"                          \
+          << numericJac << "\nanalytic\n"                                    \
+          << analyticJac;                                                    \
+    }                                                                        \
   }
 
 DirectionFromParallaxAngleSubTest(dN_dp_WCmi, Eigen::Matrix3d, 1e-6)
@@ -55,7 +55,7 @@ DirectionFromParallaxAngleSubTest(dN_dni, M32D, 5e-6)
 
 TEST(DirectionFromParallaxAngleAssociate, dN_dp_WCai) {
   simul::SimulatedMotionForParallaxAngleTest simulatedMotion(
-      simul::MotionType::AssociateObserver);
+      simul::MotionType::AssociateObserver, false);
   Eigen::Matrix3d numericJac;
   simulatedMotion.dN_dp_WCai(&numericJac);
 

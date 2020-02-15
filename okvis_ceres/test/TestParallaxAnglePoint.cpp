@@ -3,6 +3,8 @@
 #include "SimulatedMotionForParallaxAngleTest.hpp"
 
 class ParallaxAnglePointTest : public ::testing::Test {
+ public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
  protected:
   ParallaxAnglePointTest() {}
   void SetUp() override {
@@ -44,6 +46,8 @@ TEST_F(ParallaxAnglePointTest, GetTheta) {
 }
 
 class AngleElementTest : public ::testing::Test {
+ public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
  protected:
   AngleElementTest() {}
   void SetUp() override {
@@ -95,13 +99,53 @@ TEST_F(AngleElementTest, boxMinusJac) {
   EXPECT_NEAR(jac(0, 0), (deltah(0, 0) - delta(0, 0)) / h, 1e-7);
 }
 
-TEST(ParallaxAnglePoint, initialize) {
-  simul::SimulatedMotionForParallaxAngleTest smpat(simul::MotionType::Sideways);
+void testParallaxAnglePointOptimization(bool addOutlier) {
+  simul::SimulatedMotionForParallaxAngleTest smpat(simul::MotionType::Sideways,
+                                                   addOutlier);
   LWF::ParallaxAnglePoint refPap = smpat.pap();
-  EXPECT_EQ(smpat.observationListStatus_, simul::SimulatedMotionForParallaxAngleTest::Healthy);
+  EXPECT_EQ(smpat.observationListStatus_,
+            simul::SimulatedMotionForParallaxAngleTest::Healthy);
   LWF::ParallaxAnglePoint pap;
   pap.initializePosition(smpat.observations(), smpat.T_WC_list(),
                          smpat.anchorIndices());
-  EXPECT_LT((pap.getVec() - refPap.getVec()).lpNorm<Eigen::Infinity>(), 1e-6);
-  EXPECT_NEAR(pap.getAngle(), refPap.getAngle(), 1e-6);
+  EXPECT_LT((pap.getVec() - refPap.getVec()).lpNorm<Eigen::Infinity>(), 1e-3);
+  EXPECT_NEAR(pap.getAngle(), refPap.getAngle(), 5e-3);
+  // perturb bearing vector
+  {
+    double lower_bound = 0.1;
+    double upper_bound = 0.2;
+    std::uniform_real_distribution<double> unif(lower_bound, upper_bound);
+    std::default_random_engine re;
+    double deltax = unif(re);
+    double deltay = unif(re);
+    Eigen::Vector3d bearingVector = pap.getVec();
+    bearingVector[0] += deltax;
+    bearingVector[1] += deltay;
+    pap.n_.setFromVector(bearingVector);
+  }
+  // perturb angle
+  {
+    double theta = pap.getAngle();
+    double lower_bound = 5 * M_PI / 180;
+    double upper_bound = 20 * M_PI / 180;
+    std::uniform_real_distribution<double> unif(lower_bound, upper_bound);
+    std::default_random_engine re;
+    double delta = unif(re);
+    double theta_delta = theta + delta;
+    pap.theta_.setFromCosine(std::cos(theta_delta));
+  }
+  EXPECT_GT((pap.getVec() - refPap.getVec()).lpNorm<Eigen::Infinity>(), 0.05);
+  EXPECT_GT(std::fabs(pap.getAngle() - refPap.getAngle()), 5 * M_PI/180);
+  pap.optimizePosition(smpat.observations(), smpat.T_WC_list(),
+                         smpat.anchorIndices());
+  EXPECT_LT((pap.getVec() - refPap.getVec()).lpNorm<Eigen::Infinity>(), 2e-3);
+  EXPECT_NEAR(pap.getAngle(), refPap.getAngle(), 5e-3);
+}
+
+TEST(ParallaxAnglePoint, OptimizationWithPerturbation) {
+  testParallaxAnglePointOptimization(false);
+}
+
+TEST(ParallaxAnglePoint, OptimizationWithOutlier) {
+  testParallaxAnglePointOptimization(true);
 }

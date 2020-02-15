@@ -327,10 +327,6 @@ class ParallaxAnglePoint {
           Eigen::aligned_allocator<okvis::kinematics::Transformation>>& T_WC_list,
       const std::vector<int>& anchorIndices);
 
-  NormalVectorElement n_;
-  AngleElement theta_;
-
-private:
   bool optimizePosition(
       const std::vector<Eigen::Vector3d,
                         Eigen::aligned_allocator<Eigen::Vector3d>>&
@@ -339,6 +335,9 @@ private:
           okvis::kinematics::Transformation,
           Eigen::aligned_allocator<okvis::kinematics::Transformation>>& T_WC_list,
       const std::vector<int>& anchorIndices);
+
+  NormalVectorElement n_;
+  AngleElement theta_;
 };
 
 }  // namespace LWF

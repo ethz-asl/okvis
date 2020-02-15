@@ -21,10 +21,7 @@ bool ParallaxAnglePoint::initializePosition(
   double cos_theta = W_d_m.dot(W_d_a);
   n_.setFromVector(d_m);
   theta_.setFromCosine(cos_theta);
-
-  bool optimizedOk = optimizePosition(
-        observationsxy1, T_WC_list, anchorIndices);
-  return optimizedOk;
+  return true;
 }
 
 bool ParallaxAnglePoint::optimizePosition(
