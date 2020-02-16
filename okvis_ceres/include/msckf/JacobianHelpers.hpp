@@ -10,6 +10,7 @@
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
+#include <glog/logging.h> // CHECK_GT
 #include <okvis/kinematics/Transformation.hpp>
 
 namespace okvis {
@@ -54,7 +55,7 @@ Eigen::Quaternion<Scalar> expAndTheta(const Eigen::Matrix<Scalar, 3, 1> & omega)
     Scalar half_theta = static_cast<Scalar>(0.5)*(theta);
 
     Scalar imag_factor;
-    Scalar real_factor;;
+    Scalar real_factor;
     if(theta<SophusConstants<Scalar>::epsilon()) {
       Scalar theta_po4 = theta_sq*theta_sq;
       imag_factor = static_cast<Scalar>(0.5)
@@ -73,6 +74,49 @@ Eigen::Quaternion<Scalar> expAndTheta(const Eigen::Matrix<Scalar, 3, 1> & omega)
                                                imag_factor*omega.x(),
                                                imag_factor*omega.y(),
                                                imag_factor*omega.z());
+}
+
+// From sophus so3.hpp
+template <typename Scalar>
+Eigen::Matrix<Scalar, 3, 1> logAndTheta(const Eigen::Quaternion<Scalar> & other,
+                          Scalar * theta) {
+  Scalar squared_n
+      = other.vec().squaredNorm();
+  Scalar n = sqrt(squared_n);
+  Scalar w = other.w();
+
+  Scalar two_atan_nbyw_by_n;
+
+  // Atan-based log thanks to
+  //
+  // C. Hertzberg et al.:
+  // "Integrating Generic Sensor Fusion Algorithms with Sound State
+  // Representation through Encapsulation of Manifolds"
+  // Information Fusion, 2011
+
+  if (n < SophusConstants<Scalar>::epsilon()) {
+    // If quaternion is normalized and n=0, then w should be 1;
+    // w=0 should never happen here!
+    CHECK_GT(abs(w), SophusConstants<Scalar>::epsilon()) <<
+                  "Quaternion should be normalized!";
+    Scalar squared_w = w*w;
+    two_atan_nbyw_by_n = static_cast<Scalar>(2) / w
+                         - static_cast<Scalar>(2)*(squared_n)/(w*squared_w);
+  } else {
+    if (abs(w)<SophusConstants<Scalar>::epsilon()) {
+      if (w > static_cast<Scalar>(0)) {
+        two_atan_nbyw_by_n = M_PI/n;
+      } else {
+        two_atan_nbyw_by_n = -M_PI/n;
+      }
+    }else{
+      two_atan_nbyw_by_n = static_cast<Scalar>(2) * atan(n/w) / n;
+    }
+  }
+
+  *theta = two_atan_nbyw_by_n*n;
+
+  return two_atan_nbyw_by_n * other.vec();
 }
 
 template <int globalDim, int localDim, int numResiduals>

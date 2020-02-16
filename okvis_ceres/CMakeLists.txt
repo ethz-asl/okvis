@@ -72,6 +72,7 @@ if(BUILD_TESTS)
     test/TestBearingResiduals.cpp
     test/TestCeresTinySolver.cpp
     test/TestEstimator.cpp
+    test/TestExtrinsicModels.cpp
     test/TestHomogeneousPointError.cpp
     test/TestReprojectionError.cpp
     test/TestImuError.cpp

@@ -7,6 +7,8 @@
 
 #include <msckf/JacobianHelpers.hpp>
 #include <msckf/ModelSwitch.hpp>
+
+#include <okvis/ceres/PoseLocalParameterization.hpp>
 #include <okvis/kinematics/Transformation.hpp>
 #include <okvis/kinematics/operators.hpp>
 
@@ -120,6 +122,16 @@ class Extrinsic_p_CB final : public ::ceres::LocalParameterization {
       std::pair<Eigen::Matrix<Scalar, 3, 1>, Eigen::Quaternion<Scalar>>* T_BC) {
     Eigen::Map<const Eigen::Matrix<Scalar, 3, 1>> delta_t(deltaT_BC);
     T_BC->first -= T_BC->second * delta_t;
+  }
+
+  template <typename Scalar>
+  static void ominus(const Scalar* x,
+                     const Scalar* x_delta,
+                     Scalar* delta) {
+    Eigen::Map<const Eigen::Quaternion<Scalar>> q(x + 3);
+    Eigen::Map<Eigen::Vector3d> deltaVec(delta);
+    deltaVec = q.conjugate() * (Eigen::Map<const Eigen::Vector3d>(x) -
+                                Eigen::Map<const Eigen::Vector3d>(x_delta));
   }
 
   static void toParamsInfo(const std::string delimiter,
@@ -273,6 +285,24 @@ class Extrinsic_p_BC_q_BC final : public ::ceres::LocalParameterization {
     T_BC->second = dqSC * T_BC->second;
   }
 
+  template <typename Scalar>
+  static void ominus(const Scalar* x,
+                     const Scalar* x_plus_delta,
+                     Scalar* delta) {
+    // Warning: Do not use the below coarse implementation.
+//    okvis::ceres::PoseLocalParameterization::minus(x, x_plus_delta, delta);
+
+    delta[0] = x_plus_delta[0] - x[0];
+    delta[1] = x_plus_delta[1] - x[1];
+    delta[2] = x_plus_delta[2] - x[2];
+    const Eigen::Quaterniond q_plus_delta_(x_plus_delta[6], x_plus_delta[3],
+                                           x_plus_delta[4], x_plus_delta[5]);
+    const Eigen::Quaterniond q_(x[6], x[3], x[4], x[5]);
+    Eigen::Map<Eigen::Vector3d> delta_q_(&delta[3]);
+    double theta;
+    delta_q_ = okvis::ceres::logAndTheta(q_plus_delta_ * q_.inverse(), &theta);
+  }
+
   static void toParamsInfo(const std::string delimiter,
                            std::string* extrinsic_format) {
     *extrinsic_format = "p_BC_S_x[m]" + delimiter + "p_BC_S_y" + delimiter +
@@ -415,6 +445,22 @@ inline void ExtrinsicModelUpdateState(int model_id, const Eigen::Vector3d& r,
 #define EXTRINSIC_MODEL_CASE(ExtrinsicModel) \
   case ExtrinsicModel::kModelId:             \
     return ExtrinsicModel::updateState(r, q, delta, r_delta, q_delta);
+
+    MODEL_SWITCH_CASES
+
+#undef EXTRINSIC_MODEL_CASE
+#undef MODEL_CASES
+  }
+}
+
+inline void ExtrinsicModelBoxminus(int model_id, const double* rq,
+                                   const double* rq_delta,
+                                   double* delta) {
+  switch (model_id) {
+#define MODEL_CASES EXTRINSIC_MODEL_CASES
+#define EXTRINSIC_MODEL_CASE(ExtrinsicModel) \
+  case ExtrinsicModel::kModelId:             \
+    return ExtrinsicModel::ominus(rq, rq_delta, delta);
 
     MODEL_SWITCH_CASES
 
