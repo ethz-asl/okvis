@@ -4,8 +4,6 @@
  * @brief Header implementation file for the ChordalDistance class.
  * @author Jianzhu Huai
  */
-#include "ceres/internal/autodiff.h"
-
 #include <okvis/ceres/MarginalizationError.hpp>
 #include <okvis/kinematics/Transformation.hpp>
 #include <okvis/kinematics/operators.hpp>
