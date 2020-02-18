@@ -49,6 +49,8 @@ bool ParallaxAnglePoint::optimizePosition(
   solver.localParameterization_ = &localPap;
   solver.Solve(f, &x);
   set(x.data());
-  return true;
+  return solver.summary.status !=
+         msckf::ceres::TinySolver<
+             msckf::BearingResiduals>::Status::HIT_MAX_ITERATIONS;
 }
 } // namespace LWF

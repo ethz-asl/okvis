@@ -264,7 +264,8 @@ class CameraRig {
 const int kReprojectionErrorId = 0;
 const int kEpipolarFactorId = 1;
 const int kChordalDistanceId = 2;
-const int kTangentDistanceId = 3;
+const int kReprojectionErrorWithPapId = 3;
+const int kTangentDistanceId = 4;
 
 #ifndef RESIDUAL_MODEL_SWITCH_CASES
 #define RESIDUAL_MODEL_SWITCH_CASES          \
@@ -292,6 +293,7 @@ inline int CameraObservationModelResidualDim(int modelId) {
     case kChordalDistanceId:
       return 3;
     case kReprojectionErrorId:
+    case kReprojectionErrorWithPapId:
     case kTangentDistanceId:
     default:
       return 2;
