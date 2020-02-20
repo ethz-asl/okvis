@@ -1,6 +1,7 @@
 #ifndef INCLUDE_MSCKF_DIRECTION_FROM_PARALLAX_ANGLE_JACOBIAN_HPP_
 #define INCLUDE_MSCKF_DIRECTION_FROM_PARALLAX_ANGLE_JACOBIAN_HPP_
 
+#include <ostream>
 #include <msckf/JacobianHelpers.hpp>
 #include <msckf/ParallaxAnglePoint.hpp>
 #include <okvis/kinematics/Transformation.hpp>
@@ -83,7 +84,7 @@ class DirectionFromParallaxAngleJacobian {
   void dN_dni(Eigen::Matrix<double, 3, 2>* j) const {
     Eigen::Matrix3d N_Wni;
     dN_dWni(&N_Wni);
-    *j = N_Wni * pap_.n_.getM();
+    *j = N_Wni * T_WCmi_.second.toRotationMatrix() * pap_.n_.getM();
   }
 
   void dN_dthetai(Eigen::Vector3d* j) const {
@@ -91,6 +92,15 @@ class DirectionFromParallaxAngleJacobian {
                ct_ * (b_ - a_.dot(W_ni_) * W_ni_);
   }
 
+  void print(std::ostream& os) {
+    os << "p_WCmi: " << T_WCmi_.first.transpose()
+       << " q_WCmi: " << T_WCmi_.second.coeffs().transpose()
+       << "\np_WCai: " << p_WCai_.transpose()
+       << " p_WCtij:" << p_WCtij_.transpose() << "\nbearing "
+       << pap_.n_.getVec().transpose() << " theta " << pap_.theta_.getAngle();
+  }
+
+ private:
   void dN_da(Eigen::Matrix3d* j) const {
     *j = -ct_ * W_ni_ * axn_normalized_.transpose() *
              okvis::kinematics::crossMx(W_ni_) -

@@ -175,12 +175,10 @@ class NormalVectorElement
     s++;
   }
   void fix() { q_.normalize(); }
-  mtGet& get(unsigned int i = 0) {
-    assert(i == 0);
+  mtGet& get(unsigned int /*i*/ = 0) {
     return *this;
   }
-  const mtGet& get(unsigned int i = 0) const {
-    assert(i == 0);
+  const mtGet& get(unsigned int /*i*/ = 0) const {
     return *this;
   }
   Eigen::Matrix<double, 3, 2> getM() const {

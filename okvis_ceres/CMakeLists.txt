@@ -38,6 +38,7 @@ add_library(${PROJECT_NAME}
   msckf/PointLandmarkModels.cpp
   msckf/PointSharedData.cpp
   msckf/PriorlessEstimator.cpp
+  msckf/SimulatedMotionForParallaxAngleTest.cpp
   msckf/checkSensorRig.cpp
 )
 

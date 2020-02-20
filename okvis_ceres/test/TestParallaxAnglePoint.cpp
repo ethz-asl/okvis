@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 #include <msckf/ParallaxAnglePoint.hpp>
-#include "SimulatedMotionForParallaxAngleTest.hpp"
+#include "msckf/SimulatedMotionForParallaxAngleTest.hpp"
 
 class ParallaxAnglePointTest : public ::testing::Test {
  public:

@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "SimulatedMotionForParallaxAngleTest.hpp"
+#include "msckf/SimulatedMotionForParallaxAngleTest.hpp"
 
 TEST(VectorNormalizationJacobian, Evaluate) {
   Eigen::Vector3d vec;
