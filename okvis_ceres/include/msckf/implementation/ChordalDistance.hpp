@@ -9,6 +9,7 @@
 #include <okvis/kinematics/operators.hpp>
 
 #include <msckf/DirectionFromParallaxAngleJacobian.hpp>
+#include <msckf/EpipolarJacobian.hpp>
 #include <msckf/JacobianHelpers.hpp>
 #include <msckf/Measurements.hpp>
 #include <msckf/SimpleImuOdometry.hpp>

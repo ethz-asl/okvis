@@ -10,7 +10,7 @@
 
 namespace msckf {
 void PointSharedData::computePoseAndVelocityAtObservation() {
-  CHECK(status_ == PointSharedDataState::ImuInfoReady)
+  CHECK(status_ >= PointSharedDataState::ImuInfoReady)
       << "Set IMU data, params, camera time params before calling this method.";
   int imuModelId = okvis::ImuModelNameToId(imuParameters_->model_type);
   Eigen::Matrix<double, -1, 1> vTGTSTA;

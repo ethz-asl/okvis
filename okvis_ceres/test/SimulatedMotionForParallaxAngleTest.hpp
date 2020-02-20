@@ -50,6 +50,9 @@ inline Eigen::Matrix3d RotY(double theta) {
   return roty;
 }
 
+typedef std::vector<okvis::kinematics::Transformation,
+Eigen::aligned_allocator<okvis::kinematics::Transformation>> TransformationList;
+
 class SimulatedMotionForParallaxAngleTest {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -290,7 +293,7 @@ class SimulatedMotionForParallaxAngleTest {
     T_WC_list_.push_back(T_WCa_);
     T_WC_list_.push_back(T_WCj_);
     int augmentedObservations = 4;
-    for (size_t j = 0; j < augmentedObservations; ++j) {
+    for (int j = 0; j < augmentedObservations; ++j) {
       T_WC_list_.emplace_back(Eigen::Vector3d(a + 0.4 * a * (j + 1), 0, 0),
                               Eigen::Quaterniond::Identity());
     }
@@ -335,9 +338,7 @@ class SimulatedMotionForParallaxAngleTest {
 
   std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d>>
       observationsxy1_;
-  std::vector<okvis::kinematics::Transformation,
-              Eigen::aligned_allocator<okvis::kinematics::Transformation>>
-      T_WC_list_;
+  TransformationList T_WC_list_;
   std::vector<int> anchorObservationIndices_;
 };
 }

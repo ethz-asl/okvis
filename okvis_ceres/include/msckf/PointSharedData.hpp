@@ -96,7 +96,7 @@ class PointSharedData {
   }
 
   void setImuAugmentedParameterPtrs(
-      std::vector<std::shared_ptr<const okvis::ceres::ParameterBlock>>&
+      const std::vector<std::shared_ptr<const okvis::ceres::ParameterBlock>>&
           imuAugmentedParamBlockPtrs,
       const okvis::ImuParameters* imuParams) {
     imuAugmentedParamBlockPtrs_ = imuAugmentedParamBlockPtrs;

@@ -104,3 +104,16 @@ TEST_F(TransformMultiplyTest, rotationJacobians) {
             eps) << "dtheta_dtheta_BC\n" << dtheta_dtheta_BC << "\n dtheta_ddelta_BC_.topRightCorner<3, 3>()\n"
                  << dtheta_ddelta_BC_.topRightCorner<3, 3>();
 }
+
+TEST(TransformMultiply, multiply) {
+  okvis::kinematics::Transformation T_AB, T_BC, T_AC;
+  T_AB.setRandom();
+  T_BC.setRandom();
+  T_AC = T_AB * T_BC;
+  msckf::TransformMultiplyJacobian tmj(T_AB, T_BC);
+  okvis::kinematics::Transformation T_AC_computed = tmj.multiplyT();
+  std::pair<Eigen::Vector3d, Eigen::Quaterniond> pair_T_AC = tmj.multiply();
+  EXPECT_LT((T_AC.T() - T_AC_computed.T()).lpNorm<Eigen::Infinity>(), 1e-8);
+  EXPECT_LT((T_AC.r() - pair_T_AC.first).lpNorm<Eigen::Infinity>(), 1e-8);
+  EXPECT_LT((T_AC.q().coeffs() - pair_T_AC.second.coeffs()).lpNorm<Eigen::Infinity>(), 1e-8);
+}
