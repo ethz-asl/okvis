@@ -38,18 +38,14 @@ template <class GEOMETRY_TYPE, class EXTRINSIC_MODEL,
           class PROJ_INTRINSIC_MODEL>
 class EpipolarFactor
     : public ::ceres::SizedCostFunction<
-          1 /* number of residuals */, 7 /* left pose */, 7 /* right pose */,
-          7 /* variable dim of extrinsics */,
-          PROJ_INTRINSIC_MODEL::kNumParams /* variable dim of proj intrinsics
-                                              (e.g., f, cx, cy) */
-          ,
+          1 /* residuals */, 7 /* left pose */, 7 /* right pose */,
+          7 /* extrinsics */,
+          PROJ_INTRINSIC_MODEL::kNumParams /* projecction intrinsics */,
           GEOMETRY_TYPE::distortion_t::NumDistortionIntrinsics,
-          1 /* frame readout time */,
-          1 /* time offset between visual and inertial data */
-          >,
+          1 /* readout time */,
+          1 /* camera time delay */>,
       public ReprojectionErrorBase /* use this base to simplify handling visual
-                                      constraints in marginalization.
-                                    */
+                                      constraints in marginalization. */
 {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW

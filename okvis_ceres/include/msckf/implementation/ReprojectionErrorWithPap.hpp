@@ -140,7 +140,7 @@ bool ReprojectionErrorWithPap<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MOD
         }
       }
     }
-    return true;
+    return valid;
   }
 
   Eigen::Matrix<double, 3, 1> t_BC_B(parameters[4][0], parameters[4][1],
@@ -547,7 +547,7 @@ bool ReprojectionErrorWithPap<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MOD
       }
     }
   }
-  return true;
+  return valid;
 }
 
 template <class GEOMETRY_TYPE, class PROJ_INTRINSIC_MODEL,

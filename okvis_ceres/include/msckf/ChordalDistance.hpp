@@ -106,7 +106,8 @@ class ChordalDistance
       const Eigen::Vector2d& imageObservation,
       const Eigen::Matrix2d& observationCovariance,
       int observationIndex,
-      std::shared_ptr<const msckf::PointSharedData> pointDataPtr);
+      std::shared_ptr<const msckf::PointSharedData> pointDataPtr,
+      bool R_WCnmf = false);
 
   /// \brief Trivial destructor.
   virtual ~ChordalDistance()
@@ -145,6 +146,29 @@ class ChordalDistance
                                             double* residuals,
                                             double** jacobians,
                                             double** jacobiansMinimal) const;
+
+  /**
+   * @brief EvaluateForMainAnchor evaluates the cost (n - f) and
+   *    jacobians when the main anchor is the observing frame.
+   * @param parameters
+   * @param residuals
+   * @param jacobians
+   * @return
+   */
+  bool EvaluateForMainAnchor(double const* const * parameters, double* residuals,
+                        double** jacobians, double** jacobiansMinimal) const;
+
+  /**
+   * @brief EvaluateForMainAnchorRWC evaluates the cost R_WC*(n - f) and
+   *    jacobians when the main anchor is the observing frame.
+   * @param parameters
+   * @param residuals
+   * @param jacobians
+   * @return
+   */
+  bool EvaluateForMainAnchorRWC(double const* const * parameters, double* residuals,
+                        double** jacobians, double** jacobiansMinimal) const;
+
 
   void setJacobiansZero(double** jacobians, double** jacobiansMinimal) const;
 
@@ -189,6 +213,9 @@ class ChordalDistance
 
   int observationIndex_; ///< Index of the observation in the map point shared data.
   std::shared_ptr<const msckf::PointSharedData> pointDataPtr_;
+  ///< use R_WC * (n_i - f_{mi}) or (n_i - f_{mi}) as error term when the
+  /// main anchor is the observing frame.
+  const bool R_WCnmf_;
 };
 
 }  // namespace ceres
