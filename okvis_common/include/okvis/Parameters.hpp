@@ -43,7 +43,6 @@
 
 #include <deque>
 #include <string>
-#include <unordered_map>
 #include <vector>
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Woverloaded-virtual"
@@ -63,17 +62,7 @@ struct ExtrinsicsEstimationParameters
 {
   // set to 0 in order to turn off
   /// \brief Default Constructor -- fixed camera extrinsics.
-  ExtrinsicsEstimationParameters()
-      : sigma_absolute_translation(0.0),
-        sigma_absolute_orientation(0.0),
-        sigma_c_relative_translation(0.0),
-        sigma_c_relative_orientation(0.0),
-        sigma_focal_length(0.0),
-        sigma_principal_point(0.0),
-        sigma_td(0.0),
-        sigma_tr(0.0)
-  {
-  }
+  ExtrinsicsEstimationParameters();
 
   /**
    * @brief Constructor.
@@ -85,13 +74,7 @@ struct ExtrinsicsEstimationParameters
   ExtrinsicsEstimationParameters(double sigma_absolute_translation,
                                  double sigma_absolute_orientation,
                                  double sigma_c_relative_translation,
-                                 double sigma_c_relative_orientation)
-      : sigma_absolute_translation(sigma_absolute_translation),
-        sigma_absolute_orientation(sigma_absolute_orientation),
-        sigma_c_relative_translation(sigma_c_relative_translation),
-        sigma_c_relative_orientation(sigma_c_relative_orientation)
-  {
-  }
+                                 double sigma_c_relative_orientation);
 
  public:
   // absolute (prior) w.r.t frame S
@@ -139,21 +122,7 @@ struct ImuParameters{
   Eigen::Matrix<double, 9, 1> Ts0;
   Eigen::Matrix<double, 9, 1> Ta0;
   std::string model_type; // 0 bg_ba, 1 bg_ba_Tg_Ts_Ta, 2, scaledmisaligned
-  ImuParameters()
-      : a_max(200.0),
-        g_max(10),
-        tau(3600.0),
-        g(9.80665),
-        g0(0, 0, 0),
-        a0(0, 0, 0),
-        rate(100),
-        model_type("BG_BA_TG_TS_TA") {
-    Eigen::Matrix<double, 9, 1> eye;
-    eye << 1, 0, 0, 0, 1, 0, 0, 0, 1;
-    Tg0 = eye;
-    Ts0.setZero();
-    Ta0 = eye;
-  }
+  ImuParameters();
 };
 
 /*!
@@ -276,37 +245,9 @@ enum class EstimatorAlgorithm {
   TFVIO = 5,  ///< Triangulate-free VIO with only epipolar constraints.
 };
 
-inline EstimatorAlgorithm EstimatorAlgorithmNameToId(std::string description) {
-  std::transform(description.begin(), description.end(), description.begin(),
-                 ::toupper);
-  std::unordered_map<std::string, EstimatorAlgorithm> descriptionToId{
-      {"OKVIS", EstimatorAlgorithm::OKVIS},
-      {"GENERAL", EstimatorAlgorithm::General},
-      {"PRIORLESS", EstimatorAlgorithm::Priorless},
-      {"MSCKF", EstimatorAlgorithm::MSCKF},
-      {"TFVIO", EstimatorAlgorithm::TFVIO}};
-  auto iter = descriptionToId.find(description);
-  if (iter == descriptionToId.end()) {
-    return EstimatorAlgorithm::OKVIS;
-  } else {
-    return iter->second;
-  }
-}
+EstimatorAlgorithm EstimatorAlgorithmNameToId(std::string description);
 
-inline std::string EstimatorAlgorithmIdToName(EstimatorAlgorithm id) {
-  std::unordered_map<EstimatorAlgorithm, std::string> idToDescription{
-      {EstimatorAlgorithm::OKVIS, "OKVIS"},
-      {EstimatorAlgorithm::General, "General"},
-      {EstimatorAlgorithm::Priorless, "Priorless"},
-      {EstimatorAlgorithm::MSCKF, "MSCKF"},
-      {EstimatorAlgorithm::TFVIO, "TFVIO"}};
-  auto iter = idToDescription.find(id);
-  if (iter == idToDescription.end()) {
-    return "OKVIS";
-  } else {
-    return iter->second;
-  }
-}
+std::string EstimatorAlgorithmIdToName(EstimatorAlgorithm id);
 
 /**
  * @brief Parameters for optimization and related things (detection).
@@ -336,20 +277,7 @@ struct Optimization{
   bool useEpipolarConstraint;
   int cameraObservationModelId;
   int landmarkModelId;
-  Optimization()
-      : keyframeInsertionOverlapThreshold(0.6),
-        keyframeInsertionMatchingRatioThreshold(0.2),
-        algorithm(EstimatorAlgorithm::OKVIS),
-        translationThreshold(0.4),
-        rotationThreshold(0.2618),
-        trackingRateThreshold(0.5),
-        minTrackLength(3u),
-        triangulationTranslationThreshold(-1.0),
-        triangulationMaxDepth(1000.0),
-        useEpipolarConstraint(false),
-        cameraObservationModelId(0),
-        landmarkModelId(0)
-  {}
+  Optimization();
 };
 
 /**
@@ -404,9 +332,7 @@ struct InitialState {
   Eigen::Vector3d std_q_WS;
   Eigen::Vector3d std_p_WS;  // std of the sensor position in the sensor frame
                              // at the start epoch expressed in that frame
-  InitialState() : bUseExternalInitState(false), stateTime(0, 0) {
-
-  }
+  InitialState();
 };
 
 /// @brief Struct to combine all parameters and settings.

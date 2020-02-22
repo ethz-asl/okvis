@@ -13,6 +13,7 @@ include_directories(${EIGEN_INCLUDE_DIR})
 
 # build the library
 add_library(${PROJECT_NAME} STATIC 
+  src/Parameters.cpp
   src/VioInterface.cpp
   src/VioParametersReader.cpp
   include/okvis/FrameTypedefs.hpp
