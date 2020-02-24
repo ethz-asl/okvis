@@ -898,7 +898,7 @@ void ThreadedKFVio::publisherLoop() {
     if (fullStateCallback_ && !result.onlyPublishLandmarks && result.isKeyframe)
       fullStateCallback_(result.stamp, result.T_WS, result.speedAndBiases,
                          result.omega_S, result.frameIdInSource);
-    if (fullStateCallbackWithExtrinsics_ && !result.onlyPublishLandmarks && result.isKeyframe)
+    if (fullStateCallbackWithExtrinsics_ && !result.onlyPublishLandmarks /*&& result.isKeyframe*/)
       fullStateCallbackWithExtrinsics_(result.stamp, result.T_WS,
                                        result.speedAndBiases, result.omega_S,
                                        result.frameIdInSource,
