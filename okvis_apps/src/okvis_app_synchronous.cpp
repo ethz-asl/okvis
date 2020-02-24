@@ -56,6 +56,7 @@
 #pragma GCC diagnostic ignored "-Woverloaded-virtual"
 #include <opencv2/opencv.hpp>
 #pragma GCC diagnostic pop
+#include <okvis/FullStateWithExtrinsicsAsCallback.hpp>
 #include <okvis/VioParametersReader.hpp>
 #include <okvis/ThreadedKFVio.hpp>
 
@@ -195,36 +196,6 @@ class PoseViewer
   std::atomic_bool showing_;
 };
 
-class ExtrinsicObserver {
- public:
-  void recordExtrinsicEstimate(
-      const okvis::Time &timestamp, const okvis::kinematics::Transformation &,
-      const Eigen::Matrix<double, 9, 1> &, const Eigen::Matrix<double, 3, 1> &,
-      const int,
-      const std::vector<
-          okvis::kinematics::Transformation,
-          Eigen::aligned_allocator<okvis::kinematics::Transformation>>
-          &vT_SCi) {
-    output_stream_ << timestamp.toNSec();
-    for (auto T_SC : vT_SCi) {
-      Eigen::Vector3d r = T_SC.r();
-      output_stream_ << " " << r[0] << " " << r[1] << " " << r[2];
-      Eigen::Vector4d q = T_SC.q().coeffs();
-      output_stream_ << " " << q[0] << " " << q[1] << " " << q[2] << " " << q[3];
-    }
-    output_stream_ << std::endl;
-  }
-  ExtrinsicObserver(const std::string &output_file)
-      : output_file_(output_file), output_stream_(output_file) {
-    if (!output_stream_.is_open()) {
-      std::cerr << "Warn: unable to open " << output_file << std::endl;
-    }
-  }
-  ~ExtrinsicObserver() { output_stream_.close(); }
-  std::string output_file_;
-  std::ofstream output_stream_;
-};
-
 // this is just a workbench. most of the stuff here will go into the Frontend class.
 int main(int argc, char **argv)
 {
@@ -260,9 +231,9 @@ int main(int argc, char **argv)
       std::bind(&PoseViewer::publishFullStateAsCallback, &poseViewer,
                 std::placeholders::_1, std::placeholders::_2,
                 std::placeholders::_3, std::placeholders::_4));
-  ExtrinsicObserver exObs(output_file);
+  okvis::FullStateWithExtrinsicsAsCallback exObs(output_file);
   okvis_estimator.setFullStateCallbackWithExtrinsics(
-      std::bind(&ExtrinsicObserver::recordExtrinsicEstimate, &exObs,
+      std::bind(&okvis::FullStateWithExtrinsicsAsCallback::save, &exObs,
                 std::placeholders::_1, std::placeholders::_2,
                 std::placeholders::_3, std::placeholders::_4,
                 std::placeholders::_5, std::placeholders::_6));
