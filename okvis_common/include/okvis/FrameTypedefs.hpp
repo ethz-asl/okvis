@@ -229,7 +229,8 @@ struct Observation
               size_t cameraIdx,
               uint64_t frameId,
               const Eigen::Vector4d& landmark_W,
-              uint64_t landmarkId, bool isInitialized)
+              uint64_t landmarkId, bool isInitialized,
+              int num_observations)
       : keypointIdx(keypointIdx),
         cameraIdx(cameraIdx),
         frameId(frameId),
@@ -237,7 +238,8 @@ struct Observation
         keypointSize(keypointSize),
         landmark_W(landmark_W),
         landmarkId(landmarkId),
-        isInitialized(isInitialized)
+        isInitialized(isInitialized),
+        numObservations(num_observations)
   {
   }
   Observation()
@@ -246,7 +248,8 @@ struct Observation
         frameId(0),
         keypointSize(0),
         landmarkId(0),
-        isInitialized(false)
+        isInitialized(false),
+        numObservations(0)
   {
   }
   size_t keypointIdx; ///< Keypoint ID.
@@ -257,6 +260,7 @@ struct Observation
   Eigen::Vector4d landmark_W;  ///< landmark as homogeneous point in body frame B
   uint64_t landmarkId;  ///< unique landmark ID
   bool isInitialized;   ///< Initialisation status of landmark
+  int numObservations; ///< Total number of observations for the landmark.
 };
 typedef std::vector<Observation, Eigen::aligned_allocator<Observation> > ObservationVector;
 

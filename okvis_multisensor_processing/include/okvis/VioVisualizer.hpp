@@ -97,6 +97,14 @@ class VioVisualizer {
    */
   cv::Mat drawMatches(VisualizationData::Ptr& data, size_t image_number);
   
+  /**
+   * @brief Circle keypoints with main direction and color with track length.
+   * @param data
+   * @param image_number
+   * @return
+   */
+  cv::Mat drawColoredKeypoints(VisualizationData::Ptr& data, size_t image_number) const;
+
  private:
   /**
    * @brief Circles all keypoints in the current frame and returns the result.

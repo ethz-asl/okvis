@@ -212,6 +212,38 @@ cv::Mat VioVisualizer::drawMatches(VisualizationData::Ptr& data,
   return outimg;
 }
 
+cv::Mat VioVisualizer::drawColoredKeypoints(
+    VisualizationData::Ptr& data, size_t image_number) const {
+  // KLT usually enjoys long track length, but descriptor matching is poor in this respect.
+  const size_t slidingWindowSize = (parameters_.optimization.numKeyframes +
+                                    parameters_.optimization.numImuFrames) / 2;
+  std::shared_ptr<okvis::MultiFrame> frame = data->currentFrames;
+  cv::Mat outimg;
+  cv::cvtColor(frame->image(image_number), outimg, CV_GRAY2BGR);
+
+  for (auto it = data->observations.begin(); it != data->observations.end();
+       ++it) {
+    if (it->cameraIdx != image_number) continue;
+    Eigen::Vector2d keypoint = it->keypointMeasurement;
+    if (it->numObservations) {
+      double len = std::min(1.0, 1.0 * it->numObservations / slidingWindowSize);
+      cv::Scalar color = cv::Scalar(0, 255 * len, 255 * (1 - len)); // Long tracks are green.
+      // draw keypoint
+      const double r = 0.7 * it->keypointSize;
+      cv::circle(outimg, cv::Point2f(keypoint[0], keypoint[1]), r, color, 2,
+                 CV_AA);
+      cv::KeyPoint cvKeypoint;
+      frame->getCvKeypoint(image_number, it->keypointIdx, cvKeypoint);
+      const double angle = cvKeypoint.angle / 180.0 * M_PI;
+      cv::line(outimg, cv::Point2f(keypoint[0], keypoint[1]),
+               cv::Point2f(keypoint[0], keypoint[1]) +
+                   cv::Point2f(cos(angle), sin(angle)) * r,
+               color, 1, CV_AA);
+    }
+  }
+  return outimg;
+}
+
 cv::Mat VioVisualizer::drawKeypoints(VisualizationData::Ptr& data,
                                      size_t cameraIndex) {
 
