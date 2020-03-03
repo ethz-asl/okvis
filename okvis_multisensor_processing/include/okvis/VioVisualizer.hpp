@@ -74,7 +74,8 @@ class VioVisualizer {
    * @brief Constructor.
    * @param parameters Parameters and settings.
    */
-  VioVisualizer(okvis::VioParameters& parameters);
+  VioVisualizer(okvis::VioParameters& parameters,
+                const std::string viewerNamePrefix="OKVIS camera");
   virtual ~VioVisualizer();
 
   /**
@@ -105,6 +106,10 @@ class VioVisualizer {
    */
   cv::Mat drawColoredKeypoints(VisualizationData::Ptr& data, size_t image_number) const;
 
+  inline std::string viewerNamePrefix() const {
+    return viewerNamePrefix_;
+  }
+
  private:
   /**
    * @brief Circles all keypoints in the current frame and returns the result.
@@ -116,6 +121,7 @@ class VioVisualizer {
 
   /// Parameters and settings.
   okvis::VioParameters parameters_;
+  std::string viewerNamePrefix_;
 };
 
 } /* namespace okvis */

@@ -58,8 +58,10 @@
 /// \brief okvis Main namespace of this package.
 namespace okvis {
 
-VioVisualizer::VioVisualizer(okvis::VioParameters& parameters)
-    : parameters_(parameters) {
+VioVisualizer::VioVisualizer(okvis::VioParameters& parameters,
+                             const std::string viewerNamePrefix)
+    : parameters_(parameters),
+      viewerNamePrefix_(viewerNamePrefix) {
   if (parameters.nCameraSystem.numCameras() > 0) {
     init(parameters);
   }
@@ -282,7 +284,7 @@ void VioVisualizer::showDebugImages(VisualizationData::Ptr& data) {
   // draw
   for (size_t im = 0; im < parameters_.nCameraSystem.numCameras(); im++) {
     std::stringstream windowname;
-    windowname << "OKVIS camera " << im;
+    windowname << viewerNamePrefix_ << " " << im;
     cv::imshow(windowname.str(), out_images[im]);
 	cv::waitKey(1);
   }
