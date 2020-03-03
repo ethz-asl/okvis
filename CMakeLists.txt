@@ -246,39 +246,37 @@ install(DIRECTORY ${CMAKE_BINARY_DIR}/lib/CMake/opengv/
   DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/CMake/opengv/)
 
 if(${BUILD_TESTS})
-  # gmock
-  # http://stackoverflow.com/questions/9689183/cmake-googletest
-#  ExternalProject_Add(
-#    googlemock
-#    URL file://${PROJECT_SOURCE_DIR}/external_libs/gmock-1.7.0.zip
-#    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/gmock
-#    CMAKE_ARGS -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS} -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
-#    BUILD_COMMAND make -j${N_CORES}
-#    INSTALL_COMMAND ""
-#  )
-#  ExternalProject_Get_Property(googlemock source_dir)
-#  set(GMOCK_INCLUDE_DIR ${source_dir}/include)
-#  set(GTEST_INCLUDE_DIR ${source_dir}/gtest/include)
-  set(GMOCK_INCLUDE_DIR /usr/include)
-  set(GTEST_INCLUDE_DIR /usr/include)
-  include_directories(BEFORE ${GMOCK_INCLUDE_DIR})
-  include_directories(BEFORE ${GTEST_INCLUDE_DIR})
-#  ExternalProject_Get_Property(googlemock binary_dir)
-#  set(GMOCK_LIBRARY_PATH ${binary_dir}/${CMAKE_FIND_LIBRARY_PREFIXES}gmock.a)
-  set(GMOCK_LIBRARY_PATH /usr/lib/libgmock.a)
+  # https://github.com/Crascit/DownloadProject/blob/master/CMakeLists.txt
+  if (CMAKE_VERSION VERSION_LESS 3.2)
+      set(UPDATE_DISCONNECTED_IF_AVAILABLE "")
+  else()
+      set(UPDATE_DISCONNECTED_IF_AVAILABLE "UPDATE_DISCONNECTED 1")
+  endif()
+
+  include("${PROJECT_SOURCE_DIR}/cmake/DownloadProject/DownloadProject.cmake")
+  download_project(PROJ                googletest
+                   PREFIX ${CMAKE_CURRENT_BINARY_DIR}/gtest
+                   GIT_REPOSITORY      https://github.com/google/googletest.git
+                   GIT_TAG             master
+                   ${UPDATE_DISCONNECTED_IF_AVAILABLE}
+  )
+  # Prevent GoogleTest from overriding our compiler/linker options
+  # when building with Visual Studio
+  set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+
+  add_subdirectory(${googletest_SOURCE_DIR} ${googletest_BINARY_DIR})
+
+  # When using CMake 2.8.11 or later, header path dependencies
+  # are automatically added to the gtest and gmock targets.
+  # For earlier CMake versions, we have to explicitly add the
+  # required directories to the header search path ourselves.
+  if (CMAKE_VERSION VERSION_LESS 2.8.11)
+      include_directories("${gtest_SOURCE_DIR}/include"
+                          "${gmock_SOURCE_DIR}/include")
+  endif()
+  # set library variables used by okvis modules.
   set(GMOCK_LIBRARY gmock)
-#  add_library(${GMOCK_LIBRARY} UNKNOWN IMPORTED)
-#  set_property(TARGET ${GMOCK_LIBRARY} PROPERTY IMPORTED_LOCATION
-#                  ${GMOCK_LIBRARY_PATH} )
-#  add_dependencies(${GMOCK_LIBRARY} googlemock)
-#  set(GTEST_LIBRARY_PATH ${binary_dir}/gtest/${CMAKE_FIND_LIBRARY_PREFIXES}gtest.a)
-#  set(GTEST_LIBRARY gtestlocal)
-  set(GTEST_LIBRARY_PATH /usr/lib/libgtest.a)
   set(GTEST_LIBRARY gtest)
-#  add_library(${GTEST_LIBRARY} UNKNOWN IMPORTED)
-#  set_property(TARGET ${GTEST_LIBRARY} PROPERTY IMPORTED_LOCATION
-#                  ${GTEST_LIBRARY_PATH})
-#  add_dependencies(${GTEST_LIBRARY} googlemock)
 endif()
 
 # BUILD LOCAL DEPENDENCIES
