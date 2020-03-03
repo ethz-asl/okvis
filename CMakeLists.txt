@@ -246,6 +246,9 @@ install(DIRECTORY ${CMAKE_BINARY_DIR}/lib/CMake/opengv/
   DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/CMake/opengv/)
 
 if(${BUILD_TESTS})
+  if(CATKIN_ENABLE_TESTING)
+  message("GTest found by catkin and its shared libraries will be used for OKVIS.")
+  else()
   # https://github.com/Crascit/DownloadProject/blob/master/CMakeLists.txt
   if (CMAKE_VERSION VERSION_LESS 3.2)
       set(UPDATE_DISCONNECTED_IF_AVAILABLE "")
@@ -274,6 +277,7 @@ if(${BUILD_TESTS})
       include_directories("${gtest_SOURCE_DIR}/include"
                           "${gmock_SOURCE_DIR}/include")
   endif()
+  endif() # use ros or not.
   # set library variables used by okvis modules.
   set(GMOCK_LIBRARY gmock)
   set(GTEST_LIBRARY gtest)
