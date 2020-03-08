@@ -332,6 +332,17 @@ class Map {
 
   /// @}
 
+  bool getParameterBlockMinimalCovariance(
+      uint64_t parameterBlockId,
+      Eigen::Matrix<double, -1, -1, Eigen::RowMajor>* param_covariance) const;
+
+  bool getParameterBlockMinimalCovariance(
+      const std::vector<uint64_t>& vParameterBlockId,
+      std::vector<Eigen::Matrix<double, -1, -1, Eigen::RowMajor>,
+                  Eigen::aligned_allocator<
+                      Eigen::Matrix<double, -1, -1, Eigen::RowMajor>>>* covList)
+      const;
+
   // Jacobian checker
   /**
    * @brief Check a Jacobian with numeric differences.

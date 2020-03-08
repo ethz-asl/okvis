@@ -387,7 +387,7 @@ class Estimator : public VioBackendInterface
     return -1;
   }
 
-  virtual void computeCovariance(Eigen::MatrixXd* cov) const;
+  virtual bool computeCovariance(Eigen::MatrixXd* cov) const;
 
   /// print out the most recent state vector and/or the stds of its elements. This
   /// function can be called in the optimizationLoop, but a better way to save

@@ -715,6 +715,86 @@ Map::ParameterBlockCollection Map::parameters(
   return it->second;
 }
 
+bool Map::getParameterBlockMinimalCovariance(
+    uint64_t parameterBlockId,
+    Eigen::Matrix<double, -1, -1, Eigen::RowMajor>* param_covariance) const {
+  if (!parameterBlockExists(parameterBlockId)) return false;
+  std::shared_ptr<ParameterBlock> parameterBlock =
+      id2ParameterBlock_Map_.find(parameterBlockId)->second;
+  ::ceres::Covariance::Options covariance_options;
+  // covariance_options.sparse_linear_algebra_library_type =
+  // ::ceres::SUITE_SPARSE;
+  covariance_options.algorithm_type = ::ceres::SPARSE_QR;
+  covariance_options.num_threads = 1;  // common::getNumHardwareThreads();
+  covariance_options.min_reciprocal_condition_number = 1e-32;
+  covariance_options.apply_loss_function = true;
+  ::ceres::Covariance covariance(covariance_options);
+  std::vector<std::pair<const double*, const double*> > covariance_blocks;
+  covariance_blocks.push_back(std::make_pair(parameterBlock->parameters(),
+                                             parameterBlock->parameters()));
+  if (!covariance.Compute(covariance_blocks, problem_.get())) {
+      return false;
+  }
+
+  size_t rows = parameterBlock->minimalDimension();
+  param_covariance->resize(rows, rows);
+
+  covariance.GetCovarianceBlockInTangentSpace(parameterBlock->parameters(),
+                                parameterBlock->parameters(),
+                                param_covariance->data());
+  return true;
+}
+
+bool Map::getParameterBlockMinimalCovariance(
+    const std::vector<uint64_t>& vParameterBlockId,
+    std::vector<Eigen::Matrix<double, -1, -1, Eigen::RowMajor>,
+                Eigen::aligned_allocator<
+                    Eigen::Matrix<double, -1, -1, Eigen::RowMajor>>>*
+        vCovariance) const {
+  for (uint64_t blockId : vParameterBlockId) {
+    if (!parameterBlockExists(blockId)) {
+        return false;
+    }
+  }
+
+  ::ceres::Covariance::Options covariance_options;
+  // covariance_options.sparse_linear_algebra_library_type =
+  // ::ceres::SUITE_SPARSE;
+  covariance_options.algorithm_type = ::ceres::SPARSE_QR;
+  covariance_options.num_threads = 1;  // common::getNumHardwareThreads();
+  covariance_options.min_reciprocal_condition_number = 1e-32;
+  covariance_options.apply_loss_function = true;
+  ::ceres::Covariance covariance(covariance_options);
+  std::vector<std::pair<const double*, const double*> > covariance_blocks;
+
+  for (uint64_t blockId : vParameterBlockId) {
+    std::shared_ptr<ParameterBlock> parameterBlock =
+        id2ParameterBlock_Map_.find(blockId)->second;
+    covariance_blocks.push_back(std::make_pair(parameterBlock->parameters(),
+                                               parameterBlock->parameters()));
+  }
+  if (!covariance.Compute(covariance_blocks, problem_.get())) {
+    return false;
+  }
+
+  vCovariance->resize(vParameterBlockId.size());
+  size_t blockIndex = 0;
+  for (std::vector<uint64_t>::const_iterator cit = vParameterBlockId.begin();
+       cit != vParameterBlockId.end(); ++cit, ++blockIndex) {
+    std::shared_ptr<ParameterBlock> parameterBlock =
+        id2ParameterBlock_Map_.find(*cit)->second;
+    size_t rows = parameterBlock->minimalDimension();
+    Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>
+        param_covariance(rows, rows);
+
+    covariance.GetCovarianceBlockInTangentSpace(parameterBlock->parameters(),
+                                                parameterBlock->parameters(),
+                                                param_covariance.data());
+    vCovariance->at(blockIndex) = param_covariance;
+  }
+  return true;
+}
+
 }  //namespace okvis
 }  //namespace ceres
 

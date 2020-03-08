@@ -1450,10 +1450,27 @@ Eigen::Matrix<double, Eigen::Dynamic, 1> Estimator::computeImuAugmentedParamsErr
   return imu_rig_.computeImuAugmentedParamsError(0);
 }
 
-void Estimator::computeCovariance(Eigen::MatrixXd* cov) const {
-  // TODO(jhuai): compute marginal covariance for navigation states following
-  // http://ceres-solver.org/nnls_covariance.html.
-  *cov = Eigen::Matrix<double, 6, 6>::Identity();
+bool Estimator::computeCovariance(Eigen::MatrixXd* cov) const {
+  // variance for p_WB, q_WB, v_WB, bg, ba
+  *cov = Eigen::Matrix<double, 15, 15>::Identity();
+  uint64_t T_WS_id = statesMap_.rbegin()->second.id;
+  uint64_t speedAndBias_id = statesMap_.rbegin()
+                                 ->second.sensors.at(SensorStates::Imu)
+                                 .at(0)
+                                 .at(ImuSensorStates::SpeedAndBias)
+                                 .id;
+  std::vector<uint64_t> parameterBlockIdList{T_WS_id, speedAndBias_id};
+  std::vector<
+      Eigen::Matrix<double, -1, -1, Eigen::RowMajor>,
+      Eigen::aligned_allocator<Eigen::Matrix<double, -1, -1, Eigen::RowMajor>>>
+      varianceList;
+  bool status = mapPtr_->getParameterBlockMinimalCovariance(
+      parameterBlockIdList, &varianceList);
+  if (status) {
+    cov->topLeftCorner<6, 6>() = varianceList[0];
+    cov->bottomRightCorner<9, 9>() = varianceList[1];
+  }
+  return status;
 }
 
 const okvis::Duration Estimator::half_window_(2, 0);
