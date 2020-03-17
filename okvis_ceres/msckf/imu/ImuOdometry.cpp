@@ -1,7 +1,7 @@
 #include <glog/logging.h>
 
-#include <msckf/ImuOdometry.h>
-#include <msckf/ImuErrorModel.h>
+#include <msckf/imu/ImuOdometry.h>
+#include <msckf/imu/ImuErrorModel.h>
 
 #include <okvis/Parameters.hpp>
 #include <okvis/assert_macros.hpp>

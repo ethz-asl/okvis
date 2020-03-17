@@ -27,12 +27,9 @@ add_library(${PROJECT_NAME}
 
   msckf/ceres/corrector.cc
   msckf/BearingResiduals.cpp
-  msckf/BoundedImuDeque.cpp
   msckf/CameraRig.cpp
   msckf/CameraTimeParamBlock.cpp
   msckf/GeneralEstimator.cpp
-  msckf/ImuRig.cpp
-  msckf/ImuOdometry.cpp
   msckf/InitialNavState.cpp
   msckf/ParallaxAnglePoint.cpp
   msckf/PointLandmarkModels.cpp
@@ -40,6 +37,10 @@ add_library(${PROJECT_NAME}
   msckf/PriorlessEstimator.cpp
   msckf/SimulatedMotionForParallaxAngleTest.cpp
   msckf/checkSensorRig.cpp
+  msckf/imu/BoundedImuDeque.cpp
+  msckf/imu/ImuOdometry.cpp
+  msckf/imu/ImuPreintegrator.cpp
+  msckf/imu/ImuRig.cpp
 )
 
 # and link it

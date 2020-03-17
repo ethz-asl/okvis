@@ -79,5 +79,5 @@ class IMUErrorModel {
   void dwa_B_dbgbaSTS(Eigen::Matrix<Scalar, 6, 27 + 6>& output);
 };
 
-#include "implementation/ImuErrorModel.h"
+#include "../implementation/ImuErrorModel.h"
 #endif

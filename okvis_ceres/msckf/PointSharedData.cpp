@@ -3,8 +3,8 @@
 #include <glog/logging.h>
 
 #include <msckf/CameraRig.hpp>
-#include <msckf/ImuRig.hpp>
-#include <msckf/ImuOdometry.h>
+#include <msckf/imu/ImuRig.hpp>
+#include <msckf/imu/ImuOdometry.h>
 #include <okvis/ceres/PoseParameterBlock.hpp>
 #include <okvis/ceres/SpeedAndBiasParameterBlock.hpp>
 

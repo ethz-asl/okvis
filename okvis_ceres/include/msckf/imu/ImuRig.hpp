@@ -6,7 +6,7 @@
 #include <Eigen/Core>
 #include <Eigen/StdVector>
 
-#include <msckf/ImuModels.hpp>
+#include <msckf/imu/ImuModels.hpp>
 #include <msckf/EuclideanParamBlockSized.hpp>
 
 #include <okvis/Parameters.hpp>

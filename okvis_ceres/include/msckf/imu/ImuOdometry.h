@@ -8,7 +8,7 @@
 #include <okvis/Variables.hpp>
 #include <okvis/assert_macros.hpp>
 
-#include "msckf/odeHybrid.hpp"
+#include "msckf/imu/odeHybrid.hpp"
 
 namespace okvis {
 

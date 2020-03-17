@@ -11,7 +11,7 @@
 
 #include <msckf/JacobianHelpers.hpp>
 #include <msckf/Measurements.hpp>
-#include <msckf/SimpleImuOdometry.hpp>
+#include <msckf/imu/SimpleImuOdometry.hpp>
 
 /// \brief okvis Main namespace of this package.
 namespace okvis {

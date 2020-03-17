@@ -12,8 +12,8 @@
 #include <msckf/EpipolarJacobian.hpp>
 #include <msckf/JacobianHelpers.hpp>
 #include <msckf/Measurements.hpp>
-#include <msckf/SimpleImuOdometry.hpp>
-#include <msckf/SimpleImuPropagationJacobian.hpp>
+#include <msckf/imu/SimpleImuOdometry.hpp>
+#include <msckf/imu/SimpleImuPropagationJacobian.hpp>
 #include <msckf/TransformMultiplyJacobian.hpp>
 #include <msckf/VectorNormalizationJacobian.hpp>
 

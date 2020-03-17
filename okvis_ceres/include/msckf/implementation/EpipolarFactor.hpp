@@ -12,7 +12,7 @@
 #include <msckf/ExtrinsicModels.hpp>
 #include <msckf/Measurements.hpp>
 #include <msckf/RelativeMotionJacobian.hpp>
-#include <msckf/SimpleImuOdometry.hpp>
+#include <msckf/imu/SimpleImuOdometry.hpp>
 #include <msckf/JacobianHelpers.hpp>
 
 #include <okvis/ceres/PoseLocalParameterization.hpp>

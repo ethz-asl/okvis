@@ -39,7 +39,7 @@
 #ifndef INCLUDE_MSCKF_ODE_HYBRID_HPP_
 #define INCLUDE_MSCKF_ODE_HYBRID_HPP_
 
-#include <msckf/ImuErrorModel.h>
+#include <msckf/imu/ImuErrorModel.h>
 
 #include <Eigen/Core>
 

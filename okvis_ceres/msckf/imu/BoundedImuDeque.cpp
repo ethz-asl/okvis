@@ -1,4 +1,4 @@
-#include "msckf/BoundedImuDeque.hpp"
+#include "msckf/imu/BoundedImuDeque.hpp"
 #include <glog/logging.h>
 
 namespace okvis {

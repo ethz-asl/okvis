@@ -1,4 +1,4 @@
-#include <msckf/ImuRig.hpp>
+#include <msckf/imu/ImuRig.hpp>
 
 namespace okvis {
 int ImuRig::addImu(const okvis::ImuParameters& imuParams) {

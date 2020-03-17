@@ -17,7 +17,7 @@
 #include <okvis/ceres/PoseLocalParameterization.hpp>
 #include <okvis/ceres/ErrorInterface.hpp>
 
-#include <msckf/ImuModels.hpp>
+#include <msckf/imu/ImuModels.hpp>
 #include <msckf/ExtrinsicModels.hpp>
 #include <msckf/PointLandmarkModels.hpp>
 

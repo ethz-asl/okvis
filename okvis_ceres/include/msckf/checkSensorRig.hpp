@@ -1,7 +1,7 @@
 #ifndef INCLUDE_MSCKF_CHECK_SENSOR_RIG_HPP_
 #define INCLUDE_MSCKF_CHECK_SENSOR_RIG_HPP_
 
-#include <msckf/ImuRig.hpp>
+#include <msckf/imu/ImuRig.hpp>
 #include <msckf/CameraRig.hpp>
 
 namespace okvis {

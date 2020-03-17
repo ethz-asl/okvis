@@ -62,9 +62,9 @@
 #include <okvis/ceres/ReprojectionError.hpp>
 #include <okvis/ceres/CeresIterationCallback.hpp>
 
-#include <msckf/BoundedImuDeque.hpp>
+#include <msckf/imu/BoundedImuDeque.hpp>
 #include <msckf/CameraRig.hpp>
-#include <msckf/ImuRig.hpp>
+#include <msckf/imu/ImuRig.hpp>
 #include <msckf/InitialNavState.hpp>
 
 /// \brief okvis Main namespace of this package.
