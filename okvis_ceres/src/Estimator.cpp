@@ -40,6 +40,7 @@
 
 #include <glog/logging.h>
 #include <okvis/Estimator.hpp>
+#include <msckf/CameraTimeParamBlock.hpp>
 #include <msckf/EuclideanParamBlock.hpp>
 #include <msckf/EuclideanParamBlockSized.hpp>
 #include <okvis/ceres/PoseParameterBlock.hpp>
@@ -1471,6 +1472,35 @@ bool Estimator::computeCovariance(Eigen::MatrixXd* cov) const {
     cov->bottomRightCorner<9, 9>() = varianceList[1];
   }
   return status;
+}
+
+// getters
+bool Estimator::getImageDelay(uint64_t poseId, int camIdx,
+                                okvis::Duration* td) const {
+  double tdd;
+  if (!getSensorStateEstimateAs<ceres::CameraTimeParamBlock>(
+          poseId, camIdx, SensorStates::Camera, CameraSensorStates::TD, tdd)) {
+    return false;
+  }
+  *td = okvis::Duration(tdd);
+  return true;
+}
+
+int Estimator::getCameraExtrinsicOptType(size_t cameraIdx) const {
+  return camera_rig_.getExtrinsicOptMode(cameraIdx);
+}
+
+void Estimator::getCameraCalibrationEstimate(
+    int camIdx,
+    Eigen::Matrix<double, Eigen::Dynamic, 1>* /*cameraParams*/) const {
+}
+
+void Estimator::getImuAugmentedStatesEstimate(
+    Eigen::Matrix<double, Eigen::Dynamic, 1>* /*extraParams*/) const {
+}
+
+void Estimator::getStateVariance(
+    Eigen::Matrix<double, Eigen::Dynamic, 1>* /*variances*/) const {
 }
 
 const okvis::Duration Estimator::half_window_(2, 0);

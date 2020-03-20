@@ -418,7 +418,36 @@ class Estimator : public VioBackendInterface
   int cameraObservationModelId() const {
     return cameraObservationModelId_;
   }
+
+  bool getImageDelay(uint64_t poseId, int camIdx, okvis::Duration *td) const;
+
+  int getCameraExtrinsicOptType(size_t cameraIdx) const;
+
+  /**
+   * @brief getCameraCalibrationEstimate get the latest estimate of camera
+   * calibration parameters
+   * @param cameraParams[out] including projection and distortion intrinsic
+   * parameters and time delay and readout time.
+   * @return
+   */
+  virtual void getCameraCalibrationEstimate(
+      int cameraIndex, Eigen::Matrix<double, Eigen::Dynamic, 1>* cameraParams) const;
+
+  /**
+   * @brief getImuAugmentedStatesEstimate get the lastest estimate of IMU augmented params.
+   * @param extraParams excluding biases.
+   * @return
+   */
+  virtual void getImuAugmentedStatesEstimate(
+      Eigen::Matrix<double, Eigen::Dynamic, 1>* extraParams) const;
+
+  /**
+   * @brief get variance for nav state (p,q,v), imu(bg ba etc), camera extrinsic, intrinsic, td, tr
+   * @param variances
+   */
+  virtual void getStateVariance(Eigen::Matrix<double, Eigen::Dynamic, 1>* variances) const;
   ///@}
+
   /// @name Setters
   ///@{
   /**
