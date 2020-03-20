@@ -231,7 +231,7 @@ cv::Mat VioVisualizer::drawColoredKeypoints(
       double len = std::min(1.0, 1.0 * it->numObservations / slidingWindowSize);
       cv::Scalar color = cv::Scalar(0, 255 * len, 255 * (1 - len)); // Long tracks are green.
       // draw keypoint
-      const double r = 0.7 * it->keypointSize;
+      const double r = 0.5 * it->keypointSize;
       cv::circle(outimg, cv::Point2f(keypoint[0], keypoint[1]), r, color, 2,
                  CV_AA);
       cv::KeyPoint cvKeypoint;

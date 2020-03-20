@@ -277,7 +277,7 @@ if(${BUILD_TESTS})
       include_directories("${gtest_SOURCE_DIR}/include"
                           "${gmock_SOURCE_DIR}/include")
   endif()
-  endif() # use ros or not.
+  endif(CATKIN_ENABLE_TESTING)
   # set library variables used by okvis modules.
   set(GMOCK_LIBRARY gmock)
   set(GTEST_LIBRARY gtest)
