@@ -305,7 +305,8 @@ bool Estimator::addStates(
       const double sigma_ba = imuParametersVec_.at(0).sigma_ba;
       std::shared_ptr<ceres::SpeedAndBiasError > speedAndBiasError(
             new ceres::SpeedAndBiasError(
-                speedAndBias, 1.0, sigma_bg*sigma_bg, sigma_ba*sigma_ba));
+                speedAndBias, pvstd_.std_v_WS[0]*pvstd_.std_v_WS[0],
+                sigma_bg*sigma_bg, sigma_ba*sigma_ba));
       // add to map
       mapPtr_->addResidualBlock(
           speedAndBiasError,
