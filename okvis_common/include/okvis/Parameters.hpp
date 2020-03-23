@@ -241,8 +241,10 @@ enum class EstimatorAlgorithm {
   Priorless = 2,  ///< Estimator adapted for investigations.
   // The above algorithms are paired with ThreadedKFVio,
   // and the below algorithms are paired with HybridVio.
+  SlidingWindowSmoother = 3,
   MSCKF = 4,  ///< MSCKF with first estimate Jacobians and second latest marginalization.
   TFVIO = 5,  ///< Triangulate-free VIO with only epipolar constraints.
+  InvariantEKF = 6,
 };
 
 EstimatorAlgorithm EstimatorAlgorithmNameToId(std::string description);

@@ -44,7 +44,10 @@ EstimatorAlgorithm EstimatorAlgorithmNameToId(std::string description) {
       {"GENERAL", EstimatorAlgorithm::General},
       {"PRIORLESS", EstimatorAlgorithm::Priorless},
       {"MSCKF", EstimatorAlgorithm::MSCKF},
-      {"TFVIO", EstimatorAlgorithm::TFVIO}};
+      {"TFVIO", EstimatorAlgorithm::TFVIO},
+      {"INVARIANTEKF", EstimatorAlgorithm::InvariantEKF},
+      {"SLIDINGWINDOWSMOOTHER", EstimatorAlgorithm::SlidingWindowSmoother}};
+
   auto iter = descriptionToId.find(description);
   if (iter == descriptionToId.end()) {
     return EstimatorAlgorithm::OKVIS;
@@ -66,7 +69,9 @@ std::string EstimatorAlgorithmIdToName(EstimatorAlgorithm id) {
                       {EstimatorAlgorithm::General, "General"},
                       {EstimatorAlgorithm::Priorless, "Priorless"},
                       {EstimatorAlgorithm::MSCKF, "MSCKF"},
-                      {EstimatorAlgorithm::TFVIO, "TFVIO"}};
+                      {EstimatorAlgorithm::TFVIO, "TFVIO"},
+                      {EstimatorAlgorithm::InvariantEKF, "InvariantEKF"},
+                      {EstimatorAlgorithm::SlidingWindowSmoother, "SlidingWindowSmoother"}};
   auto iter = idToDescription.find(id);
   if (iter == idToDescription.end()) {
     return "OKVIS";
