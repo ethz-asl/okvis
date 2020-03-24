@@ -399,8 +399,8 @@ void ThreadedKFVio::frameConsumerLoop(size_t cameraIndex) {
                           imuDataEndTime < imuMeasurements_.back().timeStamp,
                           "Waiting for up to date imu data seems to have failed!");
 
-    okvis::ImuMeasurementDeque imuData = getImuMeasurments(imuDataBeginTime,
-                                                           imuDataEndTime);
+    okvis::ImuMeasurementDeque imuData = getImuMeasurements(
+        imuDataBeginTime, imuDataEndTime, imuMeasurements_, &imuMeasurements_mutex_);
 
     // if imu_data is empty, either end_time > begin_time or
     // no measurements in timeframe, should not happen, as we waited for measurements
@@ -507,8 +507,8 @@ void ThreadedKFVio::matchingLoop() {
         imuDataEndTime < imuMeasurements_.back().timeStamp,
         "Waiting for up to date imu data seems to have failed!");
 
-    okvis::ImuMeasurementDeque imuData = getImuMeasurments(imuDataBeginTime,
-                                                           imuDataEndTime);
+    okvis::ImuMeasurementDeque imuData = getImuMeasurements(
+        imuDataBeginTime, imuDataEndTime, imuMeasurements_, &imuMeasurements_mutex_);
 
     prepareToAddStateTimer.stop();
     // if imu_data is empty, either end_time > begin_time or
@@ -681,63 +681,6 @@ void ThreadedKFVio::display() {
   cv::waitKey(1);
 }
 
-// Get a subset of the recorded IMU measurements.
-okvis::ImuMeasurementDeque ThreadedKFVio::getImuMeasurments(
-    okvis::Time& imuDataBeginTime, okvis::Time& imuDataEndTime) {
-  // sanity checks:
-  // if end time is smaller than begin time, return empty queue.
-  // if begin time is larger than newest imu time, return empty queue.
-  if (imuDataEndTime < imuDataBeginTime
-      || imuDataBeginTime > imuMeasurements_.back().timeStamp)
-    return okvis::ImuMeasurementDeque();
-
-  std::lock_guard<std::mutex> lock(imuMeasurements_mutex_);
-  // get iterator to imu data before previous frame
-  okvis::ImuMeasurementDeque::iterator first_imu_package = imuMeasurements_
-      .begin();
-  okvis::ImuMeasurementDeque::iterator last_imu_package =
-      imuMeasurements_.end();
-  // TODO go backwards through queue. Is probably faster.
-  for (auto iter = imuMeasurements_.begin(); iter != imuMeasurements_.end();
-      ++iter) {
-    // move first_imu_package iterator back until iter->timeStamp is higher than requested begintime
-    if (iter->timeStamp <= imuDataBeginTime)
-      first_imu_package = iter;
-
-    // set last_imu_package iterator as soon as we hit first timeStamp higher than requested endtime & break
-    if (iter->timeStamp >= imuDataEndTime) {
-      last_imu_package = iter;
-      // since we want to include this last imu measurement in returned Deque we
-      // increase last_imu_package iterator once.
-      ++last_imu_package;
-      break;
-    }
-  }
-
-  // create copy of imu buffer
-  return okvis::ImuMeasurementDeque(first_imu_package, last_imu_package);
-}
-
-// Remove IMU measurements from the internal buffer.
-int ThreadedKFVio::deleteImuMeasurements(const okvis::Time& eraseUntil) {
-  std::lock_guard<std::mutex> lock(imuMeasurements_mutex_);
-  if (imuMeasurements_.front().timeStamp > eraseUntil)
-    return 0;
-
-  okvis::ImuMeasurementDeque::iterator eraseEnd;
-  int removed = 0;
-  for (auto it = imuMeasurements_.begin(); it != imuMeasurements_.end(); ++it) {
-    eraseEnd = it;
-    if (it->timeStamp >= eraseUntil)
-      break;
-    ++removed;
-  }
-
-  imuMeasurements_.erase(imuMeasurements_.begin(), eraseEnd);
-
-  return removed;
-}
-
 // Loop that performs the optimization and marginalisation.
 void ThreadedKFVio::optimizationLoop() {
   TimerSwitchable optimizationTimer("3.1 optimization",true);
@@ -791,7 +734,8 @@ void ThreadedKFVio::optimizationLoop() {
       afterOptimizationTimer.start();
 
       // now actually remove measurements
-      deleteImuMeasurements(deleteImuMeasurementsUntil);
+      deleteImuMeasurements(deleteImuMeasurementsUntil,
+                            imuMeasurements_, &imuMeasurements_mutex_);
 
       // saving optimized state and saving it in OptimizationResults struct
       {
