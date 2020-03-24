@@ -92,7 +92,8 @@ Optimization::Optimization()
       triangulationMaxDepth(1000.0),
       useEpipolarConstraint(false),
       cameraObservationModelId(0),
-      landmarkModelId(0) {}
+      landmarkModelId(0),
+      initializeWithoutEnoughParallax(true) {}
 
 InitialState::InitialState() : bUseExternalInitState(false), stateTime(0, 0) {}
 

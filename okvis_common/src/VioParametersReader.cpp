@@ -257,7 +257,7 @@ void parseOptimizationParameters(cv::FileNode optNode,
                "of numKeyframes " << optParams->numKeyframes
             << " and numImuFrames " << optParams->numImuFrames;
 
-  optParams->useEpipolarConstraint = false;
+  optParams->useEpipolarConstraint = optParams->useEpipolarConstraint;
   parseBoolean(optNode["useEpipolarConstraint"], optParams->useEpipolarConstraint);
   LOG(INFO) << "Use epipolar constraint? " << optParams->useEpipolarConstraint;
 
@@ -276,6 +276,13 @@ void parseOptimizationParameters(cv::FileNode optNode,
     optParams->landmarkModelId = 0;
   }
   LOG(INFO) << "Landmark model Id " << optParams->landmarkModelId;
+
+  optParams->initializeWithoutEnoughParallax =
+      optParams->initializeWithoutEnoughParallax;
+  parseBoolean(optNode["initializeWithoutEnoughParallax"],
+               optParams->initializeWithoutEnoughParallax);
+  LOG(INFO) << "Initialize without enough parallax? "
+            << optParams->initializeWithoutEnoughParallax;
 }
 
 // Read and parse a config file.

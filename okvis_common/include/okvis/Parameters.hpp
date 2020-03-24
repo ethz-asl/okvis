@@ -279,6 +279,7 @@ struct Optimization{
   bool useEpipolarConstraint;
   int cameraObservationModelId;
   int landmarkModelId;
+  bool initializeWithoutEnoughParallax;
   Optimization();
 };
 
