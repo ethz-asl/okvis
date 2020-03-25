@@ -760,6 +760,8 @@ void ThreadedKFVio::optimizationLoop() {
             estimator_->getCameraSensorStates(frame_pairs->id(), i, T_SCA);
             result.vector_of_T_SCi.emplace_back(T_SCA);
           }
+          // TODO(jhuai): Severe Jacobian rank deficiency in computing covariance.
+          // bool covStatus = estimator_->getStateVariance(&result.stateVariance_);
         }
         else
           result.onlyPublishLandmarks = true;

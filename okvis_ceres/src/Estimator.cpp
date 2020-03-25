@@ -1476,6 +1476,14 @@ bool Estimator::computeCovariance(Eigen::MatrixXd* cov) const {
 }
 
 // getters
+bool Estimator::getStateVariance(
+    Eigen::Matrix<double, Eigen::Dynamic, 1>* variances) const {
+  Eigen::MatrixXd covariance;
+  bool status = computeCovariance(&covariance);
+  *variances = covariance.diagonal();
+  return status;
+}
+
 bool Estimator::getImageDelay(uint64_t poseId, int camIdx,
                                 okvis::Duration* td) const {
   double tdd;
@@ -1498,10 +1506,6 @@ void Estimator::getCameraCalibrationEstimate(
 
 void Estimator::getImuAugmentedStatesEstimate(
     Eigen::Matrix<double, Eigen::Dynamic, 1>* /*extraParams*/) const {
-}
-
-void Estimator::getStateVariance(
-    Eigen::Matrix<double, Eigen::Dynamic, 1>* /*variances*/) const {
 }
 
 const okvis::Duration Estimator::half_window_(2, 0);

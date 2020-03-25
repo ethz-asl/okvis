@@ -724,7 +724,7 @@ bool Map::getParameterBlockMinimalCovariance(
   ::ceres::Covariance::Options covariance_options;
   // covariance_options.sparse_linear_algebra_library_type =
   // ::ceres::SUITE_SPARSE;
-  covariance_options.algorithm_type = ::ceres::SPARSE_QR;
+  covariance_options.algorithm_type = ::ceres::DENSE_SVD; // DENSE_SVD slow but handles rank deficiency.
   covariance_options.num_threads = 1;  // common::getNumHardwareThreads();
   covariance_options.min_reciprocal_condition_number = 1e-32;
   covariance_options.apply_loss_function = true;

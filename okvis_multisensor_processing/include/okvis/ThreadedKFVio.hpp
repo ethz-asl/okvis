@@ -289,6 +289,7 @@ class ThreadedKFVio : public VioInterface {
     bool onlyPublishLandmarks;                  ///< Boolean to signalise the publisherLoop() that only the landmarks should be published
     int frameIdInSource;
     bool isKeyframe;
+    Eigen::Matrix<double, Eigen::Dynamic, 1> stateVariance_;  ///< variance of nav, imu, [cam extrinsic, intrinsic, td tr] parameters
   };
 
   /// @name State variables
