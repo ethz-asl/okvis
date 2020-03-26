@@ -39,6 +39,7 @@
  */
 
 #include <opengv/relative_pose/FrameRelativeAdapter.hpp>
+#include <msckf/FrameMatchingStats.hpp>
 #include <okvis/FrameTypedefs.hpp>
 #include <okvis/MultiFrame.hpp>
 
@@ -151,35 +152,8 @@ opengv::relative_pose::FrameRelativeAdapter::FrameRelativeAdapter(
   sigmaAngles1_.resize(numKeypointsA);
   sigmaAngles2_.resize(numKeypointsB);
 
-  matches_.reserve(std::min(numKeypointsA, numKeypointsB));
-  std::map<uint64_t, size_t> idMap;
-  for (size_t k = 0; k < numKeypointsB; ++k) {
-
-    // get landmark id, if set
-    uint64_t lmId = frameBPtr->landmarkId(camIdB, k);
-    if (lmId == 0)
-      continue;
-
-    // check, if existing
-    if (!estimator.isLandmarkAdded(lmId))
-      continue;
-
-    // remember it
-    idMap.insert(std::pair<uint64_t, size_t>(lmId, k));
-  }
-
-  for (size_t k = 0; k < numKeypointsA; ++k) {
-    // get landmark id, if set
-    uint64_t lmId = frameAPtr->landmarkId(camIdA, k);
-    if (lmId == 0)
-      continue;
-
-    std::map<uint64_t, size_t>::const_iterator it = idMap.find(lmId);
-    if (it != idMap.end()) {
-      // whohoo, let's insert it.
-      matches_.push_back(okvis::Match(k, it->second, 0.0));
-    }
-  }
+  opengv::findMatches(estimator, frameAPtr, camIdA, frameBPtr, camIdB,
+                      &matches_);
 
   // precompute
   for (size_t k = 0; k < matches_.size(); ++k) {
@@ -339,50 +313,8 @@ double opengv::relative_pose::FrameRelativeAdapter::getSigmaAngle2(
 }
 
 void opengv::relative_pose::FrameRelativeAdapter::computeMatchStats(
-    std::shared_ptr<okvis::MultiFrame> frameBPtr, size_t camIdx,
+    std::shared_ptr<okvis::MultiFrame> frameBPtr, size_t camIdB,
     double* overlap, double* matchingRatio) const {
-  *overlap = 0;
-  *matchingRatio = 0;
-  // get the hull of all keypoints in current frame
-  std::vector<cv::Point2f> frameBPoints, frameBHull;
-  std::vector<cv::Point2f> frameBMatches, frameBMatchesHull;
-
-  const size_t numB = frameBPtr->numKeypoints(camIdx);
-  frameBPoints.reserve(numB);
-  frameBMatches.reserve(matches_.size());
-
-  for (size_t k = 0; k < numB; ++k) {
-    Eigen::Vector2d keypoint;
-    frameBPtr->getKeypoint(camIdx, k, keypoint);
-    frameBPoints.push_back(cv::Point2f(keypoint[0], keypoint[1]));
-  }
-  for (size_t k = 0; k < matches_.size(); ++k) {
-    const size_t idx2 = matches_[k].idxB;
-    Eigen::Vector2d keypoint;
-    frameBPtr->getKeypoint(camIdx, idx2, keypoint);
-    frameBMatches.push_back(cv::Point2f(keypoint[0], keypoint[1]));
-  }
-
-  if (frameBPoints.size() < 3) return;
-  cv::convexHull(frameBPoints, frameBHull);
-  if (frameBMatches.size() < 3) return;
-  cv::convexHull(frameBMatches, frameBMatchesHull);
-
-  // areas
-  double frameBArea = cv::contourArea(frameBHull);
-  double frameBMatchesArea = cv::contourArea(frameBMatchesHull);
-
-  // overlap area
-  *overlap = frameBMatchesArea / frameBArea;
-  // matching ratio inside overlap area: count
-  int pointsInFrameBMatchesArea = 0;
-  if (frameBMatchesHull.size() > 2) {
-    for (size_t k = 0; k < frameBPoints.size(); ++k) {
-      if (cv::pointPolygonTest(frameBMatchesHull, frameBPoints[k], false) > 0) {
-        pointsInFrameBMatchesArea++;
-      }
-    }
-  }
-  *matchingRatio = static_cast<double>(frameBMatches.size()) /
-                   static_cast<double>(pointsInFrameBMatchesArea);
+  opengv::computeMatchStats(matches_, frameBPtr, camIdB, overlap,
+                            matchingRatio);
 }

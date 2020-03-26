@@ -12,6 +12,7 @@ include_directories(${EIGEN_INCLUDE_DIR})
 
 # build the library
 add_library(${PROJECT_NAME} 
+  src/FrameMatchingStats.cpp
   src/Frontend.cpp
   src/VioKeyframeWindowMatchingAlgorithm.cpp
   src/stereo_triangulation.cpp

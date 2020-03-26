@@ -179,8 +179,17 @@ class FrameRelativeAdapter : public RelativeAdapterBase {
     return 1.0;
   }  // TODO : figure out, if this is needed
 
-  void computeMatchStats(std::shared_ptr<okvis::MultiFrame> frameBPtr,
-                         size_t camIdx, double* overlap,
+  /**
+   * @brief computeMatchStats compute the overlap and matching ratio between
+   *     multiframeA camIdA and multiframeB camIdB.
+   *     multiframeA camIdA are embedded in matches_.
+   * @param frameBPtr pointer to multiframeB
+   * @param camIdB
+   * @param overlap
+   * @param matchRatio
+   */
+  void computeMatchStats(std::shared_ptr<okvis::MultiFrame> multiframeBPtr,
+                         size_t camIdB, double* overlap,
                          double* matchRatio) const;
 
  private:
