@@ -95,6 +95,9 @@ class CameraRig {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   inline CameraRig() {}
+  inline size_t numberCameras() {
+    return camera_geometries_.size();
+  }
   inline void clear() {
     T_SC_.clear();
     camera_geometries_.clear();
