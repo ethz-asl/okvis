@@ -435,7 +435,9 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setBestMatch(
     } else {
 
       // update initialization status, set better estimate, if possible
-      if (canBeInitialized) {
+      // jhuai checks if the landmark has been initialized before initializing again
+      // so as to avoid reverting better estimates obtained in optimization.
+      if (!estimator_->isLandmarkInitialized(lmId) && canBeInitialized) {
         estimator_->setLandmarkInitialized(lmId, true);
         estimator_->setLandmark(lmId, T_WCa_ * hP_Ca);
       }
@@ -475,10 +477,11 @@ void VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::setBestMatch(
                                                     indexB);
     }
 
+    // jhuai comments the below lines which revert previous estimates of the landmark.
     // let's check for consistency with other observations:
-    okvis::ceres::HomogeneousPointParameterBlock point(T_WCa_ * hP_Ca, 0);
-    if(canBeInitialized)
-      estimator_->setLandmark(lmId, point.estimate());
+//    okvis::ceres::HomogeneousPointParameterBlock point(T_WCa_ * hP_Ca, 0);
+//    if(canBeInitialized)
+//      estimator_->setLandmark(lmId, point.estimate());
 
   } else {
     OKVIS_ASSERT_TRUE_DBG(Exception,lmIdB==0,"bug. Id in frame B already set.");
