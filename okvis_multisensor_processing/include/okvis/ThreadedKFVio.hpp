@@ -109,6 +109,10 @@ class ThreadedKFVio : public VioInterface {
    * \param parameters Parameters and settings.
    */
   ThreadedKFVio(okvis::VioParameters& parameters);
+
+  ThreadedKFVio(okvis::VioParameters& parameters,
+                std::shared_ptr<Estimator> estimator,
+                std::shared_ptr<Frontend> frontend);
 #endif
 
   /// \brief Destructor. This calls Shutdown() for all threadsafe queues and joins all threads.
@@ -236,11 +240,15 @@ class ThreadedKFVio : public VioInterface {
   /// \brief Trigger display (needed because OSX won't allow threaded display).
   void display();
 
+  void saveStatistics(const std::string& filename) const;
+
  private:
   /// \brief Start all threads.
   virtual void startThreads();
   /// \brief Initialises settings and calls startThreads().
   void init();
+
+  void configureBackendAndFrontendPartly(okvis::VioParameters& parameters);
 
  private:
 
@@ -284,11 +292,17 @@ class ThreadedKFVio : public VioInterface {
     /// The relative transformation of the cameras to the sensor (IMU) frame
     std::vector<okvis::kinematics::Transformation,
         Eigen::aligned_allocator<okvis::kinematics::Transformation> > vector_of_T_SCi;
+   /// the optimized parameters of T_SCi
+    std::vector<Eigen::VectorXd, Eigen::aligned_allocator<Eigen::VectorXd>>
+        opt_T_SCi_coeffs;
     okvis::MapPointVector landmarksVector;      ///< Vector containing the current landmarks.
     okvis::MapPointVector transferredLandmarks; ///< Vector of the landmarks that have been marginalized out.
     bool onlyPublishLandmarks;                  ///< Boolean to signalise the publisherLoop() that only the landmarks should be published
     int frameIdInSource;
     bool isKeyframe;
+    Eigen::Matrix<double, Eigen::Dynamic, 1> imuExtraParams_;
+    Eigen::Matrix<double, Eigen::Dynamic, 1> cameraParams_;  ///< camera projection intrinsic parameters, distortion, time delay, readout time
+ 
     Eigen::Matrix<double, Eigen::Dynamic, 1> stateVariance_;  ///< variance of nav, imu, [cam extrinsic, intrinsic, td tr] parameters
   };
 
@@ -309,11 +323,15 @@ class ThreadedKFVio : public VioInterface {
   /// \brief Resulting speeds and IMU biases after last optimization.
   /// \warning Lock lastState_mutex_.
   okvis::SpeedAndBias lastOptimizedSpeedAndBiases_;
-  /// \brief Timestamp of newest frame used in the last optimization.
+  /// \brief Timestamp of the state for the newest multiframe used in optimization.
   /// \warning Lock lastState_mutex_.
   okvis::Time lastOptimizedStateTimestamp_;
-  /// This is set to true after optimization to signal the IMU consumer loop to repropagate
-  /// the state from the lastOptimizedStateTimestamp_.
+  /// \brief The latest estimate of time delay.
+  /// Image raw timestamp + time delay = image timestamp in IMU clock.
+  /// \warning Lock lastState_mutex_.
+  okvis::Duration lastOptimizedImageDelay_;
+  /// This is set to true after optimization to signal the IMU consumer loop to
+  /// repropagate the state from the lastOptimizedStateTimestamp_.
   std::atomic_bool repropagationNeeded_;
 
   /// @}
@@ -405,7 +423,7 @@ class ThreadedKFVio : public VioInterface {
   okvis::MockVioFrontendInterface& frontend_;
 #else
   std::shared_ptr<okvis::Estimator> estimator_;    ///< The backend estimator.
-  okvis::Frontend frontend_;      ///< The frontend.
+  std::shared_ptr<okvis::Frontend> frontend_;      ///< The frontend.
 #endif
 
   /// @}
@@ -414,6 +432,8 @@ class ThreadedKFVio : public VioInterface {
   size_t numCameraPairs_; ///< Number of camera pairs in the system.
 
   okvis::VioParameters parameters_; ///< The parameters and settings.
+
+  std::string viewerNamePrefix_;
 
   /// The maximum input queue size before IMU measurements are dropped.
   /// The maximum input queue size for the camera measurements is proportionally higher

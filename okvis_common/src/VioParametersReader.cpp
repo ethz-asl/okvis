@@ -128,8 +128,6 @@ void parseInitialState(cv::FileNode initialStateNode,
     double time;
     timeNode >> time;
     initialState->stateTime = okvis::Time(time);
-  } else {
-    bUseExternalState = false;
   }
 
   cv::FileNode vsNode = initialStateNode["v_WS"];
@@ -137,9 +135,6 @@ void parseInitialState(cv::FileNode initialStateNode,
     Eigen::Vector3d vs;
     vs << vsNode[0], vsNode[1], vsNode[2];
     initialState->v_WS = vs;
-  } else {
-    bUseExternalState = false;
-    initialState->v_WS.setZero();
   }
 
   cv::FileNode stdvsNode = initialStateNode["std_v_WS"];
@@ -147,8 +142,6 @@ void parseInitialState(cv::FileNode initialStateNode,
     Eigen::Vector3d stdvs;
     stdvs << stdvsNode[0], stdvsNode[1], stdvsNode[2];
     initialState->std_v_WS = stdvs;
-  } else {
-    initialState->std_v_WS = Eigen::Vector3d(1, 1, 1) * 1e-1;
   }
 
   cv::FileNode stdpsNode = initialStateNode["std_p_WS"];
@@ -156,8 +149,6 @@ void parseInitialState(cv::FileNode initialStateNode,
     Eigen::Vector3d stdps;
     stdps << stdpsNode[0], stdpsNode[1], stdpsNode[2];
     initialState->std_p_WS = stdps;
-  } else {
-    initialState->std_p_WS = Eigen::Vector3d(1, 1, 1) * 1e-2;
   }
 
   cv::FileNode qsNode = initialStateNode["q_WS"];
@@ -165,9 +156,6 @@ void parseInitialState(cv::FileNode initialStateNode,
     Eigen::Vector4d qs;
     qs << qsNode[0], qsNode[1], qsNode[2], qsNode[3];
     initialState->q_WS = Eigen::Quaterniond(qs[3], qs[0], qs[1], qs[2]);
-  } else {
-    bUseExternalState = false;
-    initialState->q_WS = Eigen::Quaterniond(1, 0, 0, 0);
   }
 
   cv::FileNode stdqsNode = initialStateNode["std_q_WS"];
@@ -175,8 +163,6 @@ void parseInitialState(cv::FileNode initialStateNode,
     Eigen::Vector3d stdqs;
     stdqs << stdqsNode[0], stdqsNode[1], stdqsNode[2];
     initialState->std_q_WS = stdqs;
-  } else {
-    initialState->std_q_WS = Eigen::Vector3d(1, 1, 3) * M_PI / 180;
   }
 
   initialState->bUseExternalInitState = bUseExternalState;

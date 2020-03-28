@@ -239,8 +239,6 @@ enum class EstimatorAlgorithm {
   OKVIS = 0,  ///< Okvis aboriginal estimator.
   General = 1,  ///< Estimator adapted to use only epipolar constraints.
   Priorless = 2,  ///< Estimator adapted for investigations.
-  // The above algorithms are paired with ThreadedKFVio,
-  // and the below algorithms are paired with HybridVio.
   SlidingWindowSmoother = 3,
   MSCKF = 4,  ///< MSCKF with first estimate Jacobians and second latest marginalization.
   TFVIO = 5,  ///< Triangulate-free VIO with only epipolar constraints.
@@ -327,14 +325,14 @@ struct InitialState {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   bool bUseExternalInitState;
   okvis::Time stateTime;
-  //    Eigen::Vector3d p_WS; //should always be zeros
+  Eigen::Vector3d p_WS; // should always be zeros
   Eigen::Quaterniond q_WS;
   Eigen::Vector3d v_WS;  // velocity of the IMU sensor w.r.t the sensor frame at
                          // the start epoch expressed in that frame
-  Eigen::Vector3d std_v_WS;
-  Eigen::Vector3d std_q_WS;
   Eigen::Vector3d std_p_WS;  // std of the sensor position in the sensor frame
                              // at the start epoch expressed in that frame
+  Eigen::Vector3d std_q_WS;
+  Eigen::Vector3d std_v_WS;
   InitialState();
 };
 

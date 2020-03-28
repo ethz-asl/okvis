@@ -95,6 +95,14 @@ Optimization::Optimization()
       landmarkModelId(0),
       initializeWithoutEnoughParallax(true) {}
 
-InitialState::InitialState() : bUseExternalInitState(false), stateTime(0, 0) {}
+InitialState::InitialState()
+    : bUseExternalInitState(false),
+      stateTime(0, 0),
+      p_WS(0, 0, 0),
+      q_WS(1, 0, 0, 0),
+      v_WS(0, 0, 0),
+      std_p_WS(0.01, 0.01, 0.01),
+      std_q_WS(M_PI / 180, M_PI / 180, 3 * M_PI / 180),
+      std_v_WS(0.1, 0.1, 0.1) {}
 
 }  // namespace okvis

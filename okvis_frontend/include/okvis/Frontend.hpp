@@ -193,6 +193,9 @@ class Frontend : public VioFrontendInterface {
     return isInitialized_;
   }
 
+  virtual bool isDescriptorBasedMatching() const {
+    return true;
+  }
   /// @}
   /// @name Setters related to the BRISK detector
   /// @{
@@ -254,6 +257,12 @@ class Frontend : public VioFrontendInterface {
   /// @brief Set the matching ratio threshold under which a new keyframe is inserted.
   void setKeyframeInsertionMatchingRatioThreshold(float threshold) {
     keyframeInsertionMatchingRatioThreshold_ = threshold;
+  }
+
+  virtual void setLandmarkTriangulationParameters(
+      double triangulationTranslationThreshold,
+      double triangulationMaxDepth) {
+
   }
 
   /// @}

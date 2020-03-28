@@ -52,7 +52,16 @@
 namespace okvis {
 
 static const int max_camera_input_queue_size = 10;
-static const okvis::Duration temporal_imu_data_overlap(0.02);  // overlap of imu data before and after two consecutive frames [seconds]
+
+// overlap of imu data before and after two consecutive frames [seconds] if too
+// large, frame consumer loop will be blocked for too long by waiting for imu
+// meas.
+// The frontend waits until frame time + lastOptimizedImageDelay_ +
+// temporal_imu_data_overlap for each frame.
+// When inertial data for a feature in the most recent frame are requested, the
+// feature's observation time may exceed the latest available IMU data, so
+// temporal_imu_data_overlap should be greater than frame readout time.
+static const okvis::Duration temporal_imu_data_overlap(0.02);
 
 #ifdef USE_MOCK
 // Constructor for gmock.
@@ -67,6 +76,7 @@ ThreadedKFVio::ThreadedKFVio(okvis::VioParameters& parameters, okvis::MockVioBac
       estimator_(estimator),
       frontend_(frontend),
       parameters_(parameters),
+      viewerNamePrefix_("Feature matches for camera"),
       maxImuInputQueueSize_(60) {
   init();
 }
@@ -79,8 +89,9 @@ ThreadedKFVio::ThreadedKFVio(okvis::VioParameters& parameters)
       frameSynchronizer_(okvis::FrameSynchronizer(parameters)),
       lastAddedImageTimestamp_(okvis::Time(0, 0)),
       optimizationDone_(true),
-      frontend_(parameters.nCameraSystem.numCameras()),
+      frontend_(new okvis::Frontend(parameters.nCameraSystem.numCameras())),
       parameters_(parameters),
+      viewerNamePrefix_("Feature matches for camera"),
       maxImuInputQueueSize_(
           2 * max_camera_input_queue_size * parameters.imu.rate
               / parameters.sensors_information.cameraRate) {
@@ -96,7 +107,29 @@ ThreadedKFVio::ThreadedKFVio(okvis::VioParameters& parameters)
       estimator_.reset(new okvis::Estimator());
       break;
   }
+  configureBackendAndFrontendPartly(parameters);
 
+  setBlocking(false);
+  init();
+}
+
+ThreadedKFVio::ThreadedKFVio(okvis::VioParameters& parameters,
+                             std::shared_ptr<Estimator> estimator,
+                             std::shared_ptr<okvis::Frontend> frontend)
+    : speedAndBiases_propagated_(okvis::SpeedAndBias::Zero()),
+      imu_params_(parameters.imu),
+      repropagationNeeded_(false),
+      frameSynchronizer_(okvis::FrameSynchronizer(parameters)),
+      lastAddedImageTimestamp_(okvis::Time(0, 0)),
+      optimizationDone_(true),
+      estimator_(estimator),
+      frontend_(frontend),
+      parameters_(parameters),
+      viewerNamePrefix_("Feature matches for camera"),
+      maxImuInputQueueSize_(
+          2 * max_camera_input_queue_size * parameters.imu.rate
+              / parameters.sensors_information.cameraRate) {
+  configureBackendAndFrontendPartly(parameters);
   setBlocking(false);
   init();
 }
@@ -108,17 +141,18 @@ void ThreadedKFVio::init() {
   numCameras_ = parameters_.nCameraSystem.numCameras();
   numCameraPairs_ = 1;
 
-  frontend_.setBriskDetectionOctaves(parameters_.optimization.detectionOctaves);
-  frontend_.setBriskDetectionThreshold(parameters_.optimization.detectionThreshold);
-  frontend_.setBriskDetectionMaximumKeypoints(parameters_.optimization.maxNoKeypoints);
+  frontend_->setBriskDetectionOctaves(parameters_.optimization.detectionOctaves);
+  frontend_->setBriskDetectionThreshold(parameters_.optimization.detectionThreshold);
+  frontend_->setBriskDetectionMaximumKeypoints(parameters_.optimization.maxNoKeypoints);
 
-  frontend_.setKeyframeInsertionOverlapThreshold(parameters_.optimization.keyframeInsertionOverlapThreshold);
-  frontend_.setKeyframeInsertionMatchingRatioThreshold(parameters_.optimization.keyframeInsertionMatchingRatioThreshold);
-  std::cout <<"Resetting overlap and matching ratio threshold "<< frontend_.getKeyframeInsertionOverlapThershold() <<" "<<
-              frontend_.getKeyframeInsertionMatchingRatioThreshold()<<std::endl;
+  frontend_->setKeyframeInsertionOverlapThreshold(parameters_.optimization.keyframeInsertionOverlapThreshold);
+  frontend_->setKeyframeInsertionMatchingRatioThreshold(parameters_.optimization.keyframeInsertionMatchingRatioThreshold);
+  std::cout <<"Resetting overlap and matching ratio threshold "<< frontend_->getKeyframeInsertionOverlapThershold() <<" "<<
+              frontend_->getKeyframeInsertionMatchingRatioThreshold()<<std::endl;
 
-  lastOptimizedStateTimestamp_ = okvis::Time(0.0) + temporal_imu_data_overlap;  // s.t. last_timestamp_ - overlap >= 0 (since okvis::time(-0.02) returns big number)
-  lastAddedStateTimestamp_ = okvis::Time(0.0) + temporal_imu_data_overlap;  // s.t. last_timestamp_ - overlap >= 0 (since okvis::time(-0.02) returns big number)
+  lastOptimizedImageDelay_ = okvis::Duration(parameters_.nCameraSystem.cameraGeometry(0)->imageDelay());
+  lastOptimizedStateTimestamp_ = okvis::Time(0.0) + Estimator::half_window_;;  // s.t. last_timestamp_ - overlap >= 0 (since okvis::time(-0.02) returns big number)
+  lastAddedStateTimestamp_ = okvis::Time(0.0) + Estimator::half_window_;  // s.t. last_timestamp_ - overlap >= 0 (since okvis::time(-0.02) returns big number)
 
   estimator_->addImu(parameters_.imu);
   estimator_->addCameraSystem(parameters_.nCameraSystem);
@@ -135,11 +169,10 @@ void ThreadedKFVio::init() {
   if(parameters_.visualization.displayImages){
     for (size_t im = 0; im < parameters_.nCameraSystem.numCameras(); im++) {
       std::stringstream windowname;
-      windowname << "OKVIS camera " << im;
+      windowname << viewerNamePrefix_ << " " << im;
   	  cv::namedWindow(windowname.str());
     }
   }
-  
   startThreads();
 }
 
@@ -245,7 +278,11 @@ bool ThreadedKFVio::addImage(const okvis::Time & stamp, size_t cameraIndex,
   } else {
     cameraMeasurementsReceived_[cameraIndex]->PushNonBlockingDroppingIfFull(
         frame, max_camera_input_queue_size);
-    return cameraMeasurementsReceived_[cameraIndex]->Size() == 1;
+    size_t measSize = cameraMeasurementsReceived_[cameraIndex]->Size();
+    if (measSize * 2 > max_camera_input_queue_size) {
+      LOG(WARNING) << "Exceptional camera meas size " << measSize;
+    }
+    return measSize == 1;
   }
 }
 
@@ -373,6 +410,7 @@ void ThreadedKFVio::frameConsumerLoop(size_t cameraIndex) {
     okvis::kinematics::Transformation T_WS;
     okvis::Time lastTimestamp;
     okvis::SpeedAndBias speedAndBiases;
+    okvis::Duration lastImageDelay;
     // copy last state variables
     {
       waitForStateVariablesMutexTimer.start();
@@ -381,12 +419,13 @@ void ThreadedKFVio::frameConsumerLoop(size_t cameraIndex) {
       T_WS = lastOptimized_T_WS_;
       speedAndBiases = lastOptimizedSpeedAndBiases_;
       lastTimestamp = lastOptimizedStateTimestamp_;
+      lastImageDelay = lastOptimizedImageDelay_;
     }
 
     // -- get relevant imu messages for new state
-    okvis::Time imuDataEndTime = multiFrame->timestamp()
-        + temporal_imu_data_overlap;
-    okvis::Time imuDataBeginTime = lastTimestamp - temporal_imu_data_overlap;
+    okvis::Time imuDataEndTime =
+        multiFrame->timestamp() + lastImageDelay + temporal_imu_data_overlap;
+    okvis::Time imuDataBeginTime = lastTimestamp - Estimator::half_window_;
 
     OKVIS_ASSERT_TRUE_DBG(Exception,imuDataBeginTime < imuDataEndTime,"imu data end time is smaller than begin time.");
 
@@ -422,9 +461,11 @@ void ThreadedKFVio::frameConsumerLoop(size_t cameraIndex) {
       {
         std::lock_guard<std::mutex> lock(lastState_mutex_);
         lastOptimized_T_WS_ = T_WS;
-        lastOptimizedSpeedAndBiases_.setZero();
+        lastOptimizedSpeedAndBiases_.head<3>() = parameters_.initialState.v_WS;
+        lastOptimizedSpeedAndBiases_.segment<3>(3) = imu_params_.g0;
         lastOptimizedSpeedAndBiases_.segment<3>(6) = imu_params_.a0;
-        lastOptimizedStateTimestamp_ = multiFrame->timestamp();
+        lastOptimizedImageDelay_ = okvis::Duration(parameters_.nCameraSystem.cameraGeometry(0)->imageDelay());
+        lastOptimizedStateTimestamp_ = multiFrame->timestamp() + lastOptimizedImageDelay_;
       }
       OKVIS_ASSERT_TRUE_DBG(Exception, success,
           "pose could not be initialized from imu measurements.");
@@ -437,15 +478,17 @@ void ThreadedKFVio::frameConsumerLoop(size_t cameraIndex) {
       propagationTimer.start();
       okvis::ceres::ImuError::propagation(imuData, parameters_.imu, T_WS,
                                           speedAndBiases, lastTimestamp,
-                                          multiFrame->timestamp());
+                                          multiFrame->timestamp() + lastImageDelay);
       propagationTimer.stop();
     }
     okvis::kinematics::Transformation T_WC = T_WS
         * (*parameters_.nCameraSystem.T_SC(frame->sensorId));
     beforeDetectTimer.stop();
-    detectTimer.start();
-    frontend_.detectAndDescribe(frame->sensorId, multiFrame, T_WC, nullptr);
-    detectTimer.stop();
+    if (frontend_->isDescriptorBasedMatching()) {
+      detectTimer.start();
+      frontend_->detectAndDescribe(frame->sensorId, multiFrame, T_WC, nullptr);
+      detectTimer.stop();
+    }
     afterDetectTimer.start();
 
     bool push = false;
@@ -467,6 +510,7 @@ void ThreadedKFVio::frameConsumerLoop(size_t cameraIndex) {
       // and check for termination request
       waitForMatchingThreadTimer.start();
       if (keypointMeasurements_.PushBlockingIfFull(multiFrame, 1) == false) {
+        waitForMatchingThreadTimer.stop();
         return;
       }
       waitForMatchingThreadTimer.stop();
@@ -491,14 +535,31 @@ void ThreadedKFVio::matchingLoop() {
 
     prepareToAddStateTimer.start();
     // -- get relevant imu messages for new state
-    okvis::Time imuDataEndTime = frame->timestamp() + temporal_imu_data_overlap;
-    okvis::Time imuDataBeginTime = lastAddedStateTimestamp_
-        - temporal_imu_data_overlap;
-
-    OKVIS_ASSERT_TRUE_DBG(Exception,imuDataBeginTime < imuDataEndTime,
-        "imu data end time is smaller than begin time." <<
-        "current frametimestamp " << frame->timestamp() << " (id: " << frame->id() <<
-        "last timestamp         " << lastAddedStateTimestamp_ << " (id: " << estimator_->currentFrameId());
+    okvis::Duration lastImageDelay;
+    {
+      std::lock_guard<std::mutex> lock(lastState_mutex_);
+      lastImageDelay = lastOptimizedImageDelay_;
+    }
+    okvis::Time imuDataEndTime = frame->timestamp() + lastImageDelay +
+                                 temporal_imu_data_overlap;
+    okvis::Time imuDataBeginTime =
+        lastAddedStateTimestamp_ - Estimator::half_window_;
+    if (imuDataBeginTime.toSec() == 0.0) {  // first state not yet added
+      imuDataBeginTime = frame->timestamp() - Estimator::half_window_;
+    }
+    // at maximum Duration(.) sec of data is allowed
+    if (imuDataEndTime - imuDataBeginTime > Duration(8)) {
+      LOG(WARNING) << "Warn: Too long interval between two frames "
+                   << lastAddedStateTimestamp_.toSec() << " and "
+                   << frame->timestamp().toSec();
+      imuDataBeginTime = imuDataEndTime - Duration(8);
+    }
+    OKVIS_ASSERT_TRUE_DBG(Exception, imuDataBeginTime < imuDataEndTime,
+                          "imu data end time is smaller than begin time."
+                              << "current frametimestamp " << frame->timestamp()
+                              << " (id: " << frame->id() << "last timestamp "
+                              << lastAddedStateTimestamp_
+                              << " (id: " << estimator_->currentFrameId());
 
     // wait until all relevant imu messages have arrived and check for termination request
     if (imuFrameSynchronizer_.waitForUpToDateImuData(
@@ -528,7 +589,7 @@ void ThreadedKFVio::matchingLoop() {
       okvis::Time t0Matching = okvis::Time::now();
       bool asKeyframe = false;
       if (estimator_->addStates(frame, imuData, asKeyframe)) {
-        lastAddedStateTimestamp_ = frame->timestamp();
+        lastAddedStateTimestamp_ = frame->timestamp() + lastImageDelay;
         addStateTimer.stop();
       } else {
         LOG(ERROR) << "Failed to add state! will drop multiframe.";
@@ -540,7 +601,7 @@ void ThreadedKFVio::matchingLoop() {
       okvis::kinematics::Transformation T_WS;
       estimator_->get_T_WS(frame->id(), T_WS);
       matchingTimer.start();
-      frontend_.dataAssociationAndInitialization(*estimator_, T_WS, parameters_,
+      frontend_->dataAssociationAndInitialization(*estimator_, T_WS, parameters_,
                                                  map_, frame, &asKeyframe);
       matchingTimer.stop();
       if (asKeyframe)
@@ -601,7 +662,7 @@ void ThreadedKFVio::imuConsumerLoop() {
       Eigen::Matrix<double, 15, 15> covariance;
       Eigen::Matrix<double, 15, 15> jacobian;
 
-      frontend_.propagation(imuMeasurements_, imu_params_, T_WS_propagated_,
+      frontend_->propagation(imuMeasurements_, imu_params_, T_WS_propagated_,
                             speedAndBiases_propagated_, start, *end, &covariance,
                             &jacobian);
       OptimizationResults result;
@@ -651,15 +712,22 @@ void ThreadedKFVio::differentialConsumerLoop() {
 
 // Loop that visualizes completed frames.
 void ThreadedKFVio::visualizationLoop() {
-  okvis::VioVisualizer visualizer_(parameters_);
+  okvis::VioVisualizer visualizer_(parameters_, viewerNamePrefix_);
   for (;;) {
     VioVisualizer::VisualizationData::Ptr new_data;
     if (visualizationData_.PopBlocking(&new_data) == false)
       return;
     //visualizer_.showDebugImages(new_data);
+    const bool drawMatches = false;
     std::vector<cv::Mat> out_images(parameters_.nCameraSystem.numCameras());
-    for (size_t i = 0; i < parameters_.nCameraSystem.numCameras(); ++i) {
-      out_images[i] = visualizer_.drawMatches(new_data, i);
+    if (drawMatches) {
+      for (size_t i = 0; i < parameters_.nCameraSystem.numCameras(); ++i) {
+        out_images[i] = visualizer_.drawMatches(new_data, i);
+      }
+    } else {
+      for (size_t i = 0; i < parameters_.nCameraSystem.numCameras(); ++i) {
+        out_images[i] = visualizer_.drawColoredKeypoints(new_data, i);
+      }
     }
 	displayImages_.PushNonBlockingDroppingIfFull(out_images,1);
   }
@@ -675,7 +743,7 @@ void ThreadedKFVio::display() {
   // draw
   for (size_t im = 0; im < parameters_.nCameraSystem.numCameras(); im++) {
     std::stringstream windowname;
-    windowname << "OKVIS camera " << im;
+    windowname << viewerNamePrefix_ << " " << im;
     cv::imshow(windowname.str(), out_images[im]);
   }
   cv::waitKey(1);
@@ -697,10 +765,10 @@ void ThreadedKFVio::optimizationLoop() {
     {
       std::lock_guard<std::mutex> l(estimator_mutex_);
       optimizationTimer.start();
-      //if(frontend_.isInitialized()){
-        estimator_->optimize(parameters_.optimization.max_iterations, 2, false);
+      //if(frontend_->isInitialized()){
+      estimator_->optimize(parameters_.optimization.max_iterations, 2, false);
       //}
-      /*if (estimator_->numFrames() > 0 && !frontend_.isInitialized()){
+      /*if (estimator_->numFrames() > 0 && !frontend_->isInitialized()){
         // undo translation
         for(size_t n=0; n<estimator_->numFrames(); ++n){
           okvis::kinematics::Transformation T_WS_0;
@@ -719,14 +787,23 @@ void ThreadedKFVio::optimizationLoop() {
       optimizationTimer.stop();
 
       // get timestamp of last frame in IMU window. Need to do this before marginalization as it will be removed there (if not keyframe)
-      if (estimator_->numFrames()
+      /*if (estimator_->numFrames()
           > size_t(parameters_.optimization.numImuFrames)) {
         deleteImuMeasurementsUntil = estimator_->multiFrame(
             estimator_->frameIdByAge(parameters_.optimization.numImuFrames))
             ->timestamp() - temporal_imu_data_overlap;
-      }
+      }*/
+      okvis::Duration optimizedImageDelay;
+      estimator_->getImageDelay(frame_pairs->id(), 0, &optimizedImageDelay);
+      deleteImuMeasurementsUntil =
+          estimator_->oldestFrameTimestamp() + optimizedImageDelay - temporal_imu_data_overlap;
 
       marginalizationTimer.start();
+      estimator_->setKeyframeRedundancyThresholds(
+          parameters_.optimization.translationThreshold,
+          parameters_.optimization.rotationThreshold,
+          parameters_.optimization.trackingRateThreshold,
+          parameters_.optimization.minTrackLength);
       estimator_->applyMarginalizationStrategy(
           parameters_.optimization.numKeyframes,
           parameters_.optimization.numImuFrames, result.transferredLandmarks);
@@ -743,7 +820,8 @@ void ThreadedKFVio::optimizationLoop() {
         estimator_->get_T_WS(frame_pairs->id(), lastOptimized_T_WS_);
         estimator_->getSpeedAndBias(frame_pairs->id(), 0,
                                    lastOptimizedSpeedAndBiases_);
-        lastOptimizedStateTimestamp_ = frame_pairs->timestamp();
+        lastOptimizedImageDelay_ = optimizedImageDelay;
+        lastOptimizedStateTimestamp_ = estimator_->currentFrameTimestamp();
         int frameIdInSource = -1;
         bool isKF= false;
         estimator_->getFrameId(frame_pairs->id(), frameIdInSource, isKF );
@@ -762,9 +840,21 @@ void ThreadedKFVio::optimizationLoop() {
           }
           // TODO(jhuai): Severe Jacobian rank deficiency in computing covariance.
           // bool covStatus = estimator_->getStateVariance(&result.stateVariance_);
-        }
-        else
+          estimator_->getImuAugmentedStatesEstimate(&result.imuExtraParams_);
+          const int camIdx = 0;
+          estimator_->getCameraCalibrationEstimate(camIdx, &result.cameraParams_);
+          estimator_->getStateVariance(&result.stateVariance_);
+        } else {
           result.onlyPublishLandmarks = true;
+        }
+        for (size_t i = 0; i < parameters_.nCameraSystem.numCameras(); ++i) {
+          int extrinsic_opt_type = estimator_->getCameraExtrinsicOptType(i);
+          Eigen::VectorXd optimized_coeffs;
+          ExtrinsicModelToParamValues(extrinsic_opt_type,
+                                      result.vector_of_T_SCi[i],
+                                      &optimized_coeffs);
+          result.opt_T_SCi_coeffs.emplace_back(optimized_coeffs);
+        }
         estimator_->getLandmarks(result.landmarksVector);
 
         repropagationNeeded_ = true;
@@ -791,6 +881,7 @@ void ThreadedKFVio::optimizationLoop() {
             if (estimator_->isLandmarkAdded(it->landmarkId)) {
               estimator_->getLandmark(it->landmarkId, landmark);
               it->landmark_W = landmark.pointHomog;
+              it->numObservations = static_cast<int>(landmark.observations.size());
               if (estimator_->isLandmarkInitialized(it->landmarkId))
                 it->isInitialized = true;
               else
@@ -806,7 +897,7 @@ void ThreadedKFVio::optimizationLoop() {
         estimator_->get_T_WS(estimator_->currentKeyframeId(),
                             visualizationDataPtr->T_WS_keyFrame);
       }
-
+      afterOptimizationTimer.stop();
       optimizationDone_ = true;
     }  // unlock mutex
     optimizationNotification_.notify_all();
@@ -825,8 +916,7 @@ void ThreadedKFVio::optimizationLoop() {
     if (parameters_.visualization.displayImages) {
       visualizationDataPtr->currentFrames = frame_pairs;
       visualizationData_.PushNonBlockingDroppingIfFull(visualizationDataPtr, 1);
-    }
-    afterOptimizationTimer.stop();
+    }    
   }
 }
 
@@ -849,10 +939,38 @@ void ThreadedKFVio::publisherLoop() {
                                        result.speedAndBiases, result.omega_S,
                                        result.frameIdInSource,
                                        result.vector_of_T_SCi);
+    if (fullStateCallbackWithAllCalibration_) {
+      fullStateCallbackWithAllCalibration_(
+          result.stamp, result.T_WS, result.speedAndBiases, result.omega_S,
+          result.frameIdInSource, result.opt_T_SCi_coeffs, result.imuExtraParams_,
+          result.cameraParams_, result.stateVariance_, result.vector_of_T_SCi);
+    }
     if (landmarksCallback_ && !result.landmarksVector.empty())
       landmarksCallback_(result.stamp, result.landmarksVector,
                          result.transferredLandmarks);  //TODO(gohlp): why two maps?
   }
+}
+
+void ThreadedKFVio::saveStatistics(const std::string &filename) const {
+  std::ofstream stream(filename, std::ios_base::app);
+  if (!stream.is_open()) {
+    LOG(WARNING) << "error in opening " << filename;
+    return;
+  }
+  estimator_->printTrackLengthHistogram(stream);
+  if (stream.is_open())
+    stream.close();
+}
+
+void ThreadedKFVio::configureBackendAndFrontendPartly(okvis::VioParameters& parameters) {
+  frontend_->setLandmarkTriangulationParameters(
+      parameters.optimization.triangulationTranslationThreshold,
+      parameters.optimization.triangulationMaxDepth);
+  estimator_->setInitialNavState(
+      InitialNavState(parameters.initialState));
+  estimator_->setUseEpipolarConstraint(parameters.optimization.useEpipolarConstraint);
+  estimator_->setCameraObservationModel(parameters.optimization.cameraObservationModelId);
+  estimator_->setLandmarkModel(parameters.optimization.landmarkModelId);
 }
 
 }  // namespace okvis
