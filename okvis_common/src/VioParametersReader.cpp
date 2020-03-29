@@ -128,6 +128,8 @@ void parseInitialState(cv::FileNode initialStateNode,
     double time;
     timeNode >> time;
     initialState->stateTime = okvis::Time(time);
+  } else {
+    bUseExternalState = false;
   }
 
   cv::FileNode vsNode = initialStateNode["v_WS"];
@@ -135,6 +137,8 @@ void parseInitialState(cv::FileNode initialStateNode,
     Eigen::Vector3d vs;
     vs << vsNode[0], vsNode[1], vsNode[2];
     initialState->v_WS = vs;
+  } else {
+    bUseExternalState = false;
   }
 
   cv::FileNode stdvsNode = initialStateNode["std_v_WS"];
