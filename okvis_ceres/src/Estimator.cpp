@@ -1485,12 +1485,30 @@ bool Estimator::getStateVariance(
 }
 
 bool Estimator::getImageDelay(uint64_t poseId, int camIdx,
-                                okvis::Duration* td) const {
-  double tdd;
-  if (!getSensorStateEstimateAs<ceres::CameraTimeParamBlock>(
-          poseId, camIdx, SensorStates::Camera, CameraSensorStates::TD, tdd)) {
+                              okvis::Duration* td) const {
+  double tdd = 0.0;
+  if (statesMap_.find(poseId) == statesMap_.end()) {
+    OKVIS_THROW_DBG(Exception,
+                    "pose with id = " << poseId << " does not exist.");
+    *td = okvis::Duration(0, 0);
     return false;
   }
+
+  // obtain the parameter block ID
+  const SpecificSensorStatesContainer& oneSensor =
+      statesMap_.at(poseId).sensors.at(SensorStates::Camera).at(camIdx);
+  if (CameraSensorStates::TD >= oneSensor.size()) {
+    *td = okvis::Duration(0, 0);
+    return false;
+  }
+  uint64_t id = oneSensor.at(CameraSensorStates::TD).id;
+  if (!mapPtr_->parameterBlockExists(id)) {
+    OKVIS_THROW_DBG(Exception,
+                    "pose with id = " << poseId << " does not exist.");
+    *td = okvis::Duration(0, 0);
+    return false;
+  }
+  tdd = mapPtr_->parameterBlockPtr(id)->parameters()[0];
   *td = okvis::Duration(tdd);
   return true;
 }
@@ -1500,7 +1518,7 @@ int Estimator::getCameraExtrinsicOptType(size_t cameraIdx) const {
 }
 
 void Estimator::getCameraCalibrationEstimate(
-    int camIdx,
+    int /*camIdx*/,
     Eigen::Matrix<double, Eigen::Dynamic, 1>* /*cameraParams*/) const {
 }
 

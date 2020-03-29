@@ -267,8 +267,7 @@ class Frontend : public VioFrontendInterface {
 
   /// @}
 
- private:
-
+ protected:
   /**
    * @brief   feature detectors with the current settings.
    *          The vector contains one for each camera to ensure that there are no problems with parallel detection.

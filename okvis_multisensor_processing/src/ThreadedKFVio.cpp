@@ -718,7 +718,7 @@ void ThreadedKFVio::visualizationLoop() {
     if (visualizationData_.PopBlocking(&new_data) == false)
       return;
     //visualizer_.showDebugImages(new_data);
-    const bool drawMatches = false;
+    const bool drawMatches = true;
     std::vector<cv::Mat> out_images(parameters_.nCameraSystem.numCameras());
     if (drawMatches) {
       for (size_t i = 0; i < parameters_.nCameraSystem.numCameras(); ++i) {
@@ -729,7 +729,7 @@ void ThreadedKFVio::visualizationLoop() {
         out_images[i] = visualizer_.drawColoredKeypoints(new_data, i);
       }
     }
-	displayImages_.PushNonBlockingDroppingIfFull(out_images,1);
+    displayImages_.PushNonBlockingDroppingIfFull(out_images,1);
   }
 }
 
@@ -843,7 +843,6 @@ void ThreadedKFVio::optimizationLoop() {
           estimator_->getImuAugmentedStatesEstimate(&result.imuExtraParams_);
           const int camIdx = 0;
           estimator_->getCameraCalibrationEstimate(camIdx, &result.cameraParams_);
-          estimator_->getStateVariance(&result.stateVariance_);
         } else {
           result.onlyPublishLandmarks = true;
         }
