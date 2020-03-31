@@ -77,7 +77,9 @@ void invertLowerTriangularMatrix(const T* data, int startIndex, Eigen::Matrix<T,
 
 /**
  * @brief The Imu_BG_BA class
- * The body frame is identical to the IMU sensor frame.
+ * The body frame is identical to the classic IMU sensor frame which has origin
+ * at the accelerometer intersection, and x along x-accelrometer and y in the
+ * plane spanned by the x- and y-accelerometer.
  * The accelerometer triad and the gyroscope triad are free of scaling error and misalignment.
  */
 class Imu_BG_BA {
@@ -154,17 +156,16 @@ class Imu_BG_BA {
 
 /**
  * @brief The Imu_BG_BA_TG_TS_TA class
- * The body frame's origin is at the IMU sensor frame, but its orientation is
- * defined relative to another sensor, e.g., camera. Thus both accelerometer
- * triad and gyroscope triad need to account for scaling effect, misalignment,
- * relative orientation to the body frame.
- * This model also considers the g-sensitivity of the gyroscope triad.
- *
- * S frame is defined such that its rotation component is fixed to the nominal
- * value of R_SC0 and its origin is at the accelerometer intersection as
- * discussed in Huai thesis. In this case, the remaining misalignment between
- * the orthogonal accelerometer input reference frame (A) and the C frame will
- * be absorbed into T_a, the IMU accelerometer misalignment matrix.
+ * The body frame is the same as the IMU sensor frame which is
+ * defined relative to an external sensor, e.g., the camera. Its 
+ * orientation is fixed to the nominal value of R_SC0 and its origin is at 
+ * the accelerometer intersection. Thus both accelerometer triad and 
+ * gyroscope triad need to account for scaling effect (3), misalignment (3),
+ * relative orientation (4, minimal 3) to the body frame.
+ * This model also considers the g-sensitivity (9) of the gyroscope triad.
+ * In other words, the remaining misalignment between the orthogonal
+ *  accelerometer input reference frame (A) and the C frame is
+ * absorbed into T_a, the IMU accelerometer misalignment matrix.
  *
  * IMU model
  * w_m = T_g * w_B + T_s * a_B + b_w + n_w
@@ -243,11 +244,11 @@ class Imu_BG_BA_TG_TS_TA {
 
 /**
  * @brief The ScaledMisalignedImu class
- * The body frame is the same as the IMU sensor frame. So the gyroscope triad
- * needs to consider scaling effect, misalignment, and relative orientation
- * to the IMU sensor frame, and g-sensitivity whereas the accelerometer triad
- * needs to consider scaling effect and misalignment.
- * The lever arm(size) effects are ignored.
+ * The body frame is the same as the classic IMU sensor frame. So the gyroscope triad
+ * needs to consider scaling effect(3), misalignment(3), and relative 
+ * orientation(4, minimal 3) to the IMU sensor frame, and g-sensitivity (9)
+ * whereas the accelerometer triad needs to consider scaling effect (3) and
+ * misalignment (3). The lever arm(size) effects are ignored.
  * Implemented according to "Extending Kalibr".
  */
 class ScaledMisalignedImu {

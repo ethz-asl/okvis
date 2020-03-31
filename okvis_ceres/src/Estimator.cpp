@@ -1497,7 +1497,7 @@ bool Estimator::getImageDelay(uint64_t poseId, int camIdx,
   // obtain the parameter block ID
   const SpecificSensorStatesContainer& oneSensor =
       statesMap_.at(poseId).sensors.at(SensorStates::Camera).at(camIdx);
-  if (CameraSensorStates::TD >= oneSensor.size()) {
+  if (static_cast<size_t>(CameraSensorStates::TD) >= oneSensor.size()) {
     *td = okvis::Duration(0, 0);
     return false;
   }
