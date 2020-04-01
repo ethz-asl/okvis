@@ -836,9 +836,13 @@ bool parseBoolean(cv::FileNode node, bool& val) {
 bool VioParametersReader::getCameraCalibration(
     std::vector<CameraCalibration,Eigen::aligned_allocator<CameraCalibration>> & calibrations,
     cv::FileStorage& configurationFile) {
-
   bool success = getCalibrationViaConfig(calibrations, configurationFile["cameras"]);
-
+  bool monocularInput = false;
+  bool parseOk = parseBoolean(configurationFile["monocular_input"], monocularInput);
+  if (parseOk && monocularInput) {
+    calibrations.resize(1);
+  }
+  LOG(INFO) << "monocular_input?" << monocularInput << " #Cameras:" << calibrations.size();
 #ifdef HAVE_LIBVISENSOR
   if (useDriver && !success) {
     // start up sensor
