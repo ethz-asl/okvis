@@ -302,12 +302,16 @@ add_dependencies(okvis_cv brisk okvis_util)
 include_directories(okvis_common/include)
 add_subdirectory(okvis_common)
 
+include_directories(okvis_timing/include)
+add_subdirectory(okvis_timing)
+
+include_directories(loop_closure/include)
+add_subdirectory(loop_closure)
+# add_dependencies(loop_closure okvis_util)
+
 include_directories(okvis_ceres/include)
 add_subdirectory(okvis_ceres)
 add_dependencies(okvis_ceres ceres okvis_util)
-
-include_directories(okvis_timing/include)
-add_subdirectory(okvis_timing)
 
 include_directories(okvis_matcher/include)
 add_subdirectory(okvis_matcher)
@@ -326,12 +330,13 @@ if(BUILD_APPS)
   FIND_PACKAGE(Boost COMPONENTS filesystem system REQUIRED)
   include_directories(${Boost_INCLUDE_DIRS}) 
   add_executable(okvis_app_synchronous okvis_apps/src/okvis_app_synchronous.cpp)
-  target_link_libraries(okvis_app_synchronous 
+  target_link_libraries(okvis_app_synchronous
     okvis_util
     okvis_kinematics
     okvis_time
     okvis_cv 
     okvis_common
+    loop_closure
     okvis_ceres
     okvis_timing
     okvis_matcher
@@ -350,13 +355,14 @@ if(BUILD_APPS)
 endif()
 
 # installation is invoked in the individual modules...
-export (TARGETS 
+export (TARGETS
     okvis_app_synchronous
     okvis_util
     okvis_kinematics
     okvis_time
     okvis_cv 
     okvis_common
+    loop_closure
     okvis_ceres
     okvis_timing
     okvis_matcher
@@ -375,6 +381,7 @@ set(CONF_INCLUDE_DIRS
   "${PROJECT_SOURCE_DIR}/okvis_time/include"
   "${PROJECT_SOURCE_DIR}/okvis_cv/include"
   "${PROJECT_SOURCE_DIR}/okvis_common/include"
+  "${PROJECT_SOURCE_DIR}/loop_closure/include"
   "${PROJECT_SOURCE_DIR}/okvis_ceres/include"
   "${PROJECT_SOURCE_DIR}/okvis_timing/include"
   "${PROJECT_SOURCE_DIR}/okvis_matcher/include"

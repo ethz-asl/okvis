@@ -1526,6 +1526,11 @@ void Estimator::getImuAugmentedStatesEstimate(
     Eigen::Matrix<double, Eigen::Dynamic, 1>* /*extraParams*/) const {
 }
 
+void Estimator::getKeyframeForLoopDetection(
+    std::shared_ptr<okvis::KeyframeForLoopDetection> queryKeyframe) const {
+
+}
+
 const okvis::Duration Estimator::half_window_(2, 0);
 
 }  // namespace okvis

@@ -24,7 +24,8 @@ add_library(${PROJECT_NAME} STATIC
   include/okvis/VioBackendInterface.hpp
   include/okvis/VioFrontendInterface.hpp
   include/okvis/VioInterface.hpp
-  include/okvis/VioParametersReader.hpp)
+  include/okvis/VioParametersReader.hpp
+  include/okvis/threadsafe/ThreadsafeQueue.hpp)
 
 # and link it                     
 target_link_libraries(${PROJECT_NAME}

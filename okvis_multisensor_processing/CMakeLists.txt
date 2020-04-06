@@ -27,7 +27,6 @@ add_library(${PROJECT_NAME}
   include/okvis/ImuFrameSynchronizer.hpp
   include/okvis/FrameSynchronizer.hpp
   include/okvis/VioVisualizer.hpp
-  include/okvis/threadsafe/ThreadsafeQueue.hpp
   ../cmake/okvisConfig.hpp.in
   okvisConfig.hpp
 )
@@ -39,6 +38,7 @@ target_link_libraries(${PROJECT_NAME}
    PUBLIC okvis_kinematics 
    PUBLIC okvis_cv 
    PUBLIC okvis_common
+   PUBLIC loop_closure
    PUBLIC okvis_ceres 
    PUBLIC okvis_frontend
    PRIVATE ${GLOG_LIBRARIES}

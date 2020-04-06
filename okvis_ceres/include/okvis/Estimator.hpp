@@ -49,6 +49,8 @@
 #include <okvis/kinematics/Transformation.hpp>
 
 #include <okvis/assert_macros.hpp>
+#include <okvis/KeyframeForLoopDetection.hpp>
+#include <okvis/LoopFrameAndMatches.hpp>
 #include <okvis/VioBackendInterface.hpp>
 #include <okvis/MultiFrame.hpp>
 #include <okvis/FrameTypedefs.hpp>
@@ -448,6 +450,11 @@ class Estimator : public VioBackendInterface
    */
   virtual void getImuAugmentedStatesEstimate(
       Eigen::Matrix<double, Eigen::Dynamic, 1>* extraParams) const;
+  /**
+   * @brief get the latest keyframe and its info which is used for loop detection.
+   */
+  void getKeyframeForLoopDetection(
+      std::shared_ptr<okvis::KeyframeForLoopDetection> queryKeyframe) const;
   ///@}
 
   /// @name Setters
@@ -526,6 +533,18 @@ class Estimator : public VioBackendInterface
 
   void setLandmarkModel(int landmarkModelId) {
     landmarkModelId_ = landmarkModelId;
+  }
+
+  /**
+   * @brief setLoopFrameAndMatchesList
+   * @warning This method is thread unsafe so do not call
+   * setLoopFrameAndMatchesList() in one thread and call optimize() in another.
+   * @param loopFrameAndMatchesList
+   */
+  void setLoopFrameAndMatchesList(
+      const std::vector<std::shared_ptr<okvis::LoopFrameAndMatches>>&
+          loopFrameAndMatchesList) {
+    loopFrameAndMatchesList_ = loopFrameAndMatchesList;
   }
   ///@}
 
@@ -790,6 +809,8 @@ class Estimator : public VioBackendInterface
 
   // initial nav state, (position, orientation, and velocity), and their stds.
   InitialNavState pvstd_;
+
+  std::vector<std::shared_ptr<okvis::LoopFrameAndMatches>> loopFrameAndMatchesList_;
 
   // minimum track length for a feature track to be used in the estimator.
   // It should be at least 3 for the track to be informative to the estimator.

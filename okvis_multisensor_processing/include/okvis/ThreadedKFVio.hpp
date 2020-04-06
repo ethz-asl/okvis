@@ -49,6 +49,9 @@
 #include <okvis/cameras/NCameraSystem.hpp>
 #include <okvis/Measurements.hpp>
 #include <okvis/Frontend.hpp>
+#include <okvis/LoopClosureModule.hpp>
+#include <okvis/LoopClosureMethod.hpp>
+#include <okvis/LoopFrameAndMatches.hpp>
 #include <okvis/MultiFrame.hpp>
 #include <okvis/Parameters.hpp>
 #include <okvis/assert_macros.hpp>
@@ -112,7 +115,8 @@ class ThreadedKFVio : public VioInterface {
 
   ThreadedKFVio(okvis::VioParameters& parameters,
                 std::shared_ptr<Estimator> estimator,
-                std::shared_ptr<Frontend> frontend);
+                std::shared_ptr<Frontend> frontend,
+                std::shared_ptr<okvis::LoopClosureMethod> loopClosureMethod);
 #endif
 
   /// \brief Destructor. This calls Shutdown() for all threadsafe queues and joins all threads.
@@ -306,6 +310,19 @@ class ThreadedKFVio : public VioInterface {
     Eigen::Matrix<double, Eigen::Dynamic, 1> stateVariance_;  ///< variance of nav, imu, [cam extrinsic, intrinsic, td tr] parameters
   };
 
+  /// \brief copy calibration parameters from estimator to optimization result.
+  void dumpCalibrationParameters(uint64_t latestNFrameId, OptimizationResults* result) const;
+  /// \brief add loop frame and matches to queue.
+  bool addLoopFrameAndMatches(std::shared_ptr<LoopFrameAndMatches> loopFrame);
+
+  /**
+   * @brief popLoopFrameAndMatchesList pop all queued loop frames and saved to loopFrameAndMatchesList.
+   * @param[out] loopFrameAndMatchesList keeps the popped loop frames,
+   * eventually will be relayed to the estimator.
+   * @return true if any loop frame is found.
+   */
+  bool popLoopFrameAndMatchesList(
+      std::vector<std::shared_ptr<LoopFrameAndMatches>>* loopFrameAndMatchesList);
   /// @name State variables
   /// @{
 
@@ -377,7 +394,8 @@ class ThreadedKFVio : public VioInterface {
   okvis::threadsafe::ThreadSafeQueue<VioVisualizer::VisualizationData::Ptr> visualizationData_;
   /// The queue containing the actual display images
   okvis::threadsafe::ThreadSafeQueue<std::vector<cv::Mat>> displayImages_;
-
+  /// The queue containing detected loop frames and 2d-2d feature matches.
+  okvis::threadsafe::ThreadSafeQueue<std::shared_ptr<okvis::LoopFrameAndMatches>> loopFrames_;
   /// @}
   /// @name Mutexes
   /// @{
@@ -425,7 +443,7 @@ class ThreadedKFVio : public VioInterface {
   std::shared_ptr<okvis::Estimator> estimator_;    ///< The backend estimator.
   std::shared_ptr<okvis::Frontend> frontend_;      ///< The frontend.
 #endif
-
+  okvis::LoopClosureModule loopClosureModule_;
   /// @}
 
   size_t numCameras_;     ///< Number of cameras in the system.
@@ -443,6 +461,7 @@ class ThreadedKFVio : public VioInterface {
   /// Max position measurements before dropping.
   const size_t maxPositionInputQueueSize_ = 10;
   
+  const size_t maxLoopFrameQueueSize_ = 4;
 };
 
 }  // namespace okvis

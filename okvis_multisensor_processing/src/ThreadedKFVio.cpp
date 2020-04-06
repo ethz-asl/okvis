@@ -45,6 +45,7 @@
 #include <okvis/ThreadedKFVio.hpp>
 #include <okvis/assert_macros.hpp>
 #include <okvis/ceres/ImuError.hpp>
+#include <okvis/KeyframeForLoopDetection.hpp>
 #include <msckf/GeneralEstimator.hpp>
 #include <msckf/PriorlessEstimator.hpp>
 
@@ -90,6 +91,7 @@ ThreadedKFVio::ThreadedKFVio(okvis::VioParameters& parameters)
       lastAddedImageTimestamp_(okvis::Time(0, 0)),
       optimizationDone_(true),
       frontend_(new okvis::Frontend(parameters.nCameraSystem.numCameras())),
+      loopClosureModule_(),
       parameters_(parameters),
       viewerNamePrefix_("Feature matches for camera"),
       maxImuInputQueueSize_(
@@ -115,7 +117,8 @@ ThreadedKFVio::ThreadedKFVio(okvis::VioParameters& parameters)
 
 ThreadedKFVio::ThreadedKFVio(okvis::VioParameters& parameters,
                              std::shared_ptr<Estimator> estimator,
-                             std::shared_ptr<okvis::Frontend> frontend)
+                             std::shared_ptr<okvis::Frontend> frontend, 
+                             std::shared_ptr<okvis::LoopClosureMethod> loopClosureMethod)
     : speedAndBiases_propagated_(okvis::SpeedAndBias::Zero()),
       imu_params_(parameters.imu),
       repropagationNeeded_(false),
@@ -124,6 +127,7 @@ ThreadedKFVio::ThreadedKFVio(okvis::VioParameters& parameters,
       optimizationDone_(true),
       estimator_(estimator),
       frontend_(frontend),
+      loopClosureModule_(loopClosureMethod),
       parameters_(parameters),
       viewerNamePrefix_("Feature matches for camera"),
       maxImuInputQueueSize_(
@@ -199,6 +203,7 @@ void ThreadedKFVio::startThreads() {
   visualizationThread_ = std::thread(&ThreadedKFVio::visualizationLoop, this);
   optimizationThread_ = std::thread(&ThreadedKFVio::optimizationLoop, this);
   publisherThread_ = std::thread(&ThreadedKFVio::publisherLoop, this);
+  loopClosureModule_.startThreads();
 }
 
 // Destructor. This calls Shutdown() for all threadsafe queues and joins all threads.
@@ -213,7 +218,8 @@ ThreadedKFVio::~ThreadedKFVio() {
   visualizationData_.Shutdown();
   imuFrameSynchronizer_.shutdown();
   positionMeasurementsReceived_.Shutdown();
-
+  loopFrames_.Shutdown();
+  loopClosureModule_.shutdown();
   // consumer threads
   for (size_t i = 0; i < numCameras_; ++i) {
     frameConsumerThreads_.at(i).join();
@@ -370,6 +376,7 @@ void ThreadedKFVio::addDifferentialPressureMeasurement(const okvis::Time &,
 // should return immediately (blocking=false), or only when the processing is complete.
 void ThreadedKFVio::setBlocking(bool blocking) {
   blocking_ = blocking;
+  loopClosureModule_.setBlocking(blocking);
   // disable time limit for optimization
   if(blocking_) {
     std::lock_guard<std::mutex> lock(estimator_mutex_);
@@ -759,12 +766,18 @@ void ThreadedKFVio::optimizationLoop() {
     std::shared_ptr<okvis::MultiFrame> frame_pairs;
     VioVisualizer::VisualizationData::Ptr visualizationDataPtr;
     okvis::Time deleteImuMeasurementsUntil(0, 0);
+    std::vector<std::shared_ptr<LoopFrameAndMatches>> loopFrameAndMatchesList;
+    bool foundLoop = popLoopFrameAndMatchesList(&loopFrameAndMatchesList);
     if (matchedFrames_.PopBlocking(&frame_pairs) == false)
       return;
     OptimizationResults result;
+    std::shared_ptr<KeyframeForLoopDetection> queryKeyframe;
     {
       std::lock_guard<std::mutex> l(estimator_mutex_);
       optimizationTimer.start();
+      if (foundLoop) {
+        estimator_->setLoopFrameAndMatchesList(loopFrameAndMatchesList);
+      }
       //if(frontend_->isInitialized()){
       estimator_->optimize(parameters_.optimization.max_iterations, 2, false);
       //}
@@ -815,46 +828,38 @@ void ThreadedKFVio::optimizationLoop() {
                             imuMeasurements_, &imuMeasurements_mutex_);
 
       // saving optimized state and saving it in OptimizationResults struct
+      okvis::kinematics::Transformation latest_T_WS;
+      okvis::SpeedAndBias latestSpeedAndBias;
+      uint64_t latestNFrameId = frame_pairs->id();
+      estimator_->get_T_WS(latestNFrameId, latest_T_WS);
+      estimator_->getSpeedAndBias(latestNFrameId, 0, latestSpeedAndBias);
+      okvis::Time latestStateTime = estimator_->currentFrameTimestamp();
+
       {
         std::lock_guard<std::mutex> lock(lastState_mutex_);
-        estimator_->get_T_WS(frame_pairs->id(), lastOptimized_T_WS_);
-        estimator_->getSpeedAndBias(frame_pairs->id(), 0,
-                                   lastOptimizedSpeedAndBiases_);
+        lastOptimized_T_WS_ = latest_T_WS;
+        lastOptimizedSpeedAndBiases_ = latestSpeedAndBias;
         lastOptimizedImageDelay_ = optimizedImageDelay;
-        lastOptimizedStateTimestamp_ = estimator_->currentFrameTimestamp();
-        int frameIdInSource = -1;
-        bool isKF= false;
-        estimator_->getFrameId(frame_pairs->id(), frameIdInSource, isKF );
+        lastOptimizedStateTimestamp_ = latestStateTime;
+      }
+      {
         // if we publish the state after each IMU propagation we do not need to publish it here.
         if (!parameters_.publishing.publishImuPropagatedState) {
-          result.T_WS = lastOptimized_T_WS_;
-          result.speedAndBiases = lastOptimizedSpeedAndBiases_;
-          result.stamp = lastOptimizedStateTimestamp_;
+          result.T_WS = latest_T_WS;
+          result.speedAndBiases = latestSpeedAndBias;
+          result.stamp = latestStateTime;
           result.onlyPublishLandmarks = false;
-          result.frameIdInSource = frameIdInSource;
-          result.isKeyframe = isKF;
-          for (size_t i = 0; i < parameters_.nCameraSystem.numCameras(); ++i) {
-            okvis::kinematics::Transformation T_SCA;
-            estimator_->getCameraSensorStates(frame_pairs->id(), i, T_SCA);
-            result.vector_of_T_SCi.emplace_back(T_SCA);
-          }
-          // TODO(jhuai): Severe Jacobian rank deficiency in computing covariance.
-          // bool covStatus = estimator_->getStateVariance(&result.stateVariance_);
-          estimator_->getImuAugmentedStatesEstimate(&result.imuExtraParams_);
-          const int camIdx = 0;
-          estimator_->getCameraCalibrationEstimate(camIdx, &result.cameraParams_);
         } else {
           result.onlyPublishLandmarks = true;
         }
-        for (size_t i = 0; i < parameters_.nCameraSystem.numCameras(); ++i) {
-          int extrinsic_opt_type = estimator_->getCameraExtrinsicOptType(i);
-          Eigen::VectorXd optimized_coeffs;
-          ExtrinsicModelToParamValues(extrinsic_opt_type,
-                                      result.vector_of_T_SCi[i],
-                                      &optimized_coeffs);
-          result.opt_T_SCi_coeffs.emplace_back(optimized_coeffs);
-        }
         estimator_->getLandmarks(result.landmarksVector);
+        dumpCalibrationParameters(latestNFrameId, &result);
+        estimator_->getKeyframeForLoopDetection(queryKeyframe);
+        if (queryKeyframe) {
+          queryKeyframe->T_WB = latest_T_WS;
+          queryKeyframe->stamp = latestStateTime;
+          queryKeyframe->nframe = frame_pairs;
+        }
 
         repropagationNeeded_ = true;
       }
@@ -901,22 +906,42 @@ void ThreadedKFVio::optimizationLoop() {
     }  // unlock mutex
     optimizationNotification_.notify_all();
 
-    if (!parameters_.publishing.publishImuPropagatedState) {
-      // adding further elements to result that do not access estimator.
-      for (size_t i = 0; i < parameters_.nCameraSystem.numCameras(); ++i) {
-//        result.vector_of_T_SCi.push_back(
-//            okvis::kinematics::Transformation(
-//                *parameters_.nCameraSystem.T_SC(i)));
-      }
-    }
     optimizationResults_.Push(result);
-
+    loopClosureModule_.push(queryKeyframe);
     // adding further elements to visualization data that do not access estimator
     if (parameters_.visualization.displayImages) {
       visualizationDataPtr->currentFrames = frame_pairs;
       visualizationData_.PushNonBlockingDroppingIfFull(visualizationDataPtr, 1);
-    }    
+    }
   }
+}
+
+void ThreadedKFVio::dumpCalibrationParameters(uint64_t latestNFrameId, OptimizationResults* result) const {
+  int frameIdInSource = -1;
+  bool isKF= false;
+  estimator_->getFrameId(latestNFrameId, frameIdInSource, isKF);
+  result->frameIdInSource = frameIdInSource;
+  result->isKeyframe = isKF;
+
+  result->vector_of_T_SCi.clear();
+  result->opt_T_SCi_coeffs.clear();
+  for (size_t i = 0; i < parameters_.nCameraSystem.numCameras(); ++i) {
+    okvis::kinematics::Transformation T_SC;
+    estimator_->getCameraSensorStates(latestNFrameId, i, T_SC);
+    result->vector_of_T_SCi.emplace_back(T_SC);
+
+    int extrinsic_opt_type = estimator_->getCameraExtrinsicOptType(i);
+    Eigen::VectorXd optimized_coeffs;
+    ExtrinsicModelToParamValues(extrinsic_opt_type, T_SC, &optimized_coeffs);
+    result->opt_T_SCi_coeffs.emplace_back(optimized_coeffs);
+  }
+
+  estimator_->getImuAugmentedStatesEstimate(&result->imuExtraParams_);
+  const int camIdx = 0;
+  estimator_->getCameraCalibrationEstimate(camIdx, &result->cameraParams_);
+
+  // TODO(jhuai): Severe Jacobian rank deficiency in computing covariance.
+  // bool covStatus = estimator_->getStateVariance(&result->stateVariance_);
 }
 
 // Loop that publishes the newest state and landmarks.
@@ -970,6 +995,31 @@ void ThreadedKFVio::configureBackendAndFrontendPartly(okvis::VioParameters& para
   estimator_->setUseEpipolarConstraint(parameters.optimization.useEpipolarConstraint);
   estimator_->setCameraObservationModel(parameters.optimization.cameraObservationModelId);
   estimator_->setLandmarkModel(parameters.optimization.landmarkModelId);
+  loopClosureModule_.setOutputLoopFrameCallback(
+      std::bind(&okvis::ThreadedKFVio::addLoopFrameAndMatches,
+                this, std::placeholders::_1));
+}
+
+bool ThreadedKFVio::popLoopFrameAndMatchesList(
+    std::vector<std::shared_ptr<LoopFrameAndMatches>>* loopFrameAndMatchesList) {
+    std::shared_ptr<LoopFrameAndMatches> loopFrameAndMatches;
+    bool foundLoop = loopFrames_.PopNonBlocking(&loopFrameAndMatches);
+    while (foundLoop) {
+      loopFrameAndMatchesList->push_back(loopFrameAndMatches);
+      foundLoop = loopFrames_.PopNonBlocking(&loopFrameAndMatches);
+    }
+    return loopFrameAndMatchesList->size() > 0u;
+}
+
+bool ThreadedKFVio::addLoopFrameAndMatches(std::shared_ptr<LoopFrameAndMatches> loopFrame) {
+  if (blocking_) {
+    loopFrames_.PushBlockingIfFull(loopFrame, 1);
+    return true;
+  } else {
+    loopFrames_.PushNonBlockingDroppingIfFull(
+        loopFrame, maxImuInputQueueSize_);
+    return loopFrames_.Size() == 1;
+  }
 }
 
 }  // namespace okvis
