@@ -269,9 +269,9 @@ class MultiFrame
   cameras::NCameraSystem cameraSystem_;  ///< the camera system
 //huai{
 public:
-  cameras::NCameraSystem& GetCameraSystem() {
-      return cameraSystem_;
-  }
+//  cameras::NCameraSystem& GetCameraSystem() {
+//      return cameraSystem_;
+//  }
   cv::Mat getFrame(size_t cameraIdx) {
       return frames_[cameraIdx].getFrame();
   }
