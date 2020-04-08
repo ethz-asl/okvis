@@ -453,8 +453,9 @@ class Estimator : public VioBackendInterface
   /**
    * @brief get the latest keyframe and its info which is used for loop detection.
    */
-  void getKeyframeForLoopDetection(
-      std::shared_ptr<okvis::KeyframeForLoopDetection> queryKeyframe) const;
+  virtual bool getLoopQueryKeyframeMessage(
+      okvis::MultiFramePtr multiFrame,
+      std::shared_ptr<okvis::LoopQueryKeyframeMessage> queryKeyframe) const;
   ///@}
 
   /// @name Setters

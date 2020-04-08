@@ -21,6 +21,7 @@ add_library(${PROJECT_NAME}
   src/MarginalizationError.cpp
   src/HomogeneousPointError.cpp
   src/Estimator.cpp
+  src/EstimatorLoopClosure.cpp
   src/LocalParamizationAdditionalInterfaces.cpp
   include/okvis/Estimator.hpp
   include/okvis/ceres/CeresIterationCallback.hpp

@@ -20,15 +20,33 @@ class LoopClosureMethod {
 
   virtual ~LoopClosureMethod();
 
-  virtual std::shared_ptr<LoopFrameAndMatches> detectLoop(
-      std::shared_ptr<KeyframeForLoopDetection> queryKeyframe);
+  /**
+   * @brief detectLoop detect loop and add keyframe to vocabulary and keyframe database.
+   * @param[in] queryKeyframe
+   * @param[out] queryKeyframeInDB
+   * @param[out] loopFrameAndMatches
+   * @return true if loop frame(s) detected.
+   */
+  virtual bool detectLoop(
+      std::shared_ptr<LoopQueryKeyframeMessage> queryKeyframe,
+      std::shared_ptr<KeyframeInDatabase> queryKeyframeInDB,
+      std::shared_ptr<LoopFrameAndMatches> loopFrameAndMatches);
 
+  /**
+   * @brief addConstraintsAndOptimize add constraints to the pose graph,
+   * remove outliers, and optimize
+   * @param[in] queryKeyframeInDB
+   * @param[in] loopKeyframe
+   * @return true if optimization is performed.
+   */
   virtual bool addConstraintsAndOptimize(
-      std::shared_ptr<KeyframeForLoopDetection> queryKeyframe,
+      std::shared_ptr<KeyframeInDatabase> queryKeyframeInDB,
       std::shared_ptr<LoopFrameAndMatches> loopKeyframe);
+
   const static size_t kMethodId = 0u;
  private:
   LoopClosureParameters loopClosureParameters_;
+  std::vector<std::shared_ptr<okvis::KeyframeInDatabase>> db_frames_;
 };
 }  // namespace okvis
 

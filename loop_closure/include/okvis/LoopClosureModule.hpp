@@ -30,7 +30,7 @@ class LoopClosureModule {
 
   void setBlocking(bool blocking);
 
-  bool push(std::shared_ptr<KeyframeForLoopDetection> queryKeyframe);
+  bool push(std::shared_ptr<LoopQueryKeyframeMessage> queryKeyframe);
 
   void setOutputLoopFrameCallback(
       const OutputLoopFrameCallback& outputCallback);
@@ -46,7 +46,7 @@ class LoopClosureModule {
                    ///< should wait until proccessing is complete.
 
   okvis::threadsafe::ThreadSafeQueue<
-      std::shared_ptr<okvis::KeyframeForLoopDetection>>
+      std::shared_ptr<okvis::LoopQueryKeyframeMessage>>
       queryKeyframeList_;
 
   OutputLoopFrameCallback

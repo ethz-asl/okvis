@@ -15,7 +15,10 @@ LoopClosureModule::~LoopClosureModule() {}
 void LoopClosureModule::setBlocking(bool blocking) { blocking_ = blocking; }
 
 bool LoopClosureModule::push(
-    std::shared_ptr<KeyframeForLoopDetection> queryKeyframe) {
+    std::shared_ptr<LoopQueryKeyframeMessage> queryKeyframe) {
+  if (!queryKeyframe) {  // skip empty packets to save bandwidth.
+    return false;
+  }
   if (blocking_) {
     queryKeyframeList_.PushBlockingIfFull(queryKeyframe, 1);
     return true;
@@ -39,23 +42,23 @@ void LoopClosureModule::loopClosureLoop() {
   TimerSwitchable loopDetectionTimer("4.1 loopDetection", true);
   TimerSwitchable poseGraphOptTimer("4.2 poseGraphOpt", true);
   for (;;) {
-    std::shared_ptr<KeyframeForLoopDetection> queryKeyframe;
+    std::shared_ptr<LoopQueryKeyframeMessage> queryKeyframe;
     if (queryKeyframeList_.PopBlocking(&queryKeyframe) == false) {
       LOG(INFO) << "Shutting down LoopClosureModule.";
       return;
     }
-    if (!queryKeyframe) {
-      continue;
-    }
     loopDetectionTimer.start();
-    std::shared_ptr<LoopFrameAndMatches> outputLoopFrame =
-        LoopClosureMethod_->detectLoop(queryKeyframe);
+
+    std::shared_ptr<LoopFrameAndMatches> outputLoopFrame;
+    std::shared_ptr<KeyframeInDatabase> queryKeyframeInDatabase;
+    LoopClosureMethod_->detectLoop(queryKeyframe, queryKeyframeInDatabase,
+                                   outputLoopFrame);
     loopDetectionTimer.stop();
     if (outputLoopFrame && outputLoopFrameCallback_) {
       outputLoopFrameCallback_(outputLoopFrame);
     }
     poseGraphOptTimer.start();
-    LoopClosureMethod_->addConstraintsAndOptimize(queryKeyframe,
+    LoopClosureMethod_->addConstraintsAndOptimize(queryKeyframeInDatabase,
                                                   outputLoopFrame);
     poseGraphOptTimer.stop();
   }

@@ -7,16 +7,22 @@ LoopClosureMethod::LoopClosureMethod(const LoopClosureParameters& parameters)
 
 LoopClosureMethod::~LoopClosureMethod() {}
 
-std::shared_ptr<LoopFrameAndMatches> LoopClosureMethod::detectLoop(
-    std::shared_ptr<KeyframeForLoopDetection> /*queryKeyframe*/) {
-  std::shared_ptr<LoopFrameAndMatches> loopFrameAndMatches;
-  return loopFrameAndMatches;
+bool LoopClosureMethod::detectLoop(
+    std::shared_ptr<LoopQueryKeyframeMessage> queryKeyframe,
+    std::shared_ptr<KeyframeInDatabase> /*queryKeyframeInDB*/,
+    std::shared_ptr<LoopFrameAndMatches> /*loopFrameAndMatches*/) {
+  queryKeyframe->nframe_.reset();
+  return false;
 }
 
 bool LoopClosureMethod::addConstraintsAndOptimize(
-    std::shared_ptr<KeyframeForLoopDetection> /*queryKeyframe*/,
-    std::shared_ptr<LoopFrameAndMatches> /*loopKeyframe*/) {
-  return true;
+    std::shared_ptr<KeyframeInDatabase> /*queryKeyframe*/,
+    std::shared_ptr<LoopFrameAndMatches> loopKeyframe) {
+  if (loopKeyframe) {
+    return true;
+  } else {
+    return false;
+  }
 }
 
 }  // namespace okvis

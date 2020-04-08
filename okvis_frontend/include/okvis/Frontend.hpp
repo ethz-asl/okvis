@@ -260,8 +260,8 @@ class Frontend : public VioFrontendInterface {
   }
 
   virtual void setLandmarkTriangulationParameters(
-      double triangulationTranslationThreshold,
-      double triangulationMaxDepth) {
+      double /*triangulationTranslationThreshold*/,
+      double /*triangulationMaxDepth*/) {
 
   }
 

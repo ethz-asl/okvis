@@ -771,7 +771,7 @@ void ThreadedKFVio::optimizationLoop() {
     if (matchedFrames_.PopBlocking(&frame_pairs) == false)
       return;
     OptimizationResults result;
-    std::shared_ptr<KeyframeForLoopDetection> queryKeyframe;
+    std::shared_ptr<LoopQueryKeyframeMessage> queryKeyframe;
     {
       std::lock_guard<std::mutex> l(estimator_mutex_);
       optimizationTimer.start();
@@ -854,12 +854,7 @@ void ThreadedKFVio::optimizationLoop() {
         }
         estimator_->getLandmarks(result.landmarksVector);
         dumpCalibrationParameters(latestNFrameId, &result);
-        estimator_->getKeyframeForLoopDetection(queryKeyframe);
-        if (queryKeyframe) {
-          queryKeyframe->T_WB = latest_T_WS;
-          queryKeyframe->stamp = latestStateTime;
-          queryKeyframe->nframe = frame_pairs;
-        }
+        estimator_->getLoopQueryKeyframeMessage(frame_pairs, queryKeyframe);
 
         repropagationNeeded_ = true;
       }
