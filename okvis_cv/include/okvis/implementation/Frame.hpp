@@ -306,4 +306,8 @@ size_t Frame::numKeypoints() const {
   return keypoints_.size();
 }
 
+std::vector<uint64_t> Frame::getLandmarkIds() const {
+  return landmarkIds_;
+}
+
 }  // namespace okvis

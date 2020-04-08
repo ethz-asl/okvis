@@ -66,7 +66,8 @@ Estimator::Estimator(
       minTrackLength_(3u),
       useEpipolarConstraint_(false),
       cameraObservationModelId_(0),
-      landmarkModelId_(0)
+      landmarkModelId_(0),
+      maxOdometryConstraintForAKeyframe_(3)
 {
 }
 
@@ -80,7 +81,8 @@ Estimator::Estimator()
       minTrackLength_(3u),
       useEpipolarConstraint_(false),
       cameraObservationModelId_(0),
-      landmarkModelId_(0)
+      landmarkModelId_(0),
+      maxOdometryConstraintForAKeyframe_(3)
 {
 }
 

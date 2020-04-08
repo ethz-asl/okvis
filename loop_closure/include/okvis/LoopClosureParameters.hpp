@@ -16,7 +16,7 @@ class LoopClosureParameters {
 
   LoopClosureParameters();
   ~LoopClosureParameters();
-  size_t methodId;
+  size_t methodId; ///< 0 for dummy loop closure method, 1 for closure method with ORB loop detector.
 };
 }  // namespace okvis
 

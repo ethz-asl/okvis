@@ -193,6 +193,8 @@ class Frame
   /// \return The number of keypoints.
   inline size_t numKeypoints() const;
 
+  inline std::vector<uint64_t> getLandmarkIds() const;
+
   inline void setRelativeMotion(uint64_t relativeFrameId,
                                 RelativeMotionType relativeMotionType) {
     relativeFrameId_ = relativeFrameId;

@@ -453,7 +453,7 @@ class Estimator : public VioBackendInterface
   /**
    * @brief get the latest keyframe and its info which is used for loop detection.
    */
-  virtual bool getLoopQueryKeyframeMessage(
+  bool getLoopQueryKeyframeMessage(
       okvis::MultiFramePtr multiFrame,
       std::shared_ptr<okvis::LoopQueryKeyframeMessage> queryKeyframe) const;
   ///@}
@@ -639,12 +639,22 @@ class Estimator : public VioBackendInterface
       const Eigen::Vector2d& measurement,
       const Eigen::Matrix2d& information,
       std::shared_ptr<const GEOMETRY_TYPE> cameraGeometry);
+
   /**
    * @brief Remove an observation from a landmark.
    * @param residualBlockId Residual ID for this landmark.
    * @return True if successful.
    */
   bool removeObservation(::ceres::ResidualBlockId residualBlockId);
+
+  /**
+   * @brief getOdometryConstraintsForKeyframe
+   * @pre T_WB in queryKeyframe is set properly.
+   * @param queryKeyframe
+   * @return
+   */
+  virtual bool getOdometryConstraintsForKeyframe(
+      std::shared_ptr<okvis::LoopQueryKeyframeMessage> queryKeyframe) const;
 
   /// \brief StateInfo This configures the state vector ordering
   struct StateInfo
@@ -832,6 +842,8 @@ class Estimator : public VioBackendInterface
   int cameraObservationModelId_; // see CameraRig.hpp
 
   int landmarkModelId_; // see PointLandmarkModels.hpp
+
+  int maxOdometryConstraintForAKeyframe_;
 };
 
 /**

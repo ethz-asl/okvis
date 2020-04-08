@@ -236,6 +236,7 @@ class MultiFrame
   /// \return The number of keypoints.
   inline size_t numKeypoints(size_t cameraIdx) const;
 
+  inline std::vector<uint64_t> getLandmarkIds(size_t cameraIdx) const;
   /// @}
 
   /// \brief Get the total number of keypoints in all frames.

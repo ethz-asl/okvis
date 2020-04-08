@@ -81,6 +81,7 @@ class LoopQueryKeyframeMessage {
   uint64_t id_;
   okvis::Time stamp_;
   okvis::kinematics::Transformation T_WB_;
+  okvis::kinematics::Transformation T_BC_; ///< latest estimate for transform between camera and body frame.
   /// @warn Do not hold on to nframe_ which has many images.
   std::shared_ptr<okvis::MultiFrame> nframe_; ///< nframe contains the list of keypoints for each subframe, and the camera system info.
 
@@ -89,7 +90,7 @@ class LoopQueryKeyframeMessage {
   std::vector<std::shared_ptr<NeighborConstraintMessage>> odometryConstraintList_;
 
   std::vector<int> keypointIndexForLandmarkList_; ///< Index of the keypoints with landmark positions.
-  std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d>>
+  std::vector<Eigen::Vector4d, Eigen::aligned_allocator<Eigen::Vector4d>>
       landmarkPositionList_;  ///< landmark positions expressed in the camera frame
 };
 
@@ -112,7 +113,7 @@ public:
   std::vector<std::shared_ptr<NeighborConstraintInDatabase>> constraintList_; ///< odometry or loop constraints.
 
   cv::Mat frontendDescriptors_; ///< landmark descriptors used in frontend. #columns is the descriptor size, #rows is for landmarks.
-  std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d>>
+  std::vector<Eigen::Vector4d, Eigen::aligned_allocator<Eigen::Vector4d>>
       landmarkPositionList_;  ///< landmark positions expressed in the camera frame.
 };
 
