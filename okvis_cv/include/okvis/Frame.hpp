@@ -207,8 +207,12 @@ class Frame
     *relativeMotionType = relativeMotionType_;
   }
 
-  cv::Mat getFrame() const {
-    return image_;
+  cv::Mat getDescriptors() const {
+    return descriptors_;
+  }
+
+  std::vector<cv::KeyPoint> getKeypoints() const {
+    return keypoints_;
   }
 
  protected:

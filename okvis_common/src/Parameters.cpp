@@ -81,7 +81,10 @@ std::string EstimatorAlgorithmIdToName(EstimatorAlgorithm id) {
 }
 
 Optimization::Optimization()
-    : keyframeInsertionOverlapThreshold(0.6),
+    : detectionThreshold(40),
+      detectionOctaves(0),
+      maxNoKeypoints(400),
+      keyframeInsertionOverlapThreshold(0.6),
       keyframeInsertionMatchingRatioThreshold(0.2),
       algorithm(EstimatorAlgorithm::OKVIS),
       translationThreshold(0.4),

@@ -263,30 +263,29 @@ class MultiFrame
     return cameraSystem_.hasOverlap(cameraIndexSeenBy, cameraIndex);
   }
 
- protected:
-  okvis::Time timestamp_;  ///< the frame timestamp
-  uint64_t id_;  ///< the frame id
-  std::vector<Frame, Eigen::aligned_allocator<Frame>> frames_;  ///< the individual frames
-  cameras::NCameraSystem cameraSystem_;  ///< the camera system
-//huai{
-public:
-//  cameras::NCameraSystem& GetCameraSystem() {
-//      return cameraSystem_;
-//  }
-  cv::Mat getFrame(size_t cameraIdx) {
-      return frames_[cameraIdx].getFrame();
-  }
+  inline cv::Mat drawStereoMatches(const std::vector<cv::DMatch>& matches) const;
+
+  inline cv::Mat computeIntraMatches(
+      cv::Ptr<cv::DescriptorMatcher> feature_matcher, std::vector<int>* i_query,
+      std::vector<int>* i_match, double lowe_ratio, bool draw_matches) const;
+
   void getRelativeMotion(size_t cameraIdx, uint64_t* relativeFrameId,
                          RelativeMotionType* rmt) const {
     frames_[cameraIdx].getRelativeMotion(relativeFrameId, rmt);
   }
+
   void setRelativeMotion(size_t cameraIdx, uint64_t relativeFrameId,
                          RelativeMotionType rmt) {
     frames_[cameraIdx].setRelativeMotion(relativeFrameId, rmt);
   }
 
   int idInSource; /// (0 based) id of the frame within the video or the image folder
-  //}
+
+ protected:
+  okvis::Time timestamp_;  ///< the frame timestamp
+  uint64_t id_;  ///< the frame id
+  std::vector<Frame, Eigen::aligned_allocator<Frame>> frames_;  ///< the individual frames
+  cameras::NCameraSystem cameraSystem_;  ///< the camera system
 };
 
 typedef std::shared_ptr<MultiFrame> MultiFramePtr;  ///< For convenience.

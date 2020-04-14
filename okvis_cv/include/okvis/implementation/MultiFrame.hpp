@@ -274,5 +274,40 @@ size_t MultiFrame::numKeypoints() const
   return numKeypoints;
 }
 
+cv::Mat MultiFrame::computeIntraMatches(
+    cv::Ptr<cv::DescriptorMatcher> feature_matcher, std::vector<int>* i_query,
+    std::vector<int>* i_match, double lowe_ratio, bool draw_matches) const {
+  // Get two best matches between frame descriptors.
+  std::vector<std::vector<cv::DMatch>> matches;
+  feature_matcher->knnMatch(frames_[0].getDescriptors(),
+                            frames_[1].getDescriptors(), matches, 2u);
+
+  const size_t n_matches = matches.size();
+  i_query->reserve(n_matches);
+  i_match->reserve(n_matches);
+  std::vector<cv::DMatch> good_matches;
+  for (size_t i = 0; i < n_matches; i++) {
+    const std::vector<cv::DMatch>& match = matches[i];
+    if (match[0].distance < lowe_ratio * match[1].distance) {
+      i_query->push_back(match[0].queryIdx);
+      i_match->push_back(match[0].trainIdx);
+      good_matches.push_back(match[0]);
+    }
+  }
+
+  cv::Mat img_matches;
+  if (draw_matches) {
+    img_matches = drawStereoMatches(good_matches);
+  }
+  return img_matches;
+}
+
+cv::Mat MultiFrame::drawStereoMatches(const std::vector<cv::DMatch>& matches) const {
+  cv::Mat img_matches;
+  cv::drawMatches(frames_[0].image(), frames_[0].getKeypoints(), frames_[1].image(),
+                  frames_[1].getKeypoints(), matches, img_matches,
+                  cv::Scalar(255, 0, 0), cv::Scalar(255, 0, 0));
+  return img_matches;
+}
 
 }// namespace okvis

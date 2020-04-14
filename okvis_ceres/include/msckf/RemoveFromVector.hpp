@@ -18,7 +18,7 @@ void removeUnsetMatrices(
   auto iter = matrices->begin();
   auto keepIter = matrices->begin();
   for (size_t i = 0; i < markers.size(); ++i) {
-    if (markers[i] == 0) {
+    if (!markers[i]) {
       ++iter;
     } else {
       if (keepIter != iter) *keepIter = *iter;
@@ -40,7 +40,7 @@ void removeUnsetElements(std::vector<T>* elements,
   auto iter = elements->begin();
   auto keepIter = elements->begin();
   for (size_t i = 0; i < markers.size(); ++i) {
-    if (markers[i] == 0) {
+    if (!markers[i]) {
       ++iter;
     } else {
       *keepIter = *iter;
@@ -62,7 +62,7 @@ void removeUnsetElements(std::vector<T>* elements,
   auto iter = elements->begin();
   auto keepIter = elements->begin();
   for (size_t i = 0; i < markers.size(); ++i) {
-    if (markers[i] == 0) {
+    if (!markers[i]) {
       iter += step;
     } else {
       for (int j = 0; j < step; ++j) {
