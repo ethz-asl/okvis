@@ -4,8 +4,13 @@
 #include <okvis/kinematics/Transformation.hpp>
 
 namespace msckf {
+// Jacobians for $T_z = T_x * T_y$.
+// Oplus and Ominus for $T_x$ $T_y$ and $T_z$ are defined as in Transformation.
+// T_z = Oplus(\hat{T}_z, \delta z)
+// \delta z = Ominus(T_z, \hat{T}_z)
 class TransformMultiplyJacobian {
  public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   TransformMultiplyJacobian(const okvis::kinematics::Transformation& T_AB,
                             const okvis::kinematics::Transformation& T_BC)
       : T_AB_(T_AB.r(), T_AB.q()), T_BC_(T_BC.r(), T_BC.q()) {}

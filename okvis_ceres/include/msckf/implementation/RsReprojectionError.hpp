@@ -535,7 +535,7 @@ operator()(const Scalar* const T_WB, const Scalar* const php_W,
   Eigen::Map<const Eigen::Matrix<Scalar, 6, 1>> deltaT_WBe(deltaT_WB);
   Eigen::Matrix<Scalar, 3, 1> t_WB_W = t_WB_W0 + deltaT_WBe.template head<3>();
   Eigen::Matrix<Scalar, 3, 1> omega = deltaT_WBe.template tail<3>();
-  Eigen::Quaternion<Scalar> dqWS = okvis::ceres::expAndTheta(omega);
+  Eigen::Quaternion<Scalar> dqWS = okvis::kinematics::expAndTheta(omega);
   Eigen::Quaternion<Scalar> q_WB = dqWS * q_WB0;
   // q_WB.normalize();
 

@@ -10,7 +10,7 @@
 
 #include <okvis/ceres/PoseLocalParameterization.hpp>
 #include <okvis/kinematics/Transformation.hpp>
-#include <okvis/kinematics/operators.hpp>
+#include <okvis/kinematics/sophus_operators.hpp>
 
 namespace okvis {
 //class ExtrinsicFixed {
@@ -270,7 +270,7 @@ class Extrinsic_p_BC_q_BC final : public ::ceres::LocalParameterization {
                           Eigen::Quaterniond* q_delta) {
     Eigen::Vector3d deltaAlpha = delta.segment<3>(3);   
     *r_delta = r + delta.head<3>();
-    *q_delta = okvis::ceres::expAndTheta(deltaAlpha) * q;
+    *q_delta = okvis::kinematics::expAndTheta(deltaAlpha) * q;
     q_delta->normalize();
   }
 
@@ -281,7 +281,7 @@ class Extrinsic_p_BC_q_BC final : public ::ceres::LocalParameterization {
     Eigen::Map<const Eigen::Matrix<Scalar, 6, 1>> deltaT_BCe(deltaT_BC);
     T_BC->first += deltaT_BCe.template head<3>();
     Eigen::Matrix<Scalar, 3, 1> omega = deltaT_BCe.template tail<3>();
-    Eigen::Quaternion<Scalar> dqSC = okvis::ceres::expAndTheta(omega);
+    Eigen::Quaternion<Scalar> dqSC = okvis::kinematics::expAndTheta(omega);
     T_BC->second = dqSC * T_BC->second;
   }
 
@@ -300,7 +300,7 @@ class Extrinsic_p_BC_q_BC final : public ::ceres::LocalParameterization {
     const Eigen::Quaterniond q_(x[6], x[3], x[4], x[5]);
     Eigen::Map<Eigen::Vector3d> delta_q_(&delta[3]);
     double theta;
-    delta_q_ = okvis::ceres::logAndTheta(q_plus_delta_ * q_.inverse(), &theta);
+    delta_q_ = okvis::kinematics::logAndTheta(q_plus_delta_ * q_.inverse(), &theta);
   }
 
   static void toParamsInfo(const std::string delimiter,

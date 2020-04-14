@@ -1,11 +1,11 @@
 #include <gtest/gtest.h>
 
-#include <Eigen/Core>
-#include <msckf/JacobianHelpers.hpp>
 #include <msckf/TransformMultiplyJacobian.hpp>
-#include <okvis/kinematics/Transformation.hpp>
+#include <okvis/kinematics/sophus_operators.hpp>
 
 class TransformMultiplyTest : public ::testing::Test {
+ public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
  protected:
   void SetUp() override {
     srand((unsigned int)time(0));  // comment this for deterministic behavior
@@ -27,7 +27,7 @@ class TransformMultiplyTest : public ::testing::Test {
       msckf::TransformMultiplyJacobian tmj_bar(T_AB_bar, T_BC_);
       okvis::kinematics::Transformation T_AC_bar = tmj_bar.multiplyT();
       Eigen::Matrix<double, 6, 1> ratio =
-          okvis::ceres::ominus(T_AC_bar, T_AC_) / eps;
+          okvis::kinematics::ominus(T_AC_bar, T_AC_) / eps;
       dp_ddelta_AB_.col(i) = ratio.head<3>();
       dtheta_ddelta_AB_.col(i) = ratio.tail<3>();
     }
@@ -40,7 +40,7 @@ class TransformMultiplyTest : public ::testing::Test {
       msckf::TransformMultiplyJacobian tmj_bar(T_AB_, T_BC_bar);
       okvis::kinematics::Transformation T_AC_bar = tmj_bar.multiplyT();
       Eigen::Matrix<double, 6, 1> ratio =
-          okvis::ceres::ominus(T_AC_bar, T_AC_) / eps;
+          okvis::kinematics::ominus(T_AC_bar, T_AC_) / eps;
       dp_ddelta_BC_.col(i) = ratio.head<3>();
       dtheta_ddelta_BC_.col(i) = ratio.tail<3>();
     }
