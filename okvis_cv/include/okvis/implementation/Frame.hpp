@@ -310,4 +310,14 @@ std::vector<uint64_t> Frame::getLandmarkIds() const {
   return landmarkIds_;
 }
 
+cv::Mat Frame::copyDescriptorsAt(const std::vector<int>& descriptorIndices) const {
+  cv::Mat result(descriptorIndices.size(), descriptors_.cols, descriptors_.type());
+  int j = 0;
+  for (auto index : descriptorIndices) {
+    descriptors_.row(index).copyTo(result.row(j));
+    ++j;
+  }
+  return result;
+}
+
 }  // namespace okvis

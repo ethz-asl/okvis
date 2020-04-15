@@ -215,6 +215,8 @@ class Frame
     return keypoints_;
   }
 
+  inline cv::Mat copyDescriptorsAt(const std::vector<int>& descriptorIndices) const;
+
  protected:
   cv::Mat image_;  ///< the image as OpenCV's matrix
   std::shared_ptr<const cameras::CameraBase> cameraGeometry_;  ///< the camera geometry

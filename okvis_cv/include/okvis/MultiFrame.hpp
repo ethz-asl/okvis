@@ -269,6 +269,10 @@ class MultiFrame
       cv::Ptr<cv::DescriptorMatcher> feature_matcher, std::vector<int>* i_query,
       std::vector<int>* i_match, double lowe_ratio, bool draw_matches) const;
 
+  /// \brief descriptor size in bytes.
+  inline cv::Mat copyDescriptorsAt(
+      int cameraIdx, const std::vector<int>& descriptorIndices) const;
+
   void getRelativeMotion(size_t cameraIdx, uint64_t* relativeFrameId,
                          RelativeMotionType* rmt) const {
     frames_[cameraIdx].getRelativeMotion(relativeFrameId, rmt);

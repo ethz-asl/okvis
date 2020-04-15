@@ -310,4 +310,9 @@ cv::Mat MultiFrame::drawStereoMatches(const std::vector<cv::DMatch>& matches) co
   return img_matches;
 }
 
+cv::Mat MultiFrame::copyDescriptorsAt(
+    int cameraIdx, const std::vector<int>& descriptorIndices) const {
+  return frames_[cameraIdx].copyDescriptorsAt(descriptorIndices);
+}
+
 }// namespace okvis
