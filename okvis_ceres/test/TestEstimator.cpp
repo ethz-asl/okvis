@@ -47,6 +47,7 @@
 #include <okvis/ceres/SpeedAndBiasError.hpp>
 #include <okvis/ceres/RelativePoseError.hpp>
 #include <okvis/assert_macros.hpp>
+#include <msckf/PointLandmarkSimulation.hpp>
 
 
 TEST(okvisTestSuite, Estimator) {
@@ -147,6 +148,7 @@ TEST(okvisTestSuite, Estimator) {
     estimator.addCameraParameterStds(extrinsicsEstimationParameters);
     estimator.addCameraParameterStds(extrinsicsEstimationParameters);
     estimator.addImu(imuParameters);
+    std::shared_ptr<okvis::MultiFrame> prevkeymf;
 
     const size_t K = 6;
     uint64_t id = -1;
@@ -176,33 +178,88 @@ TEST(okvisTestSuite, Estimator) {
       estimator.get_T_WS(mf->id(), T_WS_est);
 
       // now let's add also landmark observations
-      std::vector<cv::KeyPoint> keypoints;
-      for (size_t j = 0; j < homogeneousPoints.size(); ++j) {
-        for (size_t i = 0; i < mf->numFrames(); ++i) {
-          Eigen::Vector2d projection;
-          Eigen::Vector4d point_C = mf->T_SC(i)->inverse()
-              * T_WS.inverse() * homogeneousPoints[j];
-          okvis::cameras::CameraBase::ProjectionStatus status = mf
-              ->geometryAs<
-                  okvis::cameras::PinholeCamera<
-                      okvis::cameras::EquidistantDistortion>>(i)->projectHomogeneous(
-              point_C, &projection);
-          if (status == okvis::cameras::CameraBase::ProjectionStatus::Successful) {
-            Eigen::Vector2d kpt;
-            Eigen::Vector2d measurement(projection + Eigen::Vector2d::Random());
-            keypoints.push_back(
-                cv::KeyPoint(measurement[0], measurement[1], 8.0));
-            mf->resetKeypoints(i,keypoints);
-            estimator
-                .addObservation<
-                    okvis::cameras::PinholeCamera<
-                        okvis::cameras::EquidistantDistortion>>(
-                lmIds[j], mf->id(), i, mf->numKeypoints(i) - 1);
-          }
+      std::vector<std::vector<size_t>> lmkIndices; // for every keypoint
+      std::vector<std::vector<int>> keypointIndices; // for every landmark
+      double imageNoiseStd = 0.7;
+      PointLandmarkSimulation::projectLandmarksToNFrame(
+          homogeneousPoints, T_WS, cameraSystem, mf, &lmkIndices,
+          &keypointIndices, &imageNoiseStd);
+
+      for (size_t i = 0; i < lmkIndices.size(); ++i) {
+        for (size_t j = 0; j < lmkIndices[i].size(); ++j) {
+          size_t lmkIndex = lmkIndices[i][j];
+          size_t kpIndex = j;
+          mf->setLandmarkId(i, j, lmIds[lmkIndex]);
+          estimator.addObservation<okvis::cameras::PinholeCamera<
+              okvis::cameras::EquidistantDistortion>>(lmIds[lmkIndex], mf->id(),
+                                                      i, kpIndex);
         }
       }
       // run the optimization
       estimator.optimize(10, 4, false);
+
+      std::shared_ptr<okvis::LoopQueryKeyframeMessage> queryKeyframe;
+      estimator.getLoopQueryKeyframeMessage(mf, &queryKeyframe);
+      bool isKf = (k % 3 == 0);
+      // check number of landmarks, landmark positions are in camera frame,
+      // the constraint list, poses, etc.
+      if (isKf) {
+        EXPECT_TRUE(queryKeyframe);
+        EXPECT_EQ(queryKeyframe->id_, mf->id());
+        EXPECT_EQ(queryKeyframe->stamp_, mf->timestamp());
+        okvis::kinematics::Transformation T_WS_kf;
+        estimator.get_T_WS(mf->id(), T_WS_kf);
+        EXPECT_LT((queryKeyframe->T_WB_.coeffs() - T_WS_kf.coeffs()).lpNorm<Eigen::Infinity>(), 1e-7);
+        EXPECT_LT((queryKeyframe->T_BC_.coeffs() - mf->T_SC(0u)->coeffs()).lpNorm<Eigen::Infinity>(), 1e-7);
+        EXPECT_LT(queryKeyframe->cov_T_WB_.lpNorm<Eigen::Infinity>(), 1e-7);
+        EXPECT_EQ(queryKeyframe->NFrame(), mf);
+        if (k == 0) {
+          EXPECT_EQ(queryKeyframe->odometryConstraintList().size(), 0u);
+        } else {
+          okvis::kinematics::Transformation T_WS_prevkf;
+          estimator.get_T_WS(prevkeymf->id(), T_WS_prevkf);
+          EXPECT_GE(queryKeyframe->odometryConstraintList().size(), 1u);
+          std::shared_ptr<const okvis::NeighborConstraintMessage>
+              constraintMessage =
+                  queryKeyframe->odometryConstraintListMutable().at(0u);
+          EXPECT_EQ(constraintMessage->core_.id_, prevkeymf->id());
+          EXPECT_EQ(constraintMessage->core_.stamp_, prevkeymf->timestamp());
+          EXPECT_LT((constraintMessage->core_.T_BrB_.coeffs() -
+                     (T_WS_kf.inverse() * T_WS_prevkf).coeffs())
+                        .lpNorm<Eigen::Infinity>(),
+                    1e-7);
+          EXPECT_EQ(constraintMessage->core_.type_,
+                    okvis::PoseConstraintType::Odometry);
+          EXPECT_LT((constraintMessage->core_.covRawError_ -
+                     Eigen::Matrix<double, 6, 6>::Identity())
+                        .lpNorm<Eigen::Infinity>(),
+                    1e-7);
+          EXPECT_LT((constraintMessage->T_WB_.coeffs() - T_WS_prevkf.coeffs())
+                        .lpNorm<Eigen::Infinity>(),
+                    1e-7);
+        }
+        prevkeymf = mf;
+        const std::vector<int>& kpIndices = queryKeyframe->keypointIndexForLandmarkList();
+
+        const std::vector<Eigen::Vector4d,
+                          Eigen::aligned_allocator<Eigen::Vector4d>>&
+            lmkPositions = queryKeyframe->landmarkPositionList();
+        EXPECT_EQ(kpIndices.size(), lmkPositions.size());
+        const size_t camIdx = 0u;
+
+        for (size_t k = 0; k < lmkPositions.size(); ++k) {
+          int kpIndexForLmk = kpIndices[k];
+          int lmkIndex = lmkIndices[0][kpIndexForLmk];
+          Eigen::Vector4d hpW = homogeneousPoints[lmkIndex];
+          okvis::MapPoint mp;
+          estimator.getLandmark(lmIds[lmkIndex], mp);
+          hpW = mp.pointHomog;
+          Eigen::Vector4d hpC = (T_WS_kf * (*mf->T_SC(camIdx))).inverse() * hpW;
+          EXPECT_LT((lmkPositions[k] - hpC).lpNorm<Eigen::Infinity>(), 1e-7);
+        }
+      } else {
+        EXPECT_FALSE(queryKeyframe);
+      }
     }
     std::cout << "== TRY MARGINALIZATION ==" << std::endl;
     // try out the marginalization strategy
@@ -226,13 +283,11 @@ TEST(okvisTestSuite, Estimator) {
 
     std::cout << (speedAndBias_est - speedAndBias).norm() << std::endl;
 
-    OKVIS_ASSERT_TRUE(Exception, (speedAndBias_est - speedAndBias).norm()<
-                   0.04, "speed and biases not close enough");
-    OKVIS_ASSERT_TRUE(
-        Exception,
-        2*(T_WS.q()*T_WS_est.q().inverse()).vec().norm()<1e-2,
-                "quaternions not close enough");
-    OKVIS_ASSERT_TRUE(Exception, (T_WS.r() - T_WS_est.r()).norm()<1e-1,
-                   "translation not close enough");
+    EXPECT_LT((speedAndBias_est - speedAndBias).norm(), 0.05)
+        << "speed and biases not close enough";
+    EXPECT_LT(2 * (T_WS.q() * T_WS_est.q().inverse()).vec().norm(), 1e-2)
+        << "quaternions not close enough";
+    EXPECT_LT((T_WS.r() - T_WS_est.r()).norm(), 5e-1)
+        << "translation not close enough";
   }
 }

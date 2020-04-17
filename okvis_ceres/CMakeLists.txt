@@ -33,6 +33,7 @@ add_library(${PROJECT_NAME}
   msckf/GeneralEstimator.cpp
   msckf/ParallaxAnglePoint.cpp
   msckf/PointLandmarkModels.cpp
+  msckf/PointLandmarkSimulation.cpp
   msckf/PointSharedData.cpp
   msckf/PriorlessEstimator.cpp
   msckf/SimulatedMotionForParallaxAngleTest.cpp
