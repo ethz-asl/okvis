@@ -21,13 +21,23 @@ ExtrinsicsEstimationParameters::ExtrinsicsEstimationParameters(
       sigma_c_relative_orientation(sigma_c_relative_orientation) {}
 
 ImuParameters::ImuParameters()
-    : a_max(200.0),
+    : T_BS(),
+      a_max(200.0),
       g_max(10),
+      sigma_g_c(1.2e-3),
+      sigma_a_c(8e-3),
+      sigma_bg(0.03),
+      sigma_ba(0.1),
+      sigma_gw_c(4e-6),
+      sigma_aw_c(4e-5),
       tau(3600.0),
       g(9.80665),
       g0(0, 0, 0),
       a0(0, 0, 0),
       rate(100),
+      sigma_TGElement(5e-3),
+      sigma_TSElement(1e-3),
+      sigma_TAElement(5e-3),
       model_type("BG_BA_TG_TS_TA") {
   Eigen::Matrix<double, 9, 1> eye;
   eye << 1, 0, 0, 0, 1, 0, 0, 0, 1;
@@ -81,9 +91,16 @@ std::string EstimatorAlgorithmIdToName(EstimatorAlgorithm id) {
 }
 
 Optimization::Optimization()
-    : detectionThreshold(40),
+    : max_iterations(10),
+      min_iterations(3),
+      timeLimitForMatchingAndOptimization(0.035),
+      timeReserve(0.005),
+      detectionThreshold(40),
+      useMedianFilter(false),
       detectionOctaves(0),
       maxNoKeypoints(400),
+      numKeyframes(5),
+      numImuFrames(3),
       keyframeInsertionOverlapThreshold(0.6),
       keyframeInsertionMatchingRatioThreshold(0.2),
       algorithm(EstimatorAlgorithm::OKVIS),
@@ -97,15 +114,5 @@ Optimization::Optimization()
       cameraObservationModelId(0),
       landmarkModelId(0),
       initializeWithoutEnoughParallax(true) {}
-
-InitialState::InitialState()
-    : bUseExternalInitState(false),
-      stateTime(0, 0),
-      p_WS(0, 0, 0),
-      q_WS(1, 0, 0, 0),
-      v_WS(0, 0, 0),
-      std_p_WS(0.01, 0.01, 0.01),
-      std_q_WS(M_PI / 180, M_PI / 180, 3 * M_PI / 180),
-      std_v_WS(0.1, 0.1, 0.1) {}
 
 }  // namespace okvis

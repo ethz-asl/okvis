@@ -60,7 +60,7 @@ bool GeneralEstimator::addStates(
     tdEstimate.fromSec(camera_rig_.getImageDelay(camIdx));
     correctedStateTime = multiFrame->timestamp() + tdEstimate;
 
-    if (pvstd_.initWithExternalSource_) {
+    if (pvstd_.initWithExternalSource) {
       T_WS = okvis::kinematics::Transformation(pvstd_.p_WS, pvstd_.q_WS);
     } else {
       bool success0 = initPoseFromImu(imuMeasurements, T_WS);

@@ -121,15 +121,15 @@ static void parseExpandedCameraParamSigmas(
 }
 
 void parseInitialState(cv::FileNode initialStateNode,
-                       InitialState* initialState) {
-  bool bUseExternalState = true;
+                       InitialNavState* initialState) {
+  bool initWithExternalSource = true;
   cv::FileNode timeNode = initialStateNode["state_time"];
   if (timeNode.isReal()) {
     double time;
     timeNode >> time;
     initialState->stateTime = okvis::Time(time);
   } else {
-    bUseExternalState = false;
+    initWithExternalSource = false;
   }
 
   cv::FileNode vsNode = initialStateNode["v_WS"];
@@ -138,7 +138,7 @@ void parseInitialState(cv::FileNode initialStateNode,
     vs << vsNode[0], vsNode[1], vsNode[2];
     initialState->v_WS = vs;
   } else {
-    bUseExternalState = false;
+    initWithExternalSource = false;
   }
 
   cv::FileNode stdvsNode = initialStateNode["std_v_WS"];
@@ -169,7 +169,7 @@ void parseInitialState(cv::FileNode initialStateNode,
     initialState->std_q_WS = stdqs;
   }
 
-  initialState->bUseExternalInitState = bUseExternalState;
+  initialState->initWithExternalSource = initWithExternalSource;
   LOG(INFO) << "initial velocity in the global frame z pointing neg gravity "
             << initialState->v_WS.transpose() << std::endl
             << " and its std " << initialState->std_v_WS.transpose()

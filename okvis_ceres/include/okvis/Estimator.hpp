@@ -67,7 +67,7 @@
 #include <msckf/imu/BoundedImuDeque.hpp>
 #include <msckf/CameraRig.hpp>
 #include <msckf/imu/ImuRig.hpp>
-#include <msckf/InitialNavState.hpp>
+#include <okvis/InitialNavState.hpp>
 
 /// \brief okvis Main namespace of this package.
 namespace okvis {
@@ -455,7 +455,7 @@ class Estimator : public VioBackendInterface
    */
   bool getLoopQueryKeyframeMessage(
       okvis::MultiFramePtr multiFrame,
-      std::shared_ptr<okvis::LoopQueryKeyframeMessage> queryKeyframe) const;
+      std::shared_ptr<okvis::LoopQueryKeyframeMessage>* queryKeyframe) const;
   ///@}
 
   /// @name Setters

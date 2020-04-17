@@ -49,6 +49,7 @@
 #include <opencv2/opencv.hpp>
 #pragma GCC diagnostic pop
 #include <Eigen/Dense>
+#include <okvis/InitialNavState.hpp>
 #include <okvis/Time.hpp>
 #include <okvis/MultiFrame.hpp>
 #include <okvis/cameras/NCameraSystem.hpp>
@@ -104,9 +105,9 @@ struct ImuParameters{
   double a_max;  ///< Accelerometer saturation. [m/s^2]
   double g_max;  ///< Gyroscope saturation. [rad/s]
   double sigma_g_c;  ///< Gyroscope noise density.
-  double sigma_bg;  ///< Initial gyroscope bias.
   double sigma_a_c;  ///< Accelerometer noise density.
-  double sigma_ba;  ///< Initial accelerometer bias
+  double sigma_bg;  ///< Initial gyroscope bias.
+  double sigma_ba;  ///< Initial accelerometer bias.
   double sigma_gw_c; ///< Gyroscope drift noise density.
   double sigma_aw_c; ///< Accelerometer drift noise density.
   double tau;  ///< Reversion time constant of accerometer bias. [s]
@@ -321,21 +322,6 @@ struct InputData {
   int finishIndex;
 };
 
-struct InitialState {
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-  bool bUseExternalInitState;
-  okvis::Time stateTime;
-  Eigen::Vector3d p_WS; // should always be zeros
-  Eigen::Quaterniond q_WS;
-  Eigen::Vector3d v_WS;  // velocity of the IMU sensor w.r.t the sensor frame at
-                         // the start epoch expressed in that frame
-  Eigen::Vector3d std_p_WS;  // std of the sensor position in the sensor frame
-                             // at the start epoch expressed in that frame
-  Eigen::Vector3d std_q_WS;
-  Eigen::Vector3d std_v_WS;
-  InitialState();
-};
-
 /// @brief Struct to combine all parameters and settings.
 struct VioParameters {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -355,7 +341,7 @@ struct VioParameters {
   WindParameters wind;  ///< Wind parameters.
   PublishingParameters publishing; ///< Publishing parameters.
   InputData input;
-  InitialState initialState;
+  InitialNavState initialState;
 };
 
 } // namespace okvis

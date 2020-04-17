@@ -1,9 +1,10 @@
-#include "msckf/InitialNavState.hpp"
+#include "okvis/InitialNavState.hpp"
 
 namespace okvis {
 
 InitialNavState::InitialNavState()
-    : initWithExternalSource_(false),
+    : initWithExternalSource(false),
+      stateTime(),
       p_WS(0, 0, 0),
       q_WS(1, 0, 0, 0),
       v_WS(0, 0, 0),
@@ -13,8 +14,8 @@ InitialNavState::InitialNavState()
 
 // v_WS, and std_v_WS are to be recalculated later according to updated p_WS and
 // q_ws
-InitialNavState::InitialNavState(const okvis::InitialState& rhs)
-    : initWithExternalSource_(rhs.bUseExternalInitState),
+InitialNavState::InitialNavState(const okvis::InitialNavState& rhs)
+    : initWithExternalSource(rhs.initWithExternalSource),
       stateTime(rhs.stateTime),
       p_WS(0, 0, 0),
       q_WS(rhs.q_WS),
@@ -32,7 +33,7 @@ void InitialNavState::updatePose(const okvis::kinematics::Transformation& T_WS,
 
 InitialNavState& InitialNavState::operator=(const InitialNavState& other) {
   if (&other == this) return *this;
-  initWithExternalSource_ = other.initWithExternalSource_;
+  initWithExternalSource = other.initWithExternalSource;
   stateTime = other.stateTime;
   p_WS = other.p_WS;
   q_WS = other.q_WS;

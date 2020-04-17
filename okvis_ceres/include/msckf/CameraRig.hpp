@@ -140,7 +140,11 @@ class CameraRig {
     return proj_opt_rep_[camera_id];
   }
   inline int getExtrinsicOptMode(int camera_id) const {
-    return extrinsic_opt_rep_[camera_id];
+    if (camera_id >= (int)extrinsic_opt_rep_.size()) {
+      return Extrinsic_p_BC_q_BC::kModelId;
+    } else {
+      return extrinsic_opt_rep_[camera_id];
+    }
   }
   inline int getDistortionDimen(int camera_id) const {
     return camera_geometries_[camera_id]->noDistortionParameters();

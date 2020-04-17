@@ -49,7 +49,7 @@ bool PriorlessEstimator::addStates(
   inertialMeasForStates_.push_back(imuMeasurements);
   if (statesMap_.empty()) {
     // in case this is the first frame ever, let's initialize the pose:
-    if (pvstd_.initWithExternalSource_)
+    if (pvstd_.initWithExternalSource)
       T_WS = okvis::kinematics::Transformation(pvstd_.p_WS, pvstd_.q_WS);
     else {
       bool success0 = initPoseFromImu(imuMeasurements, T_WS);

@@ -14,6 +14,7 @@ include_directories(${EIGEN_INCLUDE_DIR})
 # build the library
 add_library(${PROJECT_NAME} STATIC 
   src/FullStateWithExtrinsicsAsCallback.cpp
+  src/InitialNavState.cpp
   src/Parameters.cpp
   src/VioInterface.cpp
   src/VioParametersReader.cpp

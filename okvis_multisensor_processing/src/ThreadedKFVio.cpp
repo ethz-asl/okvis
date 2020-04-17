@@ -854,7 +854,7 @@ void ThreadedKFVio::optimizationLoop() {
         }
         estimator_->getLandmarks(result.landmarksVector);
         dumpCalibrationParameters(latestNFrameId, &result);
-        estimator_->getLoopQueryKeyframeMessage(frame_pairs, queryKeyframe);
+        estimator_->getLoopQueryKeyframeMessage(frame_pairs, &queryKeyframe);
 
         repropagationNeeded_ = true;
       }

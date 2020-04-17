@@ -31,7 +31,6 @@ add_library(${PROJECT_NAME}
   msckf/CameraRig.cpp
   msckf/CameraTimeParamBlock.cpp
   msckf/GeneralEstimator.cpp
-  msckf/InitialNavState.cpp
   msckf/ParallaxAnglePoint.cpp
   msckf/PointLandmarkModels.cpp
   msckf/PointSharedData.cpp
