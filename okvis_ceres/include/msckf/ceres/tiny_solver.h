@@ -128,6 +128,10 @@ namespace ceres {
 //
 //   int NumParameters() const;
 //
+// changelog(jhuai): We extend TinySolver to work with parameters of local parameterization.
+// In case the local parameter dim and the parameter dim are different,
+// you need to provide a local parameterization object in which only Plus needs to be implemented.
+// Also the template Function's operator() should provide Jacobians relative to the minimal space.
 template<typename Function,
          typename LinearSolver = Eigen::LDLT<
            Eigen::Matrix<typename Function::Scalar,
@@ -180,6 +184,12 @@ class TinySolver {
     int iterations;
     Status status;
   };
+
+  TinySolver(
+      const ::ceres::LocalParameterization* localParameterization = nullptr)
+      : localParameterization_(localParameterization) {
+    assert(localParameterization_ || NUM_PARAMETERS == NUM_LOCAL_PARAMETERS);
+  }
 
   bool Update(const Function& function, const Parameters &x) {
     if (!function(x.data(), error_.data(), jacobian_.data())) {
