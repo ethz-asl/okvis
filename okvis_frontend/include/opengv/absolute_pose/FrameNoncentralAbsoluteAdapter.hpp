@@ -83,6 +83,23 @@ class FrameNoncentralAbsoluteAdapter : public AbsoluteAdapterBase {
       const okvis::cameras::NCameraSystem & nCameraSystem,
       std::shared_ptr<okvis::MultiFrame> frame);
 
+  /**
+   * @brief FrameNoncentralAbsoluteAdapter
+   * @param candidate point homogeneous coordinates.
+   * @param matchedPointIndices indices in candidate point list of matched points.
+   * @param matchedKeypointIndices indices of matched keypoints in image of cameraIdx.
+   * @param cameraIdx
+   * @param nCameraSystem
+   * @param frame
+   */
+  FrameNoncentralAbsoluteAdapter(
+      const std::vector<Eigen::Vector4d,
+                        Eigen::aligned_allocator<Eigen::Vector4d>>&
+          candidatePoints,
+      const std::vector<size_t>& matchedPointIndices,
+      const std::vector<size_t>& matchedKeypointIndices, const size_t cameraIdx,
+      std::shared_ptr<const okvis::MultiFrame> frame);
+
   virtual ~FrameNoncentralAbsoluteAdapter() {
   }
 
@@ -163,6 +180,31 @@ class FrameNoncentralAbsoluteAdapter : public AbsoluteAdapterBase {
    * @return The standard deviation in [rad].
    */
   double getSigmaAngle(size_t index);
+
+  void getInlierPoints(
+      const std::vector<int>& inliers,
+      std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d>>*
+          inlierPoints) {
+    inlierPoints->reserve(inliers.size());
+    for (auto index : inliers) {
+      inlierPoints->push_back(points_.at(index));
+    }
+  }
+  /**
+   * @brief getInlierBearings
+   * @param inliers
+   * @param inlierRays undistorted rays at z = 1, [x/z, y/z, 1].
+   */
+  void getInlierBearings(
+      const std::vector<int>& inliers,
+      std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d>>*
+          inlierBearings) {
+    inlierBearings->reserve(inliers.size());
+    for (auto index : inliers) {
+      double invz = 1 / bearingVectors_.at(index)[2];
+      inlierBearings->push_back(bearingVectors_.at(index) * invz);
+    }
+  }
 
  private:
   /// The bearing vectors of the correspondences.

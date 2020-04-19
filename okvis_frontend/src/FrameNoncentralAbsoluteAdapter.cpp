@@ -171,6 +171,110 @@ opengv::absolute_pose::FrameNoncentralAbsoluteAdapter::FrameNoncentralAbsoluteAd
   }
 }
 
+opengv::absolute_pose::FrameNoncentralAbsoluteAdapter::FrameNoncentralAbsoluteAdapter(
+    const std::vector<Eigen::Vector4d,
+                      Eigen::aligned_allocator<Eigen::Vector4d>>&
+        candidatePoints,
+    const std::vector<size_t>& matchedPointIndices,
+    const std::vector<size_t>& matchedKeypointIndices, const size_t im,
+    std::shared_ptr<const okvis::MultiFrame> frame) {
+  okvis::cameras::NCameraSystem::DistortionType distortionType =
+      frame->distortionType(im);
+
+  // store transformation. note: the T_SC estimates might actually slightly
+  // differ, but we ignore this here.
+  camOffsets_.resize(im+1);
+  camRotations_.resize(im+1);
+  camOffsets_[im] = frame->T_SC(im)->r();
+  camRotations_[im] = frame->T_SC(im)->C();
+  size_t noCorrespondences = matchedKeypointIndices.size();
+  keypointIndices_.reserve(noCorrespondences);
+
+  for (size_t k = 0; k < noCorrespondences; ++k) {
+    int lmId = matchedPointIndices[k];
+    const Eigen::Vector4d hp = candidatePoints[lmId];
+
+    // check if not at infinity
+    if (fabs(hp[3]) < 1.0e-8) continue;
+
+    // add landmark here
+    points_.push_back(hp.head<3>() / hp[3]);
+
+    // also add bearing vector
+    Eigen::Vector3d bearing;
+    Eigen::Vector2d keypoint;
+    size_t kpIndex = matchedKeypointIndices[k];
+    frame->getKeypoint(im, kpIndex, keypoint);
+    double keypointStdDev;
+    frame->getKeypointSize(im, kpIndex, keypointStdDev);
+    keypointStdDev = 0.8 * keypointStdDev / 12.0;
+    double fu = 1.0;
+    switch (distortionType) {
+      case okvis::cameras::NCameraSystem::RadialTangential: {
+        frame
+            ->geometryAs<okvis::cameras::PinholeCamera<
+                okvis::cameras::RadialTangentialDistortion>>(im)
+            ->backProject(keypoint, &bearing);
+        fu = frame
+                 ->geometryAs<okvis::cameras::PinholeCamera<
+                     okvis::cameras::RadialTangentialDistortion>>(im)
+                 ->focalLengthU();
+        break;
+      }
+      case okvis::cameras::NCameraSystem::RadialTangential8: {
+        frame
+            ->geometryAs<okvis::cameras::PinholeCamera<
+                okvis::cameras::RadialTangentialDistortion8>>(im)
+            ->backProject(keypoint, &bearing);
+        fu = frame
+                 ->geometryAs<okvis::cameras::PinholeCamera<
+                     okvis::cameras::RadialTangentialDistortion8>>(im)
+                 ->focalLengthU();
+        break;
+      }
+      case okvis::cameras::NCameraSystem::Equidistant: {
+        frame
+            ->geometryAs<okvis::cameras::PinholeCamera<
+                okvis::cameras::EquidistantDistortion>>(im)
+            ->backProject(keypoint, &bearing);
+        fu = frame
+                 ->geometryAs<okvis::cameras::PinholeCamera<
+                     okvis::cameras::EquidistantDistortion>>(im)
+                 ->focalLengthU();
+        break;
+      }
+      case okvis::cameras::NCameraSystem::FOV: {
+        frame
+            ->geometryAs<
+                okvis::cameras::PinholeCamera<okvis::cameras::FovDistortion>>(
+                im)
+            ->backProject(keypoint, &bearing);
+        fu = frame
+                 ->geometryAs<okvis::cameras::PinholeCamera<
+                     okvis::cameras::FovDistortion>>(im)
+                 ->focalLengthU();
+        break;
+      }
+      default:
+        OKVIS_THROW(Exception, "Unsupported distortion type")
+        break;
+    }
+
+    // also store sigma angle
+    sigmaAngles_.push_back(sqrt(2) * keypointStdDev * keypointStdDev /
+                           (fu * fu));
+
+    bearing.normalize();
+    bearingVectors_.push_back(bearing);
+
+    // store camera index
+    camIndices_.push_back(im);
+
+    // store keypoint index
+    keypointIndices_.push_back(k);
+  }
+}
+
 // Retrieve the bearing vector of a correspondence.
 opengv::bearingVector_t opengv::absolute_pose::FrameNoncentralAbsoluteAdapter::getBearingVector(
     size_t index) const {
