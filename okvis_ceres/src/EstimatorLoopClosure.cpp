@@ -24,16 +24,12 @@ bool Estimator::getLoopQueryKeyframeMessage(
   queryKeyframe->reset(new okvis::LoopQueryKeyframeMessage(
       queryKeyframeId, riter->second.timestamp, T_WBr, multiFrame));
 
-  const int camId = 0;
-  okvis::kinematics::Transformation T_BC = *(multiFrame->T_SC(camId));
-  (*queryKeyframe)->T_BC_ = T_BC;
-
   getOdometryConstraintsForKeyframe(*queryKeyframe);
 
   // add 3d landmarks observed in query keyframe's first frame,
   // and corresponding indices into the 2d keypoint list.
   // The local camera frame will be used as their coordinate frame.
-  std::vector<uint64_t> landmarkIdList = multiFrame->getLandmarkIds(camId);
+  std::vector<uint64_t> landmarkIdList = multiFrame->getLandmarkIds(LoopQueryKeyframeMessage::kQueryCameraIndex);
   size_t numKeypoints = landmarkIdList.size();
   auto& keypointIndexForLandmarkList = (*queryKeyframe)->keypointIndexForLandmarkListMutable();
   keypointIndexForLandmarkList.reserve(numKeypoints / 4);
@@ -41,15 +37,15 @@ bool Estimator::getLoopQueryKeyframeMessage(
   landmarkPositionList.reserve(numKeypoints / 4);
   int keypointIndex = 0;
 
-  okvis::kinematics::Transformation T_CrW = (T_WBr * T_BC).inverse();
+  okvis::kinematics::Transformation T_BrW = T_WBr.inverse();
   for (const uint64_t landmarkId : landmarkIdList) {
     if (landmarkId != 0) {
       auto result = landmarksMap_.find(landmarkId);
       if (result != landmarksMap_.end() && result->second.quality > 1e-6) {
         keypointIndexForLandmarkList.push_back(keypointIndex);
         Eigen::Vector4d hp_W = result->second.pointHomog;
-        Eigen::Vector4d hp_C = T_CrW * hp_W;
-        landmarkPositionList.push_back(hp_C);
+        Eigen::Vector4d hp_B = T_BrW * hp_W;
+        landmarkPositionList.push_back(hp_B);
       }
     }
     ++keypointIndex;

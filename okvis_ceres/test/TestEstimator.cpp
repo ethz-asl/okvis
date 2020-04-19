@@ -210,7 +210,6 @@ TEST(okvisTestSuite, Estimator) {
         okvis::kinematics::Transformation T_WS_kf;
         estimator.get_T_WS(mf->id(), T_WS_kf);
         EXPECT_LT((queryKeyframe->T_WB_.coeffs() - T_WS_kf.coeffs()).lpNorm<Eigen::Infinity>(), 1e-7);
-        EXPECT_LT((queryKeyframe->T_BC_.coeffs() - mf->T_SC(0u)->coeffs()).lpNorm<Eigen::Infinity>(), 1e-7);
         EXPECT_LT(queryKeyframe->cov_T_WB_.lpNorm<Eigen::Infinity>(), 1e-7);
         EXPECT_EQ(queryKeyframe->NFrame(), mf);
         if (k == 0) {
@@ -245,7 +244,6 @@ TEST(okvisTestSuite, Estimator) {
                           Eigen::aligned_allocator<Eigen::Vector4d>>&
             lmkPositions = queryKeyframe->landmarkPositionList();
         EXPECT_EQ(kpIndices.size(), lmkPositions.size());
-        const size_t camIdx = 0u;
 
         for (size_t k = 0; k < lmkPositions.size(); ++k) {
           int kpIndexForLmk = kpIndices[k];
@@ -254,8 +252,8 @@ TEST(okvisTestSuite, Estimator) {
           okvis::MapPoint mp;
           estimator.getLandmark(lmIds[lmkIndex], mp);
           hpW = mp.pointHomog;
-          Eigen::Vector4d hpC = (T_WS_kf * (*mf->T_SC(camIdx))).inverse() * hpW;
-          EXPECT_LT((lmkPositions[k] - hpC).lpNorm<Eigen::Infinity>(), 1e-7);
+          Eigen::Vector4d hpB = T_WS_kf.inverse() * hpW;
+          EXPECT_LT((lmkPositions[k] - hpB).lpNorm<Eigen::Infinity>(), 1e-7);
         }
       } else {
         EXPECT_FALSE(queryKeyframe);

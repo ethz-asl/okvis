@@ -56,10 +56,9 @@ KeyframeInDatabase::KeyframeInDatabase() {}
 KeyframeInDatabase::KeyframeInDatabase(
     size_t dbowId, uint64_t vioId, okvis::Time stamp,
     const okvis::kinematics::Transformation& vio_T_WB,
-    const okvis::kinematics::Transformation& T_BC,
     const Eigen::Matrix<double, 6, 6>& cov_T_WB)
     : dbowId_(dbowId), id_(vioId), stamp_(stamp),
-      vio_T_WB_(vio_T_WB), T_BC_(T_BC), cov_vio_T_WB_(cov_T_WB) {
+      vio_T_WB_(vio_T_WB), cov_vio_T_WB_(cov_T_WB) {
 
 }
 

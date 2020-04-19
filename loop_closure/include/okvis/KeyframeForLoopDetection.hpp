@@ -92,7 +92,6 @@ public:
 
   KeyframeInDatabase(size_t dbowId, uint64_t vioId, okvis::Time stamp,
                      const okvis::kinematics::Transformation& vio_T_WB,
-                     const okvis::kinematics::Transformation& T_BC,
                      const Eigen::Matrix<double, 6, 6>& cov_T_WB);
 
   void setOdometryConstraints(
@@ -140,10 +139,8 @@ public:
   size_t dbowId_; ///< id used in DBoW vocabulary. Determined by the size of the KeyframeInDatabase list.
   uint64_t id_; ///< frontend keyframe id.
   okvis::Time stamp_;
-  okvis::kinematics::Transformation T_WB_; ///< T_WB estimated by pose graph optimizer.
 
   const okvis::kinematics::Transformation vio_T_WB_; ///< original vio estimated T_WB;
-  const okvis::kinematics::Transformation T_BC_; ///< T_BC body frame to left camera.
   const Eigen::Matrix<double, 6, 6> cov_vio_T_WB_;  ///< cov of $[\delta p, \delta \theta]$ provided by VIO.
 
  private:
@@ -176,9 +173,9 @@ class LoopQueryKeyframeMessage {
                            std::shared_ptr<const okvis::MultiFrame> multiframe);
   ~LoopQueryKeyframeMessage();
 
-  std::shared_ptr<KeyframeInDatabase> toKeyframeInDatebase(size_t dbowId) {
+  std::shared_ptr<KeyframeInDatabase> toKeyframeInDatebase(size_t dbowId) const {
     return std::shared_ptr<KeyframeInDatabase>(
-        new KeyframeInDatabase(dbowId, id_, stamp_, T_WB_, T_BC_, cov_T_WB_));
+        new KeyframeInDatabase(dbowId, id_, stamp_, T_WB_, cov_T_WB_));
   }
 
   std::shared_ptr<const okvis::MultiFrame> NFrame() const {
@@ -241,9 +238,9 @@ class LoopQueryKeyframeMessage {
   uint64_t id_;
   okvis::Time stamp_;
   okvis::kinematics::Transformation T_WB_;
-  okvis::kinematics::Transformation T_BC_; ///< latest estimate by VIO for transform between camera and body frame.
 
   Eigen::Matrix<double, 6, 6> cov_T_WB_;  ///< cov of $[\delta p, \delta \theta]$
+  const static size_t kQueryCameraIndex = 0u;
 
  private:
   /// @warn Do not hold on to nframe_ which has many images.
