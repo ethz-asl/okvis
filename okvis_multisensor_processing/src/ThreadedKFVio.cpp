@@ -996,14 +996,15 @@ void ThreadedKFVio::configureBackendAndFrontendPartly(okvis::VioParameters& para
 }
 
 bool ThreadedKFVio::popLoopFrameAndMatchesList(
-    std::vector<std::shared_ptr<LoopFrameAndMatches>>* loopFrameAndMatchesList) {
-    std::shared_ptr<LoopFrameAndMatches> loopFrameAndMatches;
-    bool foundLoop = loopFrames_.PopNonBlocking(&loopFrameAndMatches);
-    while (foundLoop) {
-      loopFrameAndMatchesList->push_back(loopFrameAndMatches);
-      foundLoop = loopFrames_.PopNonBlocking(&loopFrameAndMatches);
-    }
-    return loopFrameAndMatchesList->size() > 0u;
+    std::vector<std::shared_ptr<LoopFrameAndMatches>>*
+        loopFrameAndMatchesList) {
+  std::shared_ptr<LoopFrameAndMatches> loopFrameAndMatches;
+  bool foundLoop = loopFrames_.PopNonBlocking(&loopFrameAndMatches);
+  while (foundLoop) {
+    loopFrameAndMatchesList->push_back(loopFrameAndMatches);
+    foundLoop = loopFrames_.PopNonBlocking(&loopFrameAndMatches);
+  }
+  return loopFrameAndMatchesList->size() > 0u;
 }
 
 bool ThreadedKFVio::addLoopFrameAndMatches(std::shared_ptr<LoopFrameAndMatches> loopFrame) {
