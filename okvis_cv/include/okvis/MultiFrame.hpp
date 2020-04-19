@@ -278,6 +278,14 @@ class MultiFrame
     frames_[cameraIdx].getRelativeMotion(relativeFrameId, rmt);
   }
 
+  cv::Mat getDescriptors(size_t cameraIdx) const {
+    return frames_[cameraIdx].getDescriptors();
+  }
+
+  okvis::cameras::NCameraSystem::DistortionType distortionType(size_t cameraIdx) const {
+    return cameraSystem_.distortionType(cameraIdx);
+  }
+
   void setRelativeMotion(size_t cameraIdx, uint64_t relativeFrameId,
                          RelativeMotionType rmt) {
     frames_[cameraIdx].setRelativeMotion(relativeFrameId, rmt);

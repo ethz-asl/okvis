@@ -31,7 +31,7 @@ class LoopClosureMethod {
    * @return true if loop frame(s) detected.
    */
   virtual bool detectLoop(
-      std::shared_ptr<LoopQueryKeyframeMessage> queryKeyframe,
+      std::shared_ptr<const LoopQueryKeyframeMessage> queryKeyframe,
       std::shared_ptr<KeyframeInDatabase>& queryKeyframeInDB,
       std::shared_ptr<LoopFrameAndMatches>& loopFrameAndMatches);
 
@@ -46,8 +46,8 @@ class LoopClosureMethod {
    * @return true if optimization is performed.
    */
   virtual bool addConstraintsAndOptimize(
-      std::shared_ptr<KeyframeInDatabase> queryKeyframeInDB,
-      std::shared_ptr<LoopFrameAndMatches> loopKeyframe);
+      const KeyframeInDatabase& queryKeyframeInDB,
+      std::shared_ptr<const LoopFrameAndMatches> loopKeyframe);
 
   /**
    * @brief initialize a keyframe in database from a query keyframe.
@@ -58,7 +58,7 @@ class LoopClosureMethod {
    */
   virtual std::shared_ptr<KeyframeInDatabase> initializeKeyframeInDatabase(
       size_t dbowId,
-      std::shared_ptr<LoopQueryKeyframeMessage> queryKeyframe) const;
+      const LoopQueryKeyframeMessage& queryKeyframe) const;
 
   inline std::vector<std::shared_ptr<okvis::KeyframeInDatabase>>
   getFrameDatabasePtr() const {

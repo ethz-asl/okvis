@@ -115,6 +115,11 @@ public:
      return frontendDescriptors_;
   }
 
+  const std::vector<Eigen::Vector4d, Eigen::aligned_allocator<Eigen::Vector4d>>&
+  landmarkPositionList() const {
+    return landmarkPositionList_;
+  }
+
   void setCovRawError(size_t j,
                       const Eigen::Matrix<double, 6, 6>& covRawBetweenError) {
     constraintList_.at(j)->covRawError_ = covRawBetweenError;
@@ -181,11 +186,11 @@ class LoopQueryKeyframeMessage {
   }
 
   const cv::Mat queryImage() const {
-    return nframe_->image(kQueryCameraIndex_);
+    return nframe_->image(kQueryCameraIndex);
   }
 
   std::shared_ptr<const cameras::CameraBase> cameraGeometry() const {
-    return nframe_->geometry(kQueryCameraIndex_);
+    return nframe_->geometry(kQueryCameraIndex);
   }
 
   const std::vector<std::shared_ptr<NeighborConstraintMessage>>&
@@ -198,8 +203,14 @@ class LoopQueryKeyframeMessage {
     return landmarkPositionList_;
   }
 
+  ///< \brief gather descriptors for keypoints associated to landmarks.
   cv::Mat gatherFrontendDescriptors() const {
-    return nframe_->copyDescriptorsAt(kQueryCameraIndex_, keypointIndexForLandmarkList_);
+    return nframe_->copyDescriptorsAt(kQueryCameraIndex, keypointIndexForLandmarkList_);
+  }
+
+  ///< \brief get all descriptors for a view in nframe.
+  cv::Mat getDescriptors() const {
+    return nframe_->getDescriptors(kQueryCameraIndex);
   }
 
   std::vector<std::shared_ptr<NeighborConstraintMessage>>&
@@ -242,8 +253,8 @@ class LoopQueryKeyframeMessage {
 
   std::vector<int> keypointIndexForLandmarkList_; ///< Index of the keypoints with landmark positions.
   std::vector<Eigen::Vector4d, Eigen::aligned_allocator<Eigen::Vector4d>>
-      landmarkPositionList_;  ///< landmark positions expressed in the camera frame
-  const size_t kQueryCameraIndex_ = 0u;
+      landmarkPositionList_;  ///< landmark positions expressed in the body frame of this keyframe.
+
 }; // LoopQueryKeyframeMessage
 }  // namespace okvis
 #endif  // INCLUDE_OKVIS_KEYFRAME_FOR_LOOP_DETECTION_HPP_

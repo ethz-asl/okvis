@@ -58,7 +58,7 @@ void LoopClosureModule::loopClosureLoop() {
       outputLoopFrameCallback_(outputLoopFrame);
     }
     poseGraphOptTimer.start();
-    LoopClosureMethod_->addConstraintsAndOptimize(queryKeyframeInDatabase,
+    LoopClosureMethod_->addConstraintsAndOptimize(*queryKeyframeInDatabase,
                                                   outputLoopFrame);
     poseGraphOptTimer.stop();
   }

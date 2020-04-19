@@ -5,7 +5,7 @@ LoopClosureMethod::LoopClosureMethod() {}
 LoopClosureMethod::~LoopClosureMethod() {}
 
 bool LoopClosureMethod::detectLoop(
-    std::shared_ptr<LoopQueryKeyframeMessage> queryKeyframe,
+    std::shared_ptr<const LoopQueryKeyframeMessage> queryKeyframe,
     std::shared_ptr<KeyframeInDatabase>& /*queryKeyframeInDB*/,
     std::shared_ptr<LoopFrameAndMatches>& /*loopFrameAndMatches*/) {
   queryKeyframe.reset();
@@ -13,8 +13,8 @@ bool LoopClosureMethod::detectLoop(
 }
 
 bool LoopClosureMethod::addConstraintsAndOptimize(
-    std::shared_ptr<KeyframeInDatabase> /*queryKeyframe*/,
-    std::shared_ptr<LoopFrameAndMatches> loopKeyframe) {
+    const KeyframeInDatabase& /*queryKeyframe*/,
+    std::shared_ptr<const LoopFrameAndMatches> loopKeyframe) {
   if (loopKeyframe) {
     return true;
   } else {
@@ -24,11 +24,11 @@ bool LoopClosureMethod::addConstraintsAndOptimize(
 
 std::shared_ptr<KeyframeInDatabase> LoopClosureMethod::initializeKeyframeInDatabase(
     size_t dbowId,
-    std::shared_ptr<LoopQueryKeyframeMessage> queryKeyframe) const {
-  std::shared_ptr<KeyframeInDatabase> queryKeyframeInDB = queryKeyframe->toKeyframeInDatebase(dbowId);
-  queryKeyframeInDB->setOdometryConstraints(queryKeyframe->odometryConstraintList());
-  queryKeyframeInDB->setLandmarkPositionList(queryKeyframe->landmarkPositionList());
-  queryKeyframeInDB->setFrontendDescriptors(queryKeyframe->gatherFrontendDescriptors());
+    const LoopQueryKeyframeMessage& queryKeyframe) const {
+  std::shared_ptr<KeyframeInDatabase> queryKeyframeInDB = queryKeyframe.toKeyframeInDatebase(dbowId);
+  queryKeyframeInDB->setOdometryConstraints(queryKeyframe.odometryConstraintList());
+  queryKeyframeInDB->setLandmarkPositionList(queryKeyframe.landmarkPositionList());
+  queryKeyframeInDB->setFrontendDescriptors(queryKeyframe.gatherFrontendDescriptors());
   return queryKeyframeInDB;
 }
 
