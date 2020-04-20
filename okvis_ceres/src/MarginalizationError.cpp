@@ -40,6 +40,7 @@
 
 #include <okvis/ceres/MarginalizationError.hpp>
 #include <okvis/ceres/LocalParamizationAdditionalInterfaces.hpp>
+#include <okvis/kinematics/MatrixPseudoInverse.hpp>
 #include <okvis/assert_macros.hpp>
 
 //#define USE_NEW_LINEARIZATION_POINT
@@ -663,7 +664,7 @@ bool MarginalizationError::marginalizeOut(
     for (size_t i = 0; int(i) < V.cols(); i += sdim) {
       Eigen::Matrix<double, sdim, sdim> V_inv_sqrt;
       Eigen::Matrix<double, sdim, sdim> V1 = V.block(i, i, sdim, sdim);
-      MarginalizationError::pseudoInverseSymmSqrt(V1, V_inv_sqrt);
+      MatrixPseudoInverse::pseudoInverseSymmSqrt(V1, V_inv_sqrt);
       Eigen::MatrixXd M = W.block(0, i, W.rows(), sdim) * V_inv_sqrt;
       Eigen::MatrixXd M1 = W.block(0, i, W.rows(), sdim) * V_inv_sqrt
           * V_inv_sqrt.transpose();
@@ -723,7 +724,7 @@ bool MarginalizationError::marginalizeOut(
     // invert the marginalization block
     Eigen::MatrixXd V_inverse_sqrt(V.rows(), V.cols());
     Eigen::MatrixXd V1 = 0.5 * (V + V.transpose());
-    pseudoInverseSymmSqrt(V1, V_inverse_sqrt);
+    MatrixPseudoInverse::pseudoInverseSymmSqrt(V1, V_inverse_sqrt);
 
     // Schur
     Eigen::MatrixXd M = W * V_inverse_sqrt;

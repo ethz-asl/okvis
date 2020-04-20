@@ -6,6 +6,7 @@
  */
 #include <okvis/ceres/MarginalizationError.hpp>
 #include <okvis/kinematics/Transformation.hpp>
+#include <okvis/kinematics/MatrixPseudoInverse.hpp>
 #include <okvis/kinematics/operators.hpp>
 
 #include <msckf/DirectionFromParallaxAngleJacobian.hpp>
@@ -83,7 +84,7 @@ bool ChordalDistance<
       dunit_fj_dfj * dfj_dXcam;
   covariance_ = dunit_fj_dfj * cov_fj * dunit_fj_dfj.transpose();
   Eigen::Matrix3d pinvCovSqrt;
-  okvis::ceres::MarginalizationError::pseudoInverseSymmSqrt(
+  okvis::MatrixPseudoInverse::pseudoInverseSymmSqrt(
       covariance_, pinvCovSqrt, std::numeric_limits<double>::epsilon());
   squareRootInformation_.noalias() = pinvCovSqrt.transpose();
   Eigen::Vector3d weighted_error = squareRootInformation_ * error;
@@ -189,7 +190,7 @@ bool ChordalDistance<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDM
       de_dfj * dfj_dXcam;
   covariance_ = de_dfj * cov_fj * de_dfj.transpose();
   Eigen::Matrix3d pinvCovSqrt;
-  okvis::ceres::MarginalizationError::pseudoInverseSymmSqrt(
+  okvis::MatrixPseudoInverse::pseudoInverseSymmSqrt(
       covariance_, pinvCovSqrt, std::numeric_limits<double>::epsilon());
   squareRootInformation_.noalias() = pinvCovSqrt.transpose();
   Eigen::Vector3d weighted_error = squareRootInformation_ * error;
@@ -442,7 +443,7 @@ bool ChordalDistance<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDM
       pair_T_WCtij.second.toRotationMatrix() * dunit_fj_dfj;
   covariance_ = dRf_dfj * cov_fj * dRf_dfj.transpose();
   Eigen::Matrix3d pinvCovSqrt;
-  okvis::ceres::MarginalizationError::pseudoInverseSymmSqrt(
+  okvis::MatrixPseudoInverse::pseudoInverseSymmSqrt(
       covariance_, pinvCovSqrt, std::numeric_limits<double>::epsilon());
   squareRootInformation_.noalias() = pinvCovSqrt.transpose();
   Eigen::Vector3d weighted_error = squareRootInformation_ * error;

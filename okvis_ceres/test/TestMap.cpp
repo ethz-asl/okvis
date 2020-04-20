@@ -44,6 +44,7 @@
 #include <okvis/ceres/HomogeneousPointLocalParameterization.hpp>
 #include <okvis/ceres/HomogeneousPointParameterBlock.hpp>
 #include <okvis/ceres/MarginalizationError.hpp>
+#include <okvis/kinematics/MatrixPseudoInverse.hpp>
 #include <okvis/kinematics/Transformation.hpp>
 #include <okvis/Time.hpp>
 #include <okvis/FrameTypedefs.hpp>
@@ -199,7 +200,7 @@ public:
       expectedMinimalPoseCov += poseJacobianMinimal.transpose() * poseJacobianMinimal;
       ++index;
     }
-    okvis::ceres::MarginalizationError::pseudoInverseSymm(
+    okvis::MatrixPseudoInverse::pseudoInverseSymm(
           expectedMinimalPoseCov, expectedMinimalPoseCov);
   }
 

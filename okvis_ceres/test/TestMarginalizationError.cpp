@@ -2,6 +2,7 @@
 #include <glog/logging.h>
 
 #include <msckf/VectorNormalizationJacobian.hpp>
+#include <okvis/kinematics/MatrixPseudoInverse.hpp>
 #include <okvis/ceres/MarginalizationError.hpp>
 #include <Eigen/Core>
 
@@ -15,7 +16,7 @@ TEST(MarginalizationError, pseudoInverseSymmSqrtFullRank) {
   int rankExpected = 3;
   Eigen::Matrix3d result;
   int rank;
-  okvis::ceres::MarginalizationError::pseudoInverseSymm(
+  okvis::MatrixPseudoInverse::pseudoInverseSymm(
       lambda, result, std::numeric_limits<double>::epsilon(), &rank);
   EXPECT_EQ(rank, rankExpected);
   const double eps = 1e-7;
@@ -23,7 +24,7 @@ TEST(MarginalizationError, pseudoInverseSymmSqrtFullRank) {
 
   Eigen::Matrix3d resultSqrt;
   int rankSqrt;
-  okvis::ceres::MarginalizationError::pseudoInverseSymmSqrt(
+  okvis::MatrixPseudoInverse::pseudoInverseSymmSqrt(
       lambda, resultSqrt, std::numeric_limits<double>::epsilon(), &rankSqrt);
 
   EXPECT_EQ(rankSqrt, rankExpected);
@@ -92,7 +93,7 @@ TEST(MarginalizationError, pseudoInverseSymmSqrt) {
 
   Eigen::Matrix3d result;
   int rank;
-  okvis::ceres::MarginalizationError::pseudoInverseSymm(
+  okvis::MatrixPseudoInverse::pseudoInverseSymm(
       covxi, result, std::numeric_limits<double>::epsilon(), &rank);
   EXPECT_EQ(rank, rankExpected);
   Eigen::Matrix3d dev = result * covxi - blindMatrix;
@@ -104,7 +105,7 @@ TEST(MarginalizationError, pseudoInverseSymmSqrt) {
       << result;
   Eigen::Matrix3d resultSqrt;
   int rankSqrt;
-  okvis::ceres::MarginalizationError::pseudoInverseSymmSqrt(
+  okvis::MatrixPseudoInverse::pseudoInverseSymmSqrt(
       covxi, resultSqrt, std::numeric_limits<double>::epsilon(), &rankSqrt);
   EXPECT_EQ(rankSqrt, rankExpected);
   dev = resultSqrt * resultSqrt.transpose() * covxi - blindMatrix;
