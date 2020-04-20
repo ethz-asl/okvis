@@ -17,56 +17,64 @@ enum class PoseConstraintType {
 };
 
 class NeighborConstraintInDatabase {
-public:
- EIGEN_MAKE_ALIGNED_OPERATOR_NEW
- NeighborConstraintInDatabase();
- NeighborConstraintInDatabase(
-     uint64_t id, okvis::Time stamp,
-     const okvis::kinematics::Transformation& T_BrB,
-     PoseConstraintType type);
- ~NeighborConstraintInDatabase();
+ public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  NeighborConstraintInDatabase();
+  NeighborConstraintInDatabase(uint64_t id, okvis::Time stamp,
+                               const okvis::kinematics::Transformation& T_BnBr,
+                               PoseConstraintType type);
+  ~NeighborConstraintInDatabase();
 
- uint64_t id_;
- okvis::Time stamp_;
+  uint64_t id_;
+  okvis::Time stamp_;
 
- // Br is a body frame for reference, B body frame of this neighbor.
- okvis::kinematics::Transformation T_BrB_;
+  // Br is a body frame for reference, B body frame of this neighbor.
+  okvis::kinematics::Transformation T_BBr_;
 
- PoseConstraintType type_;
+  PoseConstraintType type_;
 
- // covariance of the between factor unwhitened/raw error due to measurement noise.
- // It depends on definitions of the between factor and errors of the measurement.
- // e.g., gtsam::BetweenFactor<Pose3>==log(T_z^{-1}T_x^{-1}T_y) and
- // error of T_z is defined by T_z = Pose3::Retraction(\hat{T}_z, \delta).
- Eigen::Matrix<double, 6, 6> covRawError_;
+  // square root info L' of the inverse of the covariance of the between factor
+  // unwhitened/raw error due to measurement noise. LL' = \Lambda = inv(cov)
+  // It depends on definitions of the between factor and errors of the
+  // measurement. e.g., gtsam::BetweenFactor<Pose3>==log(T_z^{-1}T_x^{-1}T_y)
+  // and error of T_z is defined by T_z = Pose3::Retraction(\hat{T}_z, \delta).
+  Eigen::Matrix<double, 6, 6> squareRootInfo_;
 };
 
 class NeighborConstraintMessage {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   NeighborConstraintMessage();
+  /**
+   * @brief NeighborConstraintMessage
+   * @param id
+   * @param stamp
+   * @param T_BnBr Bn the body frame associated with this neighbor,
+   * Br the body frame associated with the reference frame of this neighbor.
+   * @param T_WB pose of this neighbor.
+   * @param type
+   */
   NeighborConstraintMessage(
       uint64_t id, okvis::Time stamp,
-      const okvis::kinematics::Transformation& T_BrB,
+      const okvis::kinematics::Transformation& T_BnBr,
       const okvis::kinematics::Transformation& T_WB,
       PoseConstraintType type = PoseConstraintType::Odometry);
   ~NeighborConstraintMessage();
 
   /**
-   * @brief compute the covariance of error in $T_BrBn$ given the covariance of errors in $T_WBr$ and $T_WBn$
-   * $T_BrBn = T_WBr^{-1} T_WBn$
-   * The error(perturbation) of  $T_WBr$ $T_WBn$ and $T_BrBn$ are defined by
+   * @brief compute the covariance of error in $T_BnBr$ given the covariance of errors in $T_WBr$ and $T_WBn$
+   * $T_BnBr = T_WBn^{-1} T_WBr$
+   * The error(perturbation) of  $T_WBr$ $T_WBn$ and $T_BnBr$ are defined by
    * okvis::Transformation::oplus and ominus.
-   * The computed covariance will be put in core_.cov_T_BrB_.
    * @param T_WBr
    * @param cov_T_WBr
-   * @param cov_T_BrB cov for error in $T_BrBn$.
+   * @param[out] cov_T_BnBr cov for error in $T_BnBr$.
    * @return
    */
   void computeRelativePoseCovariance(
       const okvis::kinematics::Transformation& T_WBr,
       const Eigen::Matrix<double, 6, 6>& cov_T_WBr,
-      Eigen::Matrix<double, 6, 6>* cov_T_BrB);
+      Eigen::Matrix<double, 6, 6>* cov_T_BnBr);
 
   NeighborConstraintInDatabase core_;
 
@@ -110,6 +118,11 @@ public:
     return constraintList_;
   }
 
+  void addLoopConstraint(
+      std::shared_ptr<NeighborConstraintInDatabase>& loopConstraint) {
+    loopConstraintList_.push_back(loopConstraint);
+  }
+
   const cv::Mat frontendDescriptors() const {
      return frontendDescriptors_;
   }
@@ -119,10 +132,13 @@ public:
     return landmarkPositionList_;
   }
 
-  void setCovRawError(size_t j,
-                      const Eigen::Matrix<double, 6, 6>& covRawBetweenError) {
-    constraintList_.at(j)->covRawError_ = covRawBetweenError;
+  void setSquareRootInfo(size_t j,
+                      const Eigen::Matrix<double, 6, 6>& squareRootInfo) {
+    constraintList_.at(j)->squareRootInfo_ = squareRootInfo;
   }
+
+  void setSquareRootInfoFromCovariance(size_t j,
+                      const Eigen::Matrix<double, 6, 6>& covRawError);
 
   void setLandmarkPositionList(
       const std::vector<Eigen::Vector4d,
@@ -146,8 +162,8 @@ public:
  private:
   ///< If we do not construct the pose graph solver from scratches once in a
   /// while as in VINS Mono, then we do not need the constraint list.
-  std::vector<std::shared_ptr<NeighborConstraintInDatabase>> constraintList_; ///< odometry or loop constraints.
-
+  std::vector<std::shared_ptr<NeighborConstraintInDatabase>> constraintList_; ///< odometry constraints.
+  std::vector<std::shared_ptr<NeighborConstraintInDatabase>> loopConstraintList_; ///< loop constraints.
   cv::Mat frontendDescriptors_; ///< landmark descriptors used in frontend. #columns is the descriptor size, #rows is for landmarks.
   std::vector<Eigen::Vector4d, Eigen::aligned_allocator<Eigen::Vector4d>>
       landmarkPositionList_;  ///< landmark positions expressed in the camera frame.
@@ -213,7 +229,7 @@ class LoopQueryKeyframeMessage {
   std::vector<std::shared_ptr<NeighborConstraintMessage>>&
   odometryConstraintListMutable() {
     return odometryConstraintList_;
-  };
+  }
 
   const std::vector<int>& keypointIndexForLandmarkList() const {
     return keypointIndexForLandmarkList_;

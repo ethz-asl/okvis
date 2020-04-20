@@ -223,13 +223,13 @@ TEST(okvisTestSuite, Estimator) {
                   queryKeyframe->odometryConstraintListMutable().at(0u);
           EXPECT_EQ(constraintMessage->core_.id_, prevkeymf->id());
           EXPECT_EQ(constraintMessage->core_.stamp_, prevkeymf->timestamp());
-          EXPECT_LT((constraintMessage->core_.T_BrB_.coeffs() -
-                     (T_WS_kf.inverse() * T_WS_prevkf).coeffs())
+          EXPECT_LT((constraintMessage->core_.T_BBr_.coeffs() -
+                     (T_WS_prevkf.inverse() * T_WS_kf).coeffs())
                         .lpNorm<Eigen::Infinity>(),
                     1e-7);
           EXPECT_EQ(constraintMessage->core_.type_,
                     okvis::PoseConstraintType::Odometry);
-          EXPECT_LT((constraintMessage->core_.covRawError_ -
+          EXPECT_LT((constraintMessage->core_.squareRootInfo_ -
                      Eigen::Matrix<double, 6, 6>::Identity())
                         .lpNorm<Eigen::Infinity>(),
                     1e-7);

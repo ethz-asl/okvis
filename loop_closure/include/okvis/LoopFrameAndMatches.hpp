@@ -6,6 +6,7 @@
 #include <Eigen/StdVector>
 
 #include <okvis/kinematics/Transformation.hpp>
+#include <okvis/Time.hpp>
 
 namespace okvis {
 class LoopFrameAndMatches {
@@ -13,7 +14,9 @@ class LoopFrameAndMatches {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   LoopFrameAndMatches();
 
-  LoopFrameAndMatches(uint64_t id, uint64_t queryKeyframeId,
+  LoopFrameAndMatches(uint64_t id, okvis::Time stamp, size_t dbowId,
+                      uint64_t queryKeyframeId, okvis::Time queryKeyframeStamp,
+                      size_t queryKeyframeDbowId,
                       const okvis::kinematics::Transformation& T_BlBq);
 
   ~LoopFrameAndMatches();
@@ -40,10 +43,16 @@ class LoopFrameAndMatches {
 
   void setRelativePoseSqrtInfo(const Eigen::Matrix<double, 6, 6>& sqrtInfo_Bl_Pose_Bq) {
     squareRootInfo_T_BlBq_ = sqrtInfo_Bl_Pose_Bq;
- }
+  }
 
-  uint64_t id_;
-  uint64_t queryKeyframeId_;
+  uint64_t id_; ///< id of the loop keyframe earlier assigned by vio.
+  okvis::Time stamp_;
+  size_t dbowId_; ///< id of the loop keyframe in keyframe dbow database.
+
+  uint64_t queryKeyframeId_; ///< id of the query keyframe assigned by vio.
+  okvis::Time queryKeyframeStamp_;
+  size_t queryKeyframeDbowId_; ///< id of the query keyframe in keyframe dbow database.
+
   okvis::kinematics::Transformation
       T_BlBq_;  ///< Bl loop frame, Bq query keyframe.
 
