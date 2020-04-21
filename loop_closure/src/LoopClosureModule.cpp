@@ -4,11 +4,11 @@
 
 namespace okvis {
 LoopClosureModule::LoopClosureModule()
-    : blocking_(false), LoopClosureMethod_(new LoopClosureMethod()) {}
+    : blocking_(false), loopClosureMethod_(new LoopClosureMethod()) {}
 
 LoopClosureModule::LoopClosureModule(
     std::shared_ptr<okvis::LoopClosureMethod> loopClosureMethod)
-    : blocking_(false), LoopClosureMethod_(loopClosureMethod) {}
+    : blocking_(false), loopClosureMethod_(loopClosureMethod) {}
 
 LoopClosureModule::~LoopClosureModule() {}
 
@@ -34,8 +34,14 @@ void LoopClosureModule::setOutputLoopFrameCallback(
   outputLoopFrameCallback_ = outputCallback;
 }
 
+void LoopClosureModule::appendStateCallback(
+    const VioInterface::StateCallback& stateCallback) {
+  stateCallbackList_.push_back(stateCallback);
+}
+
 void LoopClosureModule::startThreads() {
   loopClosureThread_ = std::thread(&LoopClosureModule::loopClosureLoop, this);
+  publisherThread_ = std::thread(&LoopClosureModule::publisherLoop, this);
 }
 
 void LoopClosureModule::loopClosureLoop() {
@@ -49,24 +55,42 @@ void LoopClosureModule::loopClosureLoop() {
     }
     loopDetectionTimer.start();
 
-    std::shared_ptr<LoopFrameAndMatches> outputLoopFrame;
+    std::shared_ptr<LoopFrameAndMatches> loopFrame;
     std::shared_ptr<KeyframeInDatabase> queryKeyframeInDatabase;
-    LoopClosureMethod_->detectLoop(queryKeyframe, queryKeyframeInDatabase,
-                                   outputLoopFrame);
+    loopClosureMethod_->detectLoop(queryKeyframe, queryKeyframeInDatabase,
+                                   loopFrame);
     loopDetectionTimer.stop();
-    if (outputLoopFrame && outputLoopFrameCallback_) {
-      outputLoopFrameCallback_(outputLoopFrame);
+    if (loopFrame && outputLoopFrameCallback_) {
+      outputLoopFrameCallback_(loopFrame);
     }
+    PgoResult pgoResult;
     poseGraphOptTimer.start();
-    LoopClosureMethod_->addConstraintsAndOptimize(*queryKeyframeInDatabase,
-                                                  outputLoopFrame);
+    loopClosureMethod_->addConstraintsAndOptimize(*queryKeyframeInDatabase,
+                                                  loopFrame, pgoResult);
     poseGraphOptTimer.stop();
+    pgoResults_.Push(pgoResult);
+  }
+  loopClosureMethod_->saveFinalPgoResults();
+}
+
+void LoopClosureModule::publisherLoop() {
+  for (;;) {
+    // get the result data
+    PgoResult result;
+    if (pgoResults_.PopBlocking(&result) == false) return;
+
+    // call all user callbacks
+    for (auto stateCallback : stateCallbackList_) {
+      stateCallback(result.stamp_, result.T_WB_);
+    }
   }
 }
 
 void LoopClosureModule::shutdown() {
   queryKeyframeList_.Shutdown();
+  pgoResults_.Shutdown();
   loopClosureThread_.join();
+  publisherThread_.join();
 }
 
 }  // namespace okvis

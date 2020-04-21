@@ -74,5 +74,38 @@ void removeUnsetElements(std::vector<T>* elements,
   }
   elements->resize(keepIter - elements->begin());
 }
+
+/**
+ * select matrics from a vector of Eigen types.
+ * do not use this function with Eigen types.
+ */
+template <class T, class Index>
+std::vector<T, Eigen::aligned_allocator<T>> selectMatrices(
+    const std::vector<T, Eigen::aligned_allocator<T>>& inArray,
+    const std::vector<Index>& indices) {
+  std::vector<T, Eigen::aligned_allocator<T>> result;
+  result.reserve(indices.size());
+  for (auto val : indices) {
+    result.push_back(inArray[val]);
+  }
+  return result;
+}
+
+/**
+ * T, element type
+ * Index, index type
+ * warning: do not use this function with Eigen types.
+ */
+template <class T, class Index>
+std::vector<T> selectElements(const std::vector<T>& inArray,
+                              const std::vector<Index>& indices) {
+  std::vector<T> result;
+  result.reserve(indices.size());
+  for (auto val : indices) {
+    result.push_back(inArray[val]);
+  }
+  return result;
+}
+
 } // namespace msckf
 #endif  // INCLUDE_MSCKF_REMOVE_FROM_VECTOR_HPP_

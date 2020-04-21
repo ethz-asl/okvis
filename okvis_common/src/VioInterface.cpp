@@ -232,14 +232,8 @@ void VioInterface::setFullStateCallbackWithAllCalibration(
   fullStateCallbackWithAllCalibration_ = fullStateCallbackWithAllCalibration;
 }
 
-void VioInterface::saveStatistics(const std::string& filename) const {
-  std::cout << "saveStatistics is not implemented in the derived class of "
-               "VioInterface!\n";
-}
-
 void VioInterface::display() {
-  std::cout << "display is not implemented in the derived class of "
+  std::cerr << "display() is not implemented in the derived class of "
                "VioInterface!\n";
 }
-
 }  // namespace okvis

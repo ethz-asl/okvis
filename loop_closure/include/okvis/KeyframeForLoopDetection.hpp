@@ -113,6 +113,16 @@ public:
     }
   }
 
+  inline std::vector<size_t> convertToLandmarkIndices() const {
+    std::vector<size_t> landmarkIdForKeypoints(keypointList_.size(), 0u);
+    size_t lmId = 0u;
+    for (auto index : keypointIndexForLandmarkList_) {
+      landmarkIdForKeypoints[index] = lmId;
+      ++lmId;
+    }
+    return landmarkIdForKeypoints;
+  }
+
   const std::vector<std::shared_ptr<NeighborConstraintInDatabase>>&
   constraintList() const {
     return constraintList_;
@@ -127,9 +137,19 @@ public:
      return frontendDescriptors_;
   }
 
+  const cv::Mat frontendDescriptorsWithLandmarks() const {
+    return selectDescriptors(frontendDescriptors_,
+                             keypointIndexForLandmarkList_);
+  }
+
   const std::vector<Eigen::Vector4d, Eigen::aligned_allocator<Eigen::Vector4d>>&
   landmarkPositionList() const {
     return landmarkPositionList_;
+  }
+
+  const std::vector<Eigen::Vector3f, Eigen::aligned_allocator<Eigen::Vector3f>>&
+  keypointList() const {
+    return keypointList_;
   }
 
   void setSquareRootInfo(size_t j,
@@ -140,6 +160,10 @@ public:
   void setSquareRootInfoFromCovariance(size_t j,
                       const Eigen::Matrix<double, 6, 6>& covRawError);
 
+  void setFrontendDescriptors(cv::Mat frontendDescriptors) {
+    frontendDescriptors_ = frontendDescriptors;
+  }
+
   void setLandmarkPositionList(
       const std::vector<Eigen::Vector4d,
                         Eigen::aligned_allocator<Eigen::Vector4d>>&
@@ -147,8 +171,20 @@ public:
     landmarkPositionList_ = landmarkPositionList;
   }
 
-  void setFrontendDescriptors(cv::Mat frontendDescriptors) {
-    frontendDescriptors_ = frontendDescriptors;
+  /**
+   * @brief setKeypointIndexForLandmarkList
+   * @param kpIndexForLandmarks each entry is index in keypoint list of a
+   * keypoint corresponding to every landmark in landmark list.
+   */
+  void setKeypointIndexForLandmarkList(const std::vector<int>& kpIndexForLandmarks) {
+    keypointIndexForLandmarkList_ = kpIndexForLandmarks;
+  }
+
+  void setKeypointList(
+      const std::vector<Eigen::Vector3f,
+                        Eigen::aligned_allocator<Eigen::Vector3f>>&
+          keypointList) {
+    keypointList_ = keypointList;
   }
 
  public:
@@ -164,14 +200,19 @@ public:
   /// while as in VINS Mono, then we do not need the constraint list.
   std::vector<std::shared_ptr<NeighborConstraintInDatabase>> constraintList_; ///< odometry constraints.
   std::vector<std::shared_ptr<NeighborConstraintInDatabase>> loopConstraintList_; ///< loop constraints.
-  cv::Mat frontendDescriptors_; ///< landmark descriptors used in frontend. #columns is the descriptor size, #rows is for landmarks.
+  // The below variables are used to find correspondence between a loop frame
+  // and a query frame and estimate the relative pose.
+  cv::Mat frontendDescriptors_; ///< descriptors for every keypoint from VIO frontend. #columns is the descriptor size, #rows is for landmarks.
   std::vector<Eigen::Vector4d, Eigen::aligned_allocator<Eigen::Vector4d>>
-      landmarkPositionList_;  ///< landmark positions expressed in the camera frame.
+      landmarkPositionList_;  ///< landmark positions expressed in the body frame of this keyframe passed in by a VIO estimator.
+  std::vector<int> keypointIndexForLandmarkList_; ///< index in keypointList of keypoints associated with landmarks.
+  std::vector<Eigen::Vector3f, Eigen::aligned_allocator<Eigen::Vector3f>>
+      keypointList_; ///< locations and size of every keypoint in left camera.
 };
 
 /**
  * @brief The LoopQueryKeyframeMessage class
- * Only one out of nframe will be used for querying keyframe database and
+ * Only one frame out of nframe will be used for querying keyframe database and
  * computing loop constraint. As a result, from the NCameraSystem, we only
  * need the camera intrinsic parameters, but not the extrinsic parameters.
  * We may reset the NCameraSystem for nframe_ when intrinsic parameters are
@@ -190,8 +231,33 @@ class LoopQueryKeyframeMessage {
   ~LoopQueryKeyframeMessage();
 
   std::shared_ptr<KeyframeInDatabase> toKeyframeInDatebase(size_t dbowId) const {
-    return std::shared_ptr<KeyframeInDatabase>(
+    std::shared_ptr<KeyframeInDatabase> keyframeInDB(
         new KeyframeInDatabase(dbowId, id_, stamp_, T_WB_, cov_T_WB_));
+    keyframeInDB->setOdometryConstraints(odometryConstraintList_);
+    keyframeInDB->setLandmarkPositionList(landmarkPositionList_);
+    keyframeInDB->setFrontendDescriptors(getFrontendDescriptors());
+    keyframeInDB->setKeypointList(getFrontendKeypoints());
+    keyframeInDB->setKeypointIndexForLandmarkList(keypointIndexForLandmarkList_);
+    return keyframeInDB;
+  }
+  /**
+   * @brief setNFrame copy essential parts from frontend NFrame to avoid
+   * read/write at the same time by VIO estimator and loop closure module.
+   */
+  void setNFrame(std::shared_ptr<const okvis::MultiFrame> multiframe) {
+    // shallow copy camera geometry for each camera.
+    std::shared_ptr<okvis::MultiFrame> nframe(new okvis::MultiFrame(
+        multiframe->cameraSystem(), multiframe->timestamp(), multiframe->id()));
+    // shallow copy one image.
+    nframe->setImage(kQueryCameraIndex, multiframe->image(kQueryCameraIndex));
+
+    nframe->resetKeypoints(kQueryCameraIndex,
+                           multiframe->getKeypoints(kQueryCameraIndex));
+    cv::Mat descriptors;
+    multiframe->getDescriptors(kQueryCameraIndex)
+        .copyTo(descriptors);  // deep copy.
+    nframe->resetDescriptors(kQueryCameraIndex, descriptors);
+    nframe_ = nframe;
   }
 
   std::shared_ptr<const okvis::MultiFrame> NFrame() const {
@@ -216,9 +282,14 @@ class LoopQueryKeyframeMessage {
     return landmarkPositionList_;
   }
 
-  ///< \brief gather descriptors for keypoints associated to landmarks.
-  cv::Mat gatherFrontendDescriptors() const {
-    return nframe_->copyDescriptorsAt(kQueryCameraIndex, keypointIndexForLandmarkList_);
+  cv::Mat getFrontendDescriptors() const {
+    // deep copy is unneeded because nframe's descriptors are newly allocated.
+    return nframe_->getDescriptors(kQueryCameraIndex);
+  }
+
+  std::vector<KeypointReduced, Eigen::aligned_allocator<KeypointReduced>>
+  getFrontendKeypoints() const {
+    return nframe_->copyKeypoints(kQueryCameraIndex);
   }
 
   ///< \brief get all descriptors for a view in nframe.
@@ -255,7 +326,11 @@ class LoopQueryKeyframeMessage {
   okvis::Time stamp_;
   okvis::kinematics::Transformation T_WB_;
 
-  Eigen::Matrix<double, 6, 6> cov_T_WB_;  ///< cov of $[\delta p, \delta \theta]$
+  Eigen::Matrix<double, 6, 6>
+      cov_T_WB_;  ///< cov of $[\delta p, \delta \theta]$. An estimator
+                  ///< that does not provide covariance for poses should zero
+                  ///< cov_T_WB_.
+
   const static size_t kQueryCameraIndex = 0u;
 
  private:
@@ -267,7 +342,13 @@ class LoopQueryKeyframeMessage {
   std::vector<int> keypointIndexForLandmarkList_; ///< Index of the keypoints with landmark positions.
   std::vector<Eigen::Vector4d, Eigen::aligned_allocator<Eigen::Vector4d>>
       landmarkPositionList_;  ///< landmark positions expressed in the body frame of this keyframe.
-
 }; // LoopQueryKeyframeMessage
+
+struct PgoResult {
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  okvis::Time stamp_;
+  okvis::kinematics::Transformation T_WB_;
+};
+
 }  // namespace okvis
 #endif  // INCLUDE_OKVIS_KEYFRAME_FOR_LOOP_DETECTION_HPP_

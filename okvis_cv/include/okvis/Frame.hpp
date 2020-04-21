@@ -65,6 +65,8 @@ enum RelativeMotionType {
   ROTATION_ONLY,
 };
 
+typedef Eigen::Vector3f KeypointReduced; // x, y, size
+
 /// \class Frame
 /// \brief A single camera frame equipped with keypoint detector / extractor.
 class Frame
@@ -193,7 +195,7 @@ class Frame
   /// \return The number of keypoints.
   inline size_t numKeypoints() const;
 
-  inline std::vector<uint64_t> getLandmarkIds() const;
+  inline const std::vector<uint64_t>& getLandmarkIds() const;
 
   inline void setRelativeMotion(uint64_t relativeFrameId,
                                 RelativeMotionType relativeMotionType) {
@@ -211,11 +213,18 @@ class Frame
     return descriptors_;
   }
 
-  std::vector<cv::KeyPoint> getKeypoints() const {
+  const std::vector<cv::KeyPoint>& getKeypoints() const {
     return keypoints_;
   }
 
-  inline cv::Mat copyDescriptorsAt(const std::vector<int>& descriptorIndices) const;
+  inline cv::Mat copyDescriptorsAt(
+      const std::vector<int>& descriptorIndices) const;
+
+  inline std::vector<KeypointReduced, Eigen::aligned_allocator<KeypointReduced>>
+  copyKeypointsAt(const std::vector<int>& keypointIndices) const;
+
+  inline std::vector<KeypointReduced, Eigen::aligned_allocator<KeypointReduced>>
+  copyKeypoints() const;
 
  protected:
   cv::Mat image_;  ///< the image as OpenCV's matrix
@@ -228,6 +237,9 @@ class Frame
   uint64_t relativeFrameId_;
   RelativeMotionType relativeMotionType_;
 };
+
+inline cv::Mat selectDescriptors(const cv::Mat descriptors,
+                                 const std::vector<int>& descriptorIndices);
 
 }  // namespace okvis
 

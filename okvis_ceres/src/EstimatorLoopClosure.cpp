@@ -29,9 +29,11 @@ bool Estimator::getLoopQueryKeyframeMessage(
   // add 3d landmarks observed in query keyframe's first frame,
   // and corresponding indices into the 2d keypoint list.
   // The local camera frame will be used as their coordinate frame.
-  std::vector<uint64_t> landmarkIdList = multiFrame->getLandmarkIds(LoopQueryKeyframeMessage::kQueryCameraIndex);
+  const std::vector<uint64_t>& landmarkIdList =
+      multiFrame->getLandmarkIds(LoopQueryKeyframeMessage::kQueryCameraIndex);
   size_t numKeypoints = landmarkIdList.size();
-  auto& keypointIndexForLandmarkList = (*queryKeyframe)->keypointIndexForLandmarkListMutable();
+  auto& keypointIndexForLandmarkList =
+      (*queryKeyframe)->keypointIndexForLandmarkListMutable();
   keypointIndexForLandmarkList.reserve(numKeypoints / 4);
   auto& landmarkPositionList = (*queryKeyframe)->landmarkPositionListMutable();
   landmarkPositionList.reserve(numKeypoints / 4);

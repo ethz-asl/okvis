@@ -1018,4 +1018,8 @@ bool ThreadedKFVio::addLoopFrameAndMatches(std::shared_ptr<LoopFrameAndMatches> 
   }
 }
 
+void ThreadedKFVio::appendPgoStateCallback(const StateCallback& pgoStateCallback) {
+  loopClosureModule_.appendStateCallback(pgoStateCallback);
+}
+
 }  // namespace okvis

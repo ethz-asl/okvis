@@ -236,7 +236,7 @@ class MultiFrame
   /// \return The number of keypoints.
   inline size_t numKeypoints(size_t cameraIdx) const;
 
-  inline std::vector<uint64_t> getLandmarkIds(size_t cameraIdx) const;
+  inline const std::vector<uint64_t>& getLandmarkIds(size_t cameraIdx) const;
   /// @}
 
   /// \brief Get the total number of keypoints in all frames.
@@ -269,9 +269,16 @@ class MultiFrame
       cv::Ptr<cv::DescriptorMatcher> feature_matcher, std::vector<int>* i_query,
       std::vector<int>* i_match, double lowe_ratio, bool draw_matches) const;
 
-  /// \brief descriptor size in bytes.
+  /// \brief copy descriptors at specified indices.
   inline cv::Mat copyDescriptorsAt(
       int cameraIdx, const std::vector<int>& descriptorIndices) const;
+
+  /// \brief copy reduced keypoints at specified indices.
+  inline std::vector<KeypointReduced, Eigen::aligned_allocator<KeypointReduced>>
+  copyKeypointsAt(int cameraIdx, const std::vector<int>& keypointIndices) const;
+
+  inline std::vector<KeypointReduced, Eigen::aligned_allocator<KeypointReduced>>
+  copyKeypoints(int cameraIdx) const;
 
   void getRelativeMotion(size_t cameraIdx, uint64_t* relativeFrameId,
                          RelativeMotionType* rmt) const {
@@ -280,6 +287,14 @@ class MultiFrame
 
   cv::Mat getDescriptors(size_t cameraIdx) const {
     return frames_[cameraIdx].getDescriptors();
+  }
+
+  const std::vector<cv::KeyPoint>& getKeypoints(size_t cameraIdx) const {
+    return frames_[cameraIdx].getKeypoints();
+  }
+
+  const cameras::NCameraSystem& cameraSystem() const {
+    return cameraSystem_;
   }
 
   okvis::cameras::NCameraSystem::DistortionType distortionType(size_t cameraIdx) const {

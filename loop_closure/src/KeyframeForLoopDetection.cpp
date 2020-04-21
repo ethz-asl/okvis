@@ -48,7 +48,9 @@ LoopQueryKeyframeMessage::LoopQueryKeyframeMessage() {}
 LoopQueryKeyframeMessage::LoopQueryKeyframeMessage(uint64_t id, okvis::Time stamp,
                          const okvis::kinematics::Transformation& T_WB,
                          std::shared_ptr<const okvis::MultiFrame> multiframe)
-    : id_(id), stamp_(stamp), T_WB_(T_WB), nframe_(multiframe) {}
+    : id_(id), stamp_(stamp), T_WB_(T_WB) {
+  setNFrame(multiframe);
+}
 
 LoopQueryKeyframeMessage::~LoopQueryKeyframeMessage() {}
 

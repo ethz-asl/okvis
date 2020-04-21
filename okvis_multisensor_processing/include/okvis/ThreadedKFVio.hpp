@@ -246,6 +246,8 @@ class ThreadedKFVio : public VioInterface {
 
   void saveStatistics(const std::string& filename) const;
 
+  void appendPgoStateCallback(const StateCallback& pgoStateCallback);
+
  private:
   /// \brief Start all threads.
   virtual void startThreads();

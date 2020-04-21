@@ -42,12 +42,14 @@ class LoopClosureMethod {
    * messages. One implication is that transmitting only relative pose for
    * odometry constraints does not work.
    * @param[in] queryKeyframeInDB
-   * @param[in] loopKeyframe
+   * @param[in] loopKeyframe could be nullptr in case there is no loop.
+   * @param[out] pgoResult for the latest keyframe.
    * @return true if optimization is performed.
    */
   virtual bool addConstraintsAndOptimize(
       const KeyframeInDatabase& queryKeyframeInDB,
-      std::shared_ptr<const LoopFrameAndMatches> loopKeyframe);
+      std::shared_ptr<const LoopFrameAndMatches> loopKeyframe,
+      PgoResult& pgoResult);
 
   /**
    * @brief initialize a keyframe in database from a query keyframe.
@@ -64,6 +66,8 @@ class LoopClosureMethod {
   getFrameDatabasePtr() const {
     return db_frames_;
   }
+
+  virtual void saveFinalPgoResults() {}
 
  protected:
   std::vector<std::shared_ptr<okvis::KeyframeInDatabase>> db_frames_;

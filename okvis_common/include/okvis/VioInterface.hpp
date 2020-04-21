@@ -313,11 +313,9 @@ class VioInterface {
   virtual void setFullStateCallbackWithAllCalibration(
       const FullStateCallbackWithAllCalibration
           &fullStateCallbackWithAllCalibration);
-
-  virtual void saveStatistics(const std::string &filename) const;
+  /// \}
 
   virtual void display();
-  /// \}
 
  protected:
 

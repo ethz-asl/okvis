@@ -245,7 +245,7 @@ size_t MultiFrame::numKeypoints(size_t cameraIdx) const
   return frames_[cameraIdx].numKeypoints();
 }
 
-std::vector<uint64_t> MultiFrame::getLandmarkIds(size_t cameraIdx) const {
+const std::vector<uint64_t>& MultiFrame::getLandmarkIds(size_t cameraIdx) const {
   OKVIS_ASSERT_TRUE_DBG(Exception, cameraIdx < frames_.size(), "Out of range");
   return frames_[cameraIdx].getLandmarkIds();
 }
@@ -313,6 +313,17 @@ cv::Mat MultiFrame::drawStereoMatches(const std::vector<cv::DMatch>& matches) co
 cv::Mat MultiFrame::copyDescriptorsAt(
     int cameraIdx, const std::vector<int>& descriptorIndices) const {
   return frames_[cameraIdx].copyDescriptorsAt(descriptorIndices);
+}
+
+inline std::vector<KeypointReduced, Eigen::aligned_allocator<KeypointReduced>>
+MultiFrame::copyKeypointsAt(int cameraIdx,
+                            const std::vector<int>& keypointIndices) const {
+  return frames_[cameraIdx].copyKeypointsAt(keypointIndices);
+}
+
+inline std::vector<KeypointReduced, Eigen::aligned_allocator<KeypointReduced>>
+MultiFrame::copyKeypoints(int cameraIdx) const {
+  return frames_[cameraIdx].copyKeypoints();
 }
 
 }// namespace okvis

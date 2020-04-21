@@ -194,8 +194,11 @@ opengv::absolute_pose::FrameNoncentralAbsoluteAdapter::FrameNoncentralAbsoluteAd
     int lmId = matchedPointIndices[k];
     const Eigen::Vector4d hp = candidatePoints[lmId];
 
-    // check if not at infinity
-    if (fabs(hp[3]) < 1.0e-8) continue;
+    // Points at infinity should not happen because the landmarks
+    // from VIO estimator has already been screened there.
+    // Also ensuring that the input points have the same size as the internal
+    // points simplifies locating inliers in the original points.
+//    if (fabs(hp[3]) < 1.0e-8) continue;
 
     // add landmark here
     points_.push_back(hp.head<3>() / hp[3]);

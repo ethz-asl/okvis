@@ -306,15 +306,51 @@ size_t Frame::numKeypoints() const {
   return keypoints_.size();
 }
 
-std::vector<uint64_t> Frame::getLandmarkIds() const {
+const std::vector<uint64_t>& Frame::getLandmarkIds() const {
   return landmarkIds_;
 }
 
-cv::Mat Frame::copyDescriptorsAt(const std::vector<int>& descriptorIndices) const {
-  cv::Mat result(descriptorIndices.size(), descriptors_.cols, descriptors_.type());
+cv::Mat selectDescriptors(
+    const cv::Mat descriptors,
+    const std::vector<int>& descriptorIndices) {
+  cv::Mat result(descriptorIndices.size(), descriptors.cols,
+                 descriptors.type());
   int j = 0;
   for (auto index : descriptorIndices) {
-    descriptors_.row(index).copyTo(result.row(j));
+    descriptors.row(index).copyTo(result.row(j));
+    ++j;
+  }
+  return result;
+}
+
+cv::Mat Frame::copyDescriptorsAt(
+    const std::vector<int>& descriptorIndices) const {
+  return selectDescriptors(descriptors_, descriptorIndices);
+}
+
+std::vector<KeypointReduced, Eigen::aligned_allocator<KeypointReduced>>
+Frame::copyKeypointsAt(const std::vector<int>& keypointIndices) const {
+  std::vector<KeypointReduced, Eigen::aligned_allocator<KeypointReduced>>
+      result(keypointIndices.size());
+  int j = 0;
+  for (auto index : keypointIndices) {
+    result[j][0] = keypoints_[index].pt.x;
+    result[j][1] = keypoints_[index].pt.y;
+    result[j][2] = keypoints_[index].size;
+    ++j;
+  }
+  return result;
+}
+
+std::vector<KeypointReduced, Eigen::aligned_allocator<KeypointReduced>>
+Frame::copyKeypoints() const {
+  std::vector<KeypointReduced, Eigen::aligned_allocator<KeypointReduced>>
+      result(keypoints_.size());
+  int j = 0;
+  for (const cv::KeyPoint& keypoint : keypoints_) {
+    result[j][0] = keypoint.pt.x;
+    result[j][1] = keypoint.pt.y;
+    result[j][2] = keypoint.size;
     ++j;
   }
   return result;
