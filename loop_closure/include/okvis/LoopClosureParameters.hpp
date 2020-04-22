@@ -39,7 +39,6 @@ class PipelineParams {
 template <class T>
 static void parsePipelineParams(const std::string& params_path,
                                 T* pipeline_params) {
-  CHECK_NOTNULL(pipeline_params);
   static_assert(std::is_base_of<PipelineParams, T>::value,
                 "T must be a class that derives from PipelineParams.");
   // Read/define tracker params.

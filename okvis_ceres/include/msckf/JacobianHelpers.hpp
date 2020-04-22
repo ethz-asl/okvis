@@ -10,7 +10,6 @@
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
-#include <glog/logging.h> // CHECK_GT
 #include <okvis/kinematics/Transformation.hpp>
 
 namespace okvis {
