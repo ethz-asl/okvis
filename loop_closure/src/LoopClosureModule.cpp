@@ -54,17 +54,24 @@ void LoopClosureModule::loopClosureLoop() {
       return;
     }
     loopDetectionTimer.start();
-
     std::shared_ptr<LoopFrameAndMatches> loopFrame;
     std::shared_ptr<KeyframeInDatabase> queryKeyframeInDatabase;
     loopClosureMethod_->detectLoop(queryKeyframe, queryKeyframeInDatabase,
                                    loopFrame);
     loopDetectionTimer.stop();
+    // We publish the loop frame message before performing PGO with this loop
+    // constraint. As such, the message does not have the best optimized pose
+    // for the loop frame. And detectLoop() needs to access the pose graph to
+    // retrieve the latest pose estimate for the loop frame.
+    // The reason for doing so is that loop detection could take 100 ms, and PGO
+    // 130 ms, per VINS Mono report which uses a good CPU. The loop message
+    // delayed by 230 ms can become useless for relocalization in backend
+    // estimator.
     if (loopFrame && outputLoopFrameCallback_) {
       outputLoopFrameCallback_(loopFrame);
     }
-    PgoResult pgoResult;
     poseGraphOptTimer.start();
+    PgoResult pgoResult;
     loopClosureMethod_->addConstraintsAndOptimize(*queryKeyframeInDatabase,
                                                   loopFrame, pgoResult);
     poseGraphOptTimer.stop();

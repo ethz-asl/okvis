@@ -210,7 +210,7 @@ TEST(okvisTestSuite, Estimator) {
         okvis::kinematics::Transformation T_WS_kf;
         estimator.get_T_WS(mf->id(), T_WS_kf);
         EXPECT_LT((queryKeyframe->T_WB_.coeffs() - T_WS_kf.coeffs()).lpNorm<Eigen::Infinity>(), 1e-7);
-        EXPECT_LT(queryKeyframe->cov_T_WB_.lpNorm<Eigen::Infinity>(), 1e-7);
+        EXPECT_LT(queryKeyframe->getCovariance().lpNorm<Eigen::Infinity>(), 1e-7);
 
         if (k == 0) {
           EXPECT_EQ(queryKeyframe->odometryConstraintList().size(), 0u);

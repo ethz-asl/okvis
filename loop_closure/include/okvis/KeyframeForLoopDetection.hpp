@@ -109,6 +109,7 @@ public:
     for (auto constraint : odometryConstraintList) {
       std::shared_ptr<okvis::NeighborConstraintInDatabase> dbConstraint(
           new okvis::NeighborConstraintInDatabase(constraint->core_));
+//      dbConstraint->squareRootInfo_ will be set later on.
       constraintList_.push_back(dbConstraint);
     }
   }
@@ -240,6 +241,23 @@ class LoopQueryKeyframeMessage {
     keyframeInDB->setKeypointIndexForLandmarkList(keypointIndexForLandmarkList_);
     return keyframeInDB;
   }
+
+  bool hasValidCovariance() const {
+    return cov_T_WB_(0, 0) > 1e-7;
+  }
+
+  const Eigen::Matrix<double, 6, 6>& getCovariance() const {
+    return cov_T_WB_;
+  }
+
+  void setCovariance(const Eigen::Matrix<double, 6, 6>& cov_T_WB) {
+    cov_T_WB_ = cov_T_WB;
+  }
+
+  void setZeroCovariance() {
+    cov_T_WB_.setZero();
+  }
+
   /**
    * @brief setNFrame copy essential parts from frontend NFrame to avoid
    * read/write at the same time by VIO estimator and loop closure module.
@@ -326,14 +344,15 @@ class LoopQueryKeyframeMessage {
   okvis::Time stamp_;
   okvis::kinematics::Transformation T_WB_;
 
+  const static size_t kQueryCameraIndex = 0u;
+
+ private:
+
   Eigen::Matrix<double, 6, 6>
       cov_T_WB_;  ///< cov of $[\delta p, \delta \theta]$. An estimator
                   ///< that does not provide covariance for poses should zero
                   ///< cov_T_WB_.
 
-  const static size_t kQueryCameraIndex = 0u;
-
- private:
   /// @warn Do not hold on to nframe_ which has many images.
   std::shared_ptr<const okvis::MultiFrame> nframe_; ///< nframe contains the list of keypoints for each subframe, and the camera system info.
 
