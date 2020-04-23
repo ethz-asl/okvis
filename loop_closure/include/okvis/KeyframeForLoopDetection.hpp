@@ -6,6 +6,7 @@
 #include <Eigen/StdVector>
 
 #include <okvis/MultiFrame.hpp>
+#include <okvis/assert_macros.hpp>
 #include <okvis/class_macros.hpp>
 
 #include <okvis/InverseTransformMultiplyJacobian.hpp>
@@ -273,8 +274,10 @@ class LoopQueryKeyframeMessage {
     nframe->resetKeypoints(kQueryCameraIndex,
                            multiframe->getKeypoints(kQueryCameraIndex));
     cv::Mat descriptors;
-    multiframe->getDescriptors(kQueryCameraIndex)
-        .copyTo(descriptors);  // deep copy.
+    cv::Mat rawDescriptors = multiframe->getDescriptors(kQueryCameraIndex);
+    OKVIS_ASSERT_GT(std::runtime_error, rawDescriptors.rows, 0,
+                    "Empty frontend nframe descriptors");
+    rawDescriptors.copyTo(descriptors);
     nframe->resetDescriptors(kQueryCameraIndex, descriptors);
     nframe_ = nframe;
   }
