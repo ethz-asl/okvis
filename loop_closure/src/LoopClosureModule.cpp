@@ -51,7 +51,7 @@ void LoopClosureModule::loopClosureLoop() {
     std::shared_ptr<LoopQueryKeyframeMessage> queryKeyframe;
     if (queryKeyframeList_.PopBlocking(&queryKeyframe) == false) {
       LOG(INFO) << "Shutting down LoopClosureModule.";
-      return;
+      break;
     }
     loopDetectionTimer.start();
     std::shared_ptr<LoopFrameAndMatches> loopFrame;

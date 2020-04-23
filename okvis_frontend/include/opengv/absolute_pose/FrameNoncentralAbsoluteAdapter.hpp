@@ -175,9 +175,9 @@ class FrameNoncentralAbsoluteAdapter : public AbsoluteAdapterBase {
 
   // custom:
   /**
-   * @brief Obtain the angular standard deviation in [rad].
+   * @brief Obtain the squared angular standard deviation in [rad].
    * @param index The index of the correspondence.
-   * @return The standard deviation in [rad].
+   * @return The squared standard deviation in [rad].
    */
   double getSigmaAngle(size_t index);
 
@@ -206,6 +206,14 @@ class FrameNoncentralAbsoluteAdapter : public AbsoluteAdapterBase {
     }
   }
 
+  void getInlierRayVariances(const std::vector<int>& inliers,
+                             std::vector<double>* inlierRayVariances) {
+    inlierRayVariances->reserve(inliers.size());
+    for (auto index : inliers) {
+      inlierRayVariances->push_back(sigmaAngles_.at(index));
+    }
+  }
+
  private:
   /// The bearing vectors of the correspondences.
   opengv::bearingVectors_t bearingVectors_;
@@ -225,7 +233,7 @@ class FrameNoncentralAbsoluteAdapter : public AbsoluteAdapterBase {
   /// The rotation of the cameras to the viewpoint origin.
   opengv::rotations_t camRotations_;
 
-  /// The standard deviations of the bearing vectors in [rad].
+  /// The squared standard deviations of the bearing vectors in [rad].
   std::vector<double> sigmaAngles_;
 
 };
