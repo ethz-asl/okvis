@@ -763,7 +763,8 @@ class Estimator : public VioBackendInterface
         : isKeyframe(isKeyframe),
           id(id),
           timestamp(_timestamp),
-          tdAtCreation(_tdAtCreation) {}
+          tdAtCreation(_tdAtCreation),
+          orderInCov(-1) {}
     GlobalStatesContainer global;
     AllSensorStatesContainer sensors;
     bool isKeyframe;
@@ -776,6 +777,8 @@ class Estimator : public VioBackendInterface
     // when IMU readings surpass state timestamp, and then updated
     // when next state arrives.
     std::shared_ptr<okvis::ImuMeasurementDeque> imuReadingWindow;
+    int orderInCov;  // order in covariance matrix. The oldest state has order 0
+                     // and the second oldest has order 1.
   };
 
   // the following keeps track of all the states at different time instances (key=poseId)
