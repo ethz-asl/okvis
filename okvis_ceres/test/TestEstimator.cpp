@@ -220,7 +220,7 @@ TEST(okvisTestSuite, Estimator) {
           EXPECT_GE(queryKeyframe->odometryConstraintList().size(), 1u);
           std::shared_ptr<const okvis::NeighborConstraintMessage>
               constraintMessage =
-                  queryKeyframe->odometryConstraintListMutable().at(0u);
+                  queryKeyframe->odometryConstraintList().at(0u);
           EXPECT_EQ(constraintMessage->core_.id_, prevkeymf->id());
           EXPECT_EQ(constraintMessage->core_.stamp_, prevkeymf->timestamp());
           EXPECT_LT((constraintMessage->core_.T_BBr_.coeffs() -

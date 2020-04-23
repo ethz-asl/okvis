@@ -62,6 +62,7 @@ class NeighborConstraintMessage {
   ~NeighborConstraintMessage();
 
   /**
+   * @deprecated
    * @brief compute the covariance of error in $T_BnBr$ given the covariance of errors in $T_WBr$ and $T_WBn$
    * $T_BnBr = T_WBn^{-1} T_WBr$
    * The error(perturbation) of  $T_WBr$ $T_WBn$ and $T_BnBr$ are defined by
@@ -356,7 +357,7 @@ class LoopQueryKeyframeMessage {
   /// @warn Do not hold on to nframe_ which has many images.
   std::shared_ptr<const okvis::MultiFrame> nframe_; ///< nframe contains the list of keypoints for each subframe, and the camera system info.
 
-  std::vector<std::shared_ptr<NeighborConstraintMessage>> odometryConstraintList_;
+  std::vector<std::shared_ptr<NeighborConstraintMessage>> odometryConstraintList_; ///< The most adjacent neighbor is at the front.
 
   std::vector<int> keypointIndexForLandmarkList_; ///< Index of the keypoints with landmark positions.
   std::vector<Eigen::Vector4d, Eigen::aligned_allocator<Eigen::Vector4d>>
