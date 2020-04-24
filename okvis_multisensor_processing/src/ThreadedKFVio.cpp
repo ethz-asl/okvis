@@ -1009,7 +1009,7 @@ bool ThreadedKFVio::popLoopFrameAndMatchesList(
 
 bool ThreadedKFVio::addLoopFrameAndMatches(std::shared_ptr<LoopFrameAndMatches> loopFrame) {
   if (blocking_) {
-    loopFrames_.PushBlockingIfFull(loopFrame, 1);
+    loopFrames_.PushBlockingIfFull(loopFrame, 2); // 2 because loop closure is not critical.
     return true;
   } else {
     loopFrames_.PushNonBlockingDroppingIfFull(
