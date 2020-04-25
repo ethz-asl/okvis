@@ -13,7 +13,7 @@ bool ParallaxAnglePoint::initializePosition(
         okvis::kinematics::Transformation,
         Eigen::aligned_allocator<okvis::kinematics::Transformation> >
         &T_WC_list,
-    const std::vector<int> &anchorIndices) {
+    const std::vector<size_t> &anchorIndices) {
   Eigen::Vector3d d_m = observationsxy1[anchorIndices[0]].normalized();
   Eigen::Vector3d d_a = observationsxy1[anchorIndices[1]].normalized();
   Eigen::Vector3d W_d_m = T_WC_list[anchorIndices[0]].C() * d_m;
@@ -31,7 +31,7 @@ bool ParallaxAnglePoint::optimizePosition(
     const std::vector<
         okvis::kinematics::Transformation,
         Eigen::aligned_allocator<okvis::kinematics::Transformation>>& T_WC_list,
-    const std::vector<int>& anchorIndices) {
+    const std::vector<size_t>& anchorIndices) {
   std::shared_ptr<msckf::SimplePointSharedData> pointDataPtr(
         new msckf::SimplePointSharedData());
   pointDataPtr->T_WC_list = T_WC_list;

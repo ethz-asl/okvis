@@ -153,8 +153,6 @@ bool ChordalDistance<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDM
              double** jacobians, double** jacobiansMinimal) const {
   LWF::ParallaxAnglePoint pap;
   pap.set(parameters[3]);
-  std::vector<int> anchorObservationIndices =
-      pointDataPtr_->anchorObservationIds();
 
   Eigen::Matrix<double, 3, 1> t_BC_B(parameters[4][0], parameters[4][1],
                                      parameters[4][2]);

@@ -21,7 +21,7 @@ struct StateInfoForOneKeypoint {
 
     }
     StateInfoForOneKeypoint(
-        uint64_t _frameId, int _camIdx,
+        uint64_t _frameId, size_t _camIdx,
         std::shared_ptr<const okvis::ceres::ParameterBlock> T_WB_ptr,
         double _normalizedRow)
         : frameId(_frameId),
@@ -30,7 +30,7 @@ struct StateInfoForOneKeypoint {
           normalizedRow(_normalizedRow) {}
 
     uint64_t frameId;
-    int cameraId;
+    size_t cameraId;
     std::shared_ptr<const okvis::ceres::ParameterBlock> T_WBj_ptr;
     std::shared_ptr<const okvis::ceres::ParameterBlock> speedAndBiasPtr;
     // IMU measurements covering the state epoch.
@@ -136,20 +136,26 @@ class PointSharedData {
 
   /// @name Functions for anchors.
   /// @{
-  void setAnchors(const std::vector<uint64_t>& anchorIds,
-                  const std::vector<int>& anchorSeqIds) {
+  void setAnchors(const std::vector<okvis::AnchorFrameIdentifier>& anchorIds) {
     anchorIds_ = anchorIds;
     T_WBa_list_.clear();
     T_WBa_list_.reserve(anchorIds.size());
-    for (auto idInSeq : anchorSeqIds) {
-      T_WBa_list_.push_back(stateInfoForObservations_[idInSeq].T_WBtij);
+    for (auto anchorIdentifier : anchorIds) {
+      T_WBa_list_.push_back(
+          stateInfoForObservations_[anchorIdentifier.observationIndex_]
+              .T_WBtij);
     }
   }
 
-  const std::vector<uint64_t> anchorIds() const {
+  const std::vector<okvis::AnchorFrameIdentifier>& anchorIds() const {
     return anchorIds_;
   }
 
+  /**
+   * @brief Get index of observations from the anchor frames in the observation sequence.
+   * @warning This only support a monocular camera.
+   * @return
+   */
   std::vector<int> anchorObservationIds() const;
 
   const std::vector<
@@ -194,8 +200,8 @@ class PointSharedData {
       return stateInfoForObservations_.size();
   }
 
-  std::vector<std::pair<uint64_t, int>> frameIds() const {
-    std::vector<std::pair<uint64_t, int>> frameIds;
+  std::vector<std::pair<uint64_t, size_t>> frameIds() const {
+    std::vector<std::pair<uint64_t, size_t>> frameIds;
     frameIds.reserve(stateInfoForObservations_.size());
     for (auto item : stateInfoForObservations_) {
       frameIds.emplace_back(item.frameId, item.cameraId);
@@ -221,8 +227,8 @@ class PointSharedData {
            stateInfoForObservations_[index].tdAtCreation;
   }
 
-  int cameraIndex(int index) const {
-    return stateInfoForObservations_[index].cameraId;
+  size_t cameraIndex(size_t observationIndex) const {
+    return stateInfoForObservations_[observationIndex].cameraId;
   }
 
   double normalizedRow(int index) const {
@@ -240,6 +246,15 @@ class PointSharedData {
       T_WBtij_list.push_back(item.T_WBtij);
     }
     return T_WBtij_list;
+  }
+
+  std::vector<size_t> cameraIndexList() const {
+    std::vector<size_t> camIndices;
+    camIndices.reserve(stateInfoForObservations_.size());
+    for (auto item : stateInfoForObservations_) {
+      camIndices.push_back(item.cameraId);
+    }
+    return camIndices;
   }
 
   void poseAtObservation(int index, okvis::kinematics::Transformation* T_WBtij) const {
@@ -301,7 +316,7 @@ class PointSharedData {
               Eigen::aligned_allocator<StateInfoForOneKeypoint>>
       stateInfoForObservations_;
 
-  std::vector<uint64_t> anchorIds_;
+  std::vector<okvis::AnchorFrameIdentifier> anchorIds_;
   std::vector<okvis::kinematics::Transformation,
               Eigen::aligned_allocator<okvis::kinematics::Transformation>>
       T_WBa_list_;

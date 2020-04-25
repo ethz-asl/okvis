@@ -291,7 +291,7 @@ void SimulatedMotionForParallaxAngleTest::simulateSidewaysMotion(
     std::cout << "outlier " << observationsxy1_[outlierIndex].transpose()
               << std::endl;
   }
-  anchorObservationIndices_.push_back(0);
-  anchorObservationIndices_.push_back(1);
+  anchorObservationIndices_.push_back(0u);
+  anchorObservationIndices_.push_back(1u);
 }
 }  // namespace simul

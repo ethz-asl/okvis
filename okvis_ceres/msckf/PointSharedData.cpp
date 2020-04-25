@@ -177,10 +177,10 @@ void PointSharedData::removeExtraObservationsLegacy(
 std::vector<int> PointSharedData::anchorObservationIds() const {
   std::vector<int> anchorObservationIds;
   anchorObservationIds.reserve(2);
-  for (auto frameId : anchorIds_) {
+  for (auto identifier : anchorIds_) {
     int index = 0;
     for (auto& stateInfo : stateInfoForObservations_) {
-      if (frameId == stateInfo.frameId) {
+      if (identifier.frameId_ == stateInfo.frameId) {
         anchorObservationIds.push_back(index);
         break;
       }

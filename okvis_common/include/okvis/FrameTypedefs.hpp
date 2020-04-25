@@ -268,6 +268,17 @@ typedef std::vector<Observation, Eigen::aligned_allocator<Observation> > Observa
 typedef Eigen::Matrix<double, 9, 1> SpeedAndBiases;
 typedef Eigen::Matrix<double, 9, 1> SpeedAndBias;
 
+struct AnchorFrameIdentifier {
+  uint64_t frameId_;
+  size_t cameraIndex_; // which camera?
+  size_t observationIndex_; // index in the observation sequence.
+  AnchorFrameIdentifier(uint64_t frameId, size_t cameraIndex,
+                        size_t observationIndex)
+      : frameId_(frameId),
+        cameraIndex_(cameraIndex),
+        observationIndex_(observationIndex) {}
+};
+
 }  // namespace okvis
 
 #endif /* INCLUDE_OKVIS_FRAMETYPEDEFS_HPP_ */

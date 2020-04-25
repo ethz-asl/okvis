@@ -95,7 +95,7 @@ class CameraRig {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   inline CameraRig() {}
-  inline size_t numberCameras() {
+  inline size_t numberCameras() const {
     return camera_geometries_.size();
   }
   inline void clear() {

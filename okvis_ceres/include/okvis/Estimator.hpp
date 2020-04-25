@@ -415,10 +415,15 @@ class Estimator : public VioBackendInterface
 
   size_t minTrackLength() const { return minTrackLength_; }
 
-  int cameraParamsMinimalDimen(int camIdx = 0) const {
+  /**
+   * @brief minimal dim of parameters of camera of index camIdx.
+   * @param camIdx cameraIndex.
+   * @return minimal dim
+   */
+  size_t cameraParamsMinimalDimen(size_t camIdx = 0) const {
     return (fixCameraExtrinsicParams_[camIdx] ? 0 : camera_rig_.getMinimalExtrinsicDimen(camIdx)) +
            (fixCameraIntrinsicParams_[camIdx] ? 0 : camera_rig_.getMinimalProjectionDimen(camIdx) +
-           camera_rig_.getDistortionDimen(camIdx)) + 2;  // 2 for td and tr
+           camera_rig_.getDistortionDimen(camIdx)) + 2u;  // 2 for td and tr
   }
 
   int landmarkModelId() const {
@@ -663,15 +668,18 @@ class Estimator : public VioBackendInterface
     /// @param[in] id The Id.
     /// @param[in] isRequired Whether or not we require the state.
     /// @param[in] exists Whether or not this exists in the ceres problem.
-    StateInfo(uint64_t id = 0, bool isRequired = true, bool exists = false)
+    StateInfo(uint64_t id = 0, bool isRequired = true,
+              bool exists = false, size_t startIndex = 0u)
         : id(id),
           isRequired(isRequired),
-          exists(exists)
+          exists(exists),
+          startIndexInCov(startIndex)
     {
     }
     uint64_t id; ///< The ID.
     bool isRequired; ///< Whether or not we require the state.
     bool exists; ///< Whether or not this exists in the ceres problem.
+    size_t startIndexInCov; ///< start index in the covariance matrix.
   };
 
   /// \brief GlobalStates The global states enumerated

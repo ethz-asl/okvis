@@ -69,7 +69,7 @@ class SimulatedMotionForParallaxAngleTest {
     return T_WC_list_;
   }
 
-  std::vector<int> anchorIndices() const {
+  std::vector<size_t> anchorIndices() const {
     return anchorObservationIndices_;
   }
 
@@ -108,7 +108,7 @@ class SimulatedMotionForParallaxAngleTest {
   std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d>>
       observationsxy1_;
   TransformationList T_WC_list_;
-  std::vector<int> anchorObservationIndices_;
+  std::vector<size_t> anchorObservationIndices_;
 };
 }
 #endif // MSCKF_TEST_SIMULATED_MOTION_FOR_PARALLAX_ANGLE_TEST_HPP_

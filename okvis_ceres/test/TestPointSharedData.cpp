@@ -49,7 +49,7 @@ class PointSharedDataTest : public ::testing::Test {
 
 TEST_F(PointSharedDataTest, removeExtraObservations) {
   psd.removeExtraObservations(selectedFrameIds, &noise2dList);
-  std::vector<std::pair<uint64_t, int>> frameIdentifiers = psd.frameIds();
+  std::vector<std::pair<uint64_t, size_t>> frameIdentifiers = psd.frameIds();
   EXPECT_EQ(selectedFrameIds.size(), frameIdentifiers.size());
   for (size_t j = 0; j < selectedFrameIds.size(); ++j) {
     EXPECT_EQ(selectedFrameIds[j], frameIdentifiers[j].first);
@@ -60,7 +60,7 @@ TEST_F(PointSharedDataTest, removeExtraObservations) {
 
 TEST_F(PointSharedDataTest, removeExtraObservationsLegacy) {
   psd.removeExtraObservationsLegacy(selectedFrameIds, &noise2dList);
-  std::vector<std::pair<uint64_t, int>> frameIdentifiers = psd.frameIds();
+  std::vector<std::pair<uint64_t, size_t>> frameIdentifiers = psd.frameIds();
   EXPECT_EQ(selectedFrameIds.size(), frameIdentifiers.size());
   for (size_t j = 0; j < selectedFrameIds.size(); ++j) {
     EXPECT_EQ(selectedFrameIds[j], frameIdentifiers[j].first);

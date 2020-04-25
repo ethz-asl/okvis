@@ -15,7 +15,7 @@ namespace msckf {
  * @brief orderedIndicesMAJ
  * @param maj indices of main anchor, associate anchor, and remaining frames.
  */
-void orderedIndicesMAJ(const std::vector<int>& anchorIndices,
+void orderedIndicesMAJ(const std::vector<size_t>& anchorIndices,
                        int totalObservations, std::vector<int>* maj);
 
 class SimplePointSharedData {
@@ -28,7 +28,7 @@ class SimplePointSharedData {
   std::vector<okvis::kinematics::Transformation,
               Eigen::aligned_allocator<okvis::kinematics::Transformation>>
       T_WC_list;
-  std::vector<int>
+  std::vector<size_t>
       anchorIndices;  // Indices of main and associate anchors in the lists.
 };
 

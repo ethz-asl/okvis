@@ -1,17 +1,17 @@
 #include "msckf/BearingResiduals.hpp"
 namespace msckf {
 
-void orderedIndicesMAJ(const std::vector<int>& anchorIndices,
+void orderedIndicesMAJ(const std::vector<size_t>& anchorIndices,
                        int totalObservations, std::vector<int>* maj) {
   maj->clear();
   maj->reserve(totalObservations);
   for (int i = 0; i < totalObservations; ++i) {
     maj->push_back(i);
   }
-  int main = anchorIndices[0];
-  int associate = anchorIndices[1];
-  if (associate == 0) {
-    if (main == 1) {
+  size_t main = anchorIndices[0];
+  size_t associate = anchorIndices[1];
+  if (associate == 0u) {
+    if (main == 1u) {
       std::swap(maj->at(0), maj->at(1));
     } else {
       std::swap(maj->at(0), maj->at(1));

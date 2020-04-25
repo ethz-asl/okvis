@@ -328,7 +328,7 @@ class ParallaxAnglePoint {
       const std::vector<
           okvis::kinematics::Transformation,
           Eigen::aligned_allocator<okvis::kinematics::Transformation>>& T_WC_list,
-      const std::vector<int>& anchorIndices);
+      const std::vector<size_t>& anchorIndices);
 
   bool optimizePosition(
       const std::vector<Eigen::Vector3d,
@@ -337,7 +337,7 @@ class ParallaxAnglePoint {
       const std::vector<
           okvis::kinematics::Transformation,
           Eigen::aligned_allocator<okvis::kinematics::Transformation>>& T_WC_list,
-      const std::vector<int>& anchorIndices);
+      const std::vector<size_t>& anchorIndices);
 
   NormalVectorElement n_;
   AngleElement theta_;
