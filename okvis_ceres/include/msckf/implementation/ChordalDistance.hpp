@@ -214,8 +214,8 @@ bool ChordalDistance<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDM
     Eigen::Matrix3d de_dtheta_WCtij = -okvis::kinematics::crossMx(
           R_WCtij * (pap.n_.getVec() - unit_fj));
     Eigen::Matrix3d dtheta_WCtij_dtheta_WBtij, dtheta_WCtij_dtheta_BC;
-    T_WCtij_jacobian.dtheta_dtheta_AB(&dtheta_WCtij_dtheta_WBtij);
-    T_WCtij_jacobian.dtheta_dtheta_BC(&dtheta_WCtij_dtheta_BC);
+    dtheta_WCtij_dtheta_WBtij = T_WCtij_jacobian.dtheta_dtheta_AB();
+    dtheta_WCtij_dtheta_BC = T_WCtij_jacobian.dtheta_dtheta_BC();
     // T_WCtij
     if (jacobians[0]) {
       Eigen::Matrix<double, kNumResiduals, 6> jMinimal;
@@ -329,8 +329,7 @@ bool ChordalDistance<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDM
         pointDataPtr_->v_WBtij_ForJacobian(observationIndex_);
     Eigen::Vector3d omega_Btij = pointDataPtr_->omega_Btij(observationIndex_);
     T_WCtij_jacobian.setVelocity(v_WBtij, omega_Btij);
-    Eigen::Vector3d dtheta_WCtij_dt;
-    T_WCtij_jacobian.dtheta_dt(&dtheta_WCtij_dt);
+    Eigen::Vector3d dtheta_WCtij_dt = T_WCtij_jacobian.dtheta_dt();
 
     // readout time
     if (jacobians[7]) {
@@ -493,21 +492,15 @@ bool ChordalDistance<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDM
     directionFromParallaxAngleJacobian.dN_dni(&dN_dni);
     Eigen::Matrix<double, 3, 1> dN_dthetai;
     directionFromParallaxAngleJacobian.dN_dthetai(&dN_dthetai);
-    Eigen::Matrix3d dp_WCtij_dp_WBtij;
-    T_WCtij_jacobian.dp_dp_AB(&dp_WCtij_dp_WBtij);
-    Eigen::Matrix3d dp_WCtmi_dp_WBtmi;
-    T_WCtmi_jacobian.dp_dp_AB(&dp_WCtmi_dp_WBtmi);
-    Eigen::Matrix3d dp_WCtmi_dtheta_WBtmi;
-    T_WCtmi_jacobian.dp_dtheta_AB(&dp_WCtmi_dtheta_WBtmi);
-    Eigen::Matrix3d dtheta_WCtmi_dtheta_WBtmi;
-    T_WCtmi_jacobian.dtheta_dtheta_AB(&dtheta_WCtmi_dtheta_WBtmi);
-    Eigen::Matrix3d dp_WCtai_dp_WBtai;
-    T_WCtai_jacobian.dp_dp_AB(&dp_WCtai_dp_WBtai);
+    Eigen::Matrix3d dp_WCtij_dp_WBtij = T_WCtij_jacobian.dp_dp_AB();
+    Eigen::Matrix3d dp_WCtmi_dp_WBtmi = T_WCtmi_jacobian.dp_dp_AB();
+    Eigen::Matrix3d dp_WCtmi_dtheta_WBtmi = T_WCtmi_jacobian.dp_dtheta_AB();
+    Eigen::Matrix3d dtheta_WCtmi_dtheta_WBtmi = T_WCtmi_jacobian.dtheta_dtheta_AB();
+    Eigen::Matrix3d dp_WCtai_dp_WBtai = T_WCtai_jacobian.dp_dp_AB();
     // T_WBj
     if (jacobians[0]) {
       Eigen::Matrix<double, kNumResiduals, 6> jMinimal;
-      Eigen::Matrix3d dtheta_dtheta_WBtij;
-      T_WCtij_jacobian.dtheta_dtheta_AB(&dtheta_dtheta_WBtij);
+      Eigen::Matrix3d dtheta_dtheta_WBtij = T_WCtij_jacobian.dtheta_dtheta_AB();
       jMinimal.leftCols<3>() = de_dN * dN_dp_WCtij * dp_WCtij_dp_WBtij;
       if (anchorObservationIndices[1] == observationIndex_) {
         jMinimal.leftCols<3>() += de_dN * dN_dp_WCtai * dp_WCtai_dp_WBtai;
@@ -610,10 +603,10 @@ bool ChordalDistance<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDM
       Eigen::Map<Eigen::Matrix<double, kNumResiduals, 7, Eigen::RowMajor>> j(
           jacobians[4]);
       Eigen::Matrix<double, kNumResiduals, EXTRINSIC_MODEL::kNumParams, Eigen::RowMajor> jMinimal;
-      Eigen::Matrix3d dp_WCtmi_dp_BC, dp_WCtai_dp_BC, dp_WCtij_dp_BC;
-      T_WCtmi_jacobian.dp_dp_BC(&dp_WCtmi_dp_BC);
-      T_WCtai_jacobian.dp_dp_BC(&dp_WCtai_dp_BC);
-      T_WCtij_jacobian.dp_dp_BC(&dp_WCtij_dp_BC);
+
+      Eigen::Matrix3d dp_WCtmi_dp_BC = T_WCtmi_jacobian.dp_dp_BC();
+      Eigen::Matrix3d dp_WCtai_dp_BC = T_WCtai_jacobian.dp_dp_BC();
+      Eigen::Matrix3d dp_WCtij_dp_BC = T_WCtij_jacobian.dp_dp_BC();
       jMinimal.template leftCols<3>() =
           squareRootInformation_ * de_dN *
           (dN_dp_WCtmi * dp_WCtmi_dp_BC + dN_dp_WCtai * dp_WCtai_dp_BC +
@@ -628,15 +621,12 @@ bool ChordalDistance<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDM
         case Extrinsic_p_BC_q_BC::kModelId:
         default:
           {
-            Eigen::Matrix3d dtheta_WCtmi_dtheta_BC, dp_WCtmi_dtheta_BC;
-            T_WCtmi_jacobian.dtheta_dtheta_BC(&dtheta_WCtmi_dtheta_BC);
-            T_WCtmi_jacobian.dp_dtheta_BC(&dp_WCtmi_dtheta_BC);
-            Eigen::Matrix3d dp_WCtai_dtheta_BC;
-            T_WCtai_jacobian.dp_dtheta_BC(&dp_WCtai_dtheta_BC);
-            Eigen::Matrix3d dp_WCtij_dtheta_BC;
-            T_WCtij_jacobian.dp_dtheta_BC(&dp_WCtij_dtheta_BC);
-            Eigen::Matrix3d dtheta_WCtij_dtheta_BC;
-            T_WCtij_jacobian.dtheta_dtheta_BC(&dtheta_WCtij_dtheta_BC);
+
+            Eigen::Matrix3d dtheta_WCtmi_dtheta_BC = T_WCtmi_jacobian.dtheta_dtheta_BC();
+            Eigen::Matrix3d dp_WCtmi_dtheta_BC = T_WCtmi_jacobian.dp_dtheta_BC();
+            Eigen::Matrix3d dp_WCtai_dtheta_BC = T_WCtai_jacobian.dp_dtheta_BC();
+            Eigen::Matrix3d dp_WCtij_dtheta_BC = T_WCtij_jacobian.dp_dtheta_BC();
+            Eigen::Matrix3d dtheta_WCtij_dtheta_BC = T_WCtij_jacobian.dtheta_dtheta_BC();
             jMinimal.template rightCols<3>() =
                 squareRootInformation_ *
                 (de_dN * (dN_dtheta_WCtmi * dtheta_WCtmi_dtheta_BC +
@@ -694,16 +684,16 @@ bool ChordalDistance<GEOMETRY_TYPE, PROJ_INTRINSIC_MODEL, EXTRINSIC_MODEL, LANDM
         pointDataPtr_->v_WBtij_ForJacobian(anchorObservationIndices[1]);
     Eigen::Vector3d omega_Btai =
         pointDataPtr_->omega_Btij(anchorObservationIndices[1]);
-    Eigen::Vector3d dtheta_WCtmi_dt, dtheta_WCtij_dt;
-    Eigen::Vector3d dp_WCtmi_dt, dp_WCtai_dt, dp_WCtij_dt;
+
+
     T_WCtmi_jacobian.setVelocity(v_WBtmi, omega_Btmi);
-    T_WCtmi_jacobian.dp_dt(&dp_WCtmi_dt);
-    T_WCtmi_jacobian.dtheta_dt(&dtheta_WCtmi_dt);
+    Eigen::Vector3d dp_WCtmi_dt = T_WCtmi_jacobian.dp_dt();
+    Eigen::Vector3d dtheta_WCtmi_dt = T_WCtmi_jacobian.dtheta_dt();
     T_WCtij_jacobian.setVelocity(v_WBtij, omega_Btij);
-    T_WCtij_jacobian.dp_dt(&dp_WCtij_dt);
-    T_WCtij_jacobian.dtheta_dt(&dtheta_WCtij_dt);
+    Eigen::Vector3d dp_WCtij_dt = T_WCtij_jacobian.dp_dt();
+    Eigen::Vector3d dtheta_WCtij_dt = T_WCtij_jacobian.dtheta_dt();
     T_WCtai_jacobian.setVelocity(v_WBtai, omega_Btai);
-    T_WCtai_jacobian.dp_dt(&dp_WCtai_dt);
+    Eigen::Vector3d dp_WCtai_dt = T_WCtai_jacobian.dp_dt();
     if (jacobians[7]) {
       Eigen::Map<Eigen::Matrix<double, kNumResiduals, 1>> j(jacobians[7]);
       double rowj = pointDataPtr_->normalizedRow(observationIndex_);

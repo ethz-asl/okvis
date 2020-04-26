@@ -30,7 +30,9 @@ add_library(${PROJECT_NAME}
   msckf/BearingResiduals.cpp
   msckf/CameraRig.cpp
   msckf/CameraTimeParamBlock.cpp
+  msckf/ExtrinsicModels.cpp
   msckf/GeneralEstimator.cpp
+  msckf/MultipleTransformPointJacobian.cpp
   msckf/ParallaxAnglePoint.cpp
   msckf/PointLandmarkModels.cpp
   msckf/PointLandmarkSimulation.cpp
@@ -86,6 +88,7 @@ if(BUILD_TESTS)
     test/TestParallaxAnglePoint.cpp
     test/TestPointSharedData.cpp
     test/TestTransformMultiply.cpp
+    test/TestTransformPointJacobian.cpp
   )
   target_link_libraries(${PROJECT_TEST_NAME} 
     ${PROJECT_NAME} 

@@ -50,11 +50,11 @@ void PointSharedData::computePoseAndVelocityAtObservation() {
             const okvis::ceres::SpeedAndBiasParameterBlock>(
             item.speedAndBiasPtr)
             ->estimate();
-    okvis::Duration featureTime(tdParamBlockPtr_->parameters()[0] +
-                                trParamBlockPtr_->parameters()[0] *
-                                    item.normalizedRow -
-                                item.tdAtCreation);
-
+    size_t cameraIndex = item.cameraId;
+    okvis::Duration featureTime(
+        tdParamBlockPtrs_[cameraIndex]->parameters()[0] +
+        trParamBlockPtrs_[cameraIndex]->parameters()[0] * item.normalizedRow -
+        item.tdAtCreation);
     okvis::ImuMeasurement interpolatedInertialData;
     okvis::poseAndVelocityAtObservation(*item.imuMeasurementPtr, vTGTSTA.data(),
                                         *imuParameters_, item.stateEpoch,
@@ -90,10 +90,11 @@ void PointSharedData::computePoseAndVelocityForJacobians(
       lP_T_WB = okvis::kinematics::Transformation(
           posVelFirstEstimatePtr->head<3>(), lP_T_WB.q());
       lP_sb.head<3>() = posVelFirstEstimatePtr->tail<3>();
-      okvis::Duration featureTime(tdParamBlockPtr_->parameters()[0] +
-                                  trParamBlockPtr_->parameters()[0] *
-                                      item.normalizedRow -
-                                  item.tdAtCreation);
+      size_t cameraIndex = item.cameraId;
+      okvis::Duration featureTime(
+          tdParamBlockPtrs_[cameraIndex]->parameters()[0] +
+          trParamBlockPtrs_[cameraIndex]->parameters()[0] * item.normalizedRow -
+          item.tdAtCreation);
       okvis::poseAndLinearVelocityAtObservation(
           *item.imuMeasurementPtr, vTGTSTA.data(), *imuParameters_,
           item.stateEpoch, featureTime, &lP_T_WB, &lP_sb);

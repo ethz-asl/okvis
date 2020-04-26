@@ -6,14 +6,32 @@
 #include <okvis/kinematics/Transformation.hpp>
 
 namespace msckf {
-// compute Jacobians of propagated states relative to initial states.
-// All Jacobians are computed on the tangent space.
-// Warn: this function assumes that endEpoch and startEpoch differ small,
-// e.g., less than 0.04 sec.
+/**
+ * @brief SimpleImuPropagationJacobian computes Jacobians of propagated states
+ * relative to initial states.
+ * Error states are defined by okvis::kinematics::oplus and minus.
+ * @warning: this function assumes that endEpoch and startEpoch differ small, e.g.,
+ * less than 0.04 sec.
+ */
 class SimpleImuPropagationJacobian
 {
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  SimpleImuPropagationJacobian() {}
+
+  void initialize(const okvis::Time startEpoch,
+                  const okvis::Time endEpoch,
+                  const okvis::kinematics::Transformation& endT_WB,
+                  const Eigen::Matrix<double, 3, 1>& endV_W,
+                  const Eigen::Matrix<double, 3, 1>& endOmega_B) {
+    startEpoch_ = startEpoch;
+    endEpoch_ = endEpoch;
+    endp_WB_B_ = endT_WB.r();
+    endq_WB_ = endT_WB.q();
+    endV_WB_W_ = endV_W;
+    endOmega_WB_B_ = endOmega_B;
+  }
+
   SimpleImuPropagationJacobian(const okvis::Time startEpoch,
                                const okvis::Time endEpoch,
                                const okvis::kinematics::Transformation& endT_WB,
@@ -62,21 +80,21 @@ public:
     (*j) = endq_WB_ * endOmega_WB_B_;
   }
 
-  static void dp_dt(Eigen::Vector3d endV_WB_W, Eigen::Vector3d* j) {
-    (*j) = endV_WB_W;
+  static Eigen::Vector3d dp_dt(const Eigen::Vector3d& endV_WB_W) {
+    return endV_WB_W;
   }
 
-  static void dtheta_dt(Eigen::Vector3d endOmega_WB_B,
-                        Eigen::Quaterniond endq_WB, Eigen::Vector3d* j) {
-    (*j) = endq_WB * endOmega_WB_B;
+  static Eigen::Vector3d dtheta_dt(const Eigen::Vector3d& endOmega_WB_B,
+                                   const Eigen::Quaterniond& endq_WB) {
+    return endq_WB * endOmega_WB_B;
   }
 
-  static void dp_dv_WB(double deltaTime, Eigen::Matrix3d* j) {
-    j->setIdentity();
-    double stride = deltaTime;
-    (*j)(0, 0) = stride;
-    (*j)(1, 1) = stride;
-    (*j)(2, 2) = stride;
+  static Eigen::Matrix3d dp_dv_WB(double deltaTime) {
+    Eigen::Matrix3d j = Eigen::Matrix3d::Identity();
+    j(0, 0) = deltaTime;
+    j(1, 1) = deltaTime;
+    j(2, 2) = deltaTime;
+    return j;
   }
 
 private:

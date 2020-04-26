@@ -104,10 +104,12 @@ class PointSharedData {
   }
 
   void setCameraTimeParameterPtrs(
-      std::shared_ptr<const okvis::ceres::ParameterBlock> tdParamBlockPtr,
-      std::shared_ptr<const okvis::ceres::ParameterBlock> trParamBlockPtr) {
-    tdParamBlockPtr_ = tdParamBlockPtr;
-    trParamBlockPtr_ = trParamBlockPtr;
+      const std::vector<std::shared_ptr<const okvis::ceres::ParameterBlock>>&
+          tdParamBlockPtrs,
+      const std::vector<std::shared_ptr<const okvis::ceres::ParameterBlock>>&
+          trParamBlockPtrs) {
+    tdParamBlockPtrs_ = tdParamBlockPtrs;
+    trParamBlockPtrs_ = trParamBlockPtrs;
     status_ = PointSharedDataState::ImuInfoReady;
   }
   /// @}
@@ -220,11 +222,12 @@ class PointSharedData {
 
   /// @name Getters
   /// @{
-  double normalizedFeatureTime(int index) const {
-    return tdParamBlockPtr_->parameters()[0] +
-           trParamBlockPtr_->parameters()[0] *
-               stateInfoForObservations_[index].normalizedRow -
-           stateInfoForObservations_[index].tdAtCreation;
+  double normalizedFeatureTime(int observationIndex) const {
+    size_t cameraIdx = stateInfoForObservations_[observationIndex].cameraId;
+    return tdParamBlockPtrs_[cameraIdx]->parameters()[0] +
+           trParamBlockPtrs_[cameraIdx]->parameters()[0] *
+               stateInfoForObservations_[observationIndex].normalizedRow -
+           stateInfoForObservations_[observationIndex].tdAtCreation;
   }
 
   size_t cameraIndex(size_t observationIndex) const {
@@ -294,18 +297,18 @@ class PointSharedData {
   }
 
   std::shared_ptr<const okvis::ceres::ParameterBlock>
-  speedAndBiasParameterBlockPtr(int index) const {
-    return stateInfoForObservations_.at(index).speedAndBiasPtr;
+  speedAndBiasParameterBlockPtr(int observationIndex) const {
+    return stateInfoForObservations_.at(observationIndex).speedAndBiasPtr;
   }
 
   std::shared_ptr<const okvis::ceres::ParameterBlock>
-  cameraTimeDelayParameterBlockPtr() const {
-    return tdParamBlockPtr_;
+  cameraTimeDelayParameterBlockPtr(size_t cameraIndex) const {
+    return tdParamBlockPtrs_[cameraIndex];
   }
 
   std::shared_ptr<const okvis::ceres::ParameterBlock>
-  frameReadoutTimeParameterBlockPtr() const {
-    return trParamBlockPtr_;
+  frameReadoutTimeParameterBlockPtr(size_t cameraIndex) const {
+    return trParamBlockPtrs_[cameraIndex];
   }
   /// @}
 
@@ -321,8 +324,8 @@ class PointSharedData {
               Eigen::aligned_allocator<okvis::kinematics::Transformation>>
       T_WBa_list_;
 
-  std::shared_ptr<const okvis::ceres::ParameterBlock> tdParamBlockPtr_;
-  std::shared_ptr<const okvis::ceres::ParameterBlock> trParamBlockPtr_;
+  std::vector<std::shared_ptr<const okvis::ceres::ParameterBlock>> tdParamBlockPtrs_;
+  std::vector<std::shared_ptr<const okvis::ceres::ParameterBlock>> trParamBlockPtrs_;
   std::vector<std::shared_ptr<const okvis::ceres::ParameterBlock>> imuAugmentedParamBlockPtrs_;
   const okvis::ImuParameters* imuParameters_;
 

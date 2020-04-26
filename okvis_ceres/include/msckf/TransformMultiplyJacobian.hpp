@@ -63,32 +63,32 @@ class TransformMultiplyJacobian {
     return okvis::kinematics::Transformation(t_AC, q_AC);
   }
 
-  void dtheta_dtheta_AB(Eigen::Matrix3d* j) { j->setIdentity(); }
+  Eigen::Matrix3d dtheta_dtheta_AB() const { return Eigen::Matrix3d::Identity(); }
 
-  void dtheta_dp_AB(Eigen::Matrix3d* j) { j->setZero(); }
+  Eigen::Matrix3d dtheta_dp_AB() const { return Eigen::Matrix3d::Zero(); }
 
-  void dtheta_dtheta_BC(Eigen::Matrix3d* j) {
-    *j = T_AB_.second.toRotationMatrix();
+  Eigen::Matrix3d dtheta_dtheta_BC() const {
+    return T_AB_.second.toRotationMatrix();
   }
 
-  void dtheta_dp_BC(Eigen::Matrix3d* j) { j->setZero(); }
+  Eigen::Matrix3d dtheta_dp_BC() const { return Eigen::Matrix3d::Zero(); }
 
-  void dtheta_dt(Eigen::Vector3d* j) {
-    *j = T_AB_.second * omega_AB_B_;
+  Eigen::Vector3d dtheta_dt() const {
+    return T_AB_.second * omega_AB_B_;
   }
 
-  void dp_dtheta_AB(Eigen::Matrix3d* j) {
-    *j = okvis::kinematics::crossMx(T_AB_.second * -T_BC_.first);
+  Eigen::Matrix3d dp_dtheta_AB() const {
+    return okvis::kinematics::crossMx(T_AB_.second * -T_BC_.first);
   }
 
-  void dp_dp_AB(Eigen::Matrix3d* j) { j->setIdentity(); }
+  Eigen::Matrix3d dp_dp_AB() const { return Eigen::Matrix3d::Identity(); }
 
-  void dp_dtheta_BC(Eigen::Matrix3d* j) { j->setZero(); }
+  Eigen::Matrix3d dp_dtheta_BC() const { return Eigen::Matrix3d::Zero(); }
 
-  void dp_dp_BC(Eigen::Matrix3d* j) { *j = T_AB_.second.toRotationMatrix(); }
+  Eigen::Matrix3d dp_dp_BC() const { return T_AB_.second.toRotationMatrix(); }
 
-  void dp_dt(Eigen::Vector3d* j) {
-    *j = v_AB_ + T_AB_.second * omega_AB_B_.cross(T_BC_.first);
+  Eigen::Vector3d dp_dt() const {
+    return v_AB_ + T_AB_.second * omega_AB_B_.cross(T_BC_.first);
   }
 
  private:

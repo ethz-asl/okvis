@@ -5,6 +5,13 @@
 #include <okvis/kinematics/Transformation.hpp>
 
 namespace okvis {
+/**
+ * @brief class to compute Jacobians of
+ * \f$ T_{C_{j}C_{k}} = (T_{GB{j}} T_{BC})^{-1} T_{GB{k}} T_{BC} \f$
+ * The error states for \f$T_{C_{j}C_{k}}, T_{GB{j}}, T_{GB{k}}, T_{BC}\f$ are
+ * defined according to okvis::kinematics::oplus and minus.
+ * First order approximation is used in computing the Jacobians. *
+*/
 class RelativeMotionJacobian {
  public:
   inline RelativeMotionJacobian(const std::pair<Eigen::Matrix3d, Eigen::Vector3d>& T_BC,
