@@ -59,12 +59,12 @@ bool Estimator::getOdometryConstraintsForKeyframe(
     std::shared_ptr<okvis::LoopQueryKeyframeMessage> queryKeyframe) const {
   int j = 0;
   auto& odometryConstraintList = queryKeyframe->odometryConstraintListMutable();
-  odometryConstraintList.reserve(maxOdometryConstraintForAKeyframe_);
+  odometryConstraintList.reserve(poseGraphParameters_.maxOdometryConstraintForAKeyframe);
   okvis::kinematics::Transformation T_WBr = queryKeyframe->T_WB_;
   queryKeyframe->setZeroCovariance();
   auto riter = statesMap_.rbegin();
   for (++riter;  // skip the last frame which in this case should be a keyframe.
-       riter != statesMap_.rend() && j < maxOdometryConstraintForAKeyframe_;
+       riter != statesMap_.rend() && j < poseGraphParameters_.maxOdometryConstraintForAKeyframe;
        ++riter) {
     if (riter->second.isKeyframe) {
       okvis::kinematics::Transformation T_WBn;

@@ -115,4 +115,6 @@ Optimization::Optimization()
       landmarkModelId(0),
       initializeWithoutEnoughParallax(true) {}
 
+PoseGraphParameters::PoseGraphParameters() : maxOdometryConstraintForAKeyframe(3) {}
+
 }  // namespace okvis

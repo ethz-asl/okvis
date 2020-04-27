@@ -932,10 +932,8 @@ void ThreadedKFVio::dumpCalibrationParameters(uint64_t latestNFrameId, Optimizat
   }
 
   estimator_->getImuAugmentedStatesEstimate(&result->imuExtraParams_);
-  const int camIdx = 0;
-  estimator_->getCameraCalibrationEstimate(camIdx, &result->cameraParams_);
+  estimator_->getCameraCalibrationEstimate(&result->cameraParams_);
 
-  // TODO(jhuai): Severe Jacobian rank deficiency in computing covariance.
   // bool covStatus = estimator_->getStateVariance(&result->stateVariance_);
 }
 
@@ -990,6 +988,9 @@ void ThreadedKFVio::configureBackendAndFrontendPartly(okvis::VioParameters& para
   estimator_->setUseEpipolarConstraint(parameters.optimization.useEpipolarConstraint);
   estimator_->setCameraObservationModel(parameters.optimization.cameraObservationModelId);
   estimator_->setLandmarkModel(parameters.optimization.landmarkModelId);
+  estimator_->setPoseGraphParameters(parameters.poseGraphParams);
+  LOG(INFO) << "Max odometry constraint for a keyframe "
+            << parameters.poseGraphParams.maxOdometryConstraintForAKeyframe;
   loopClosureModule_.setOutputLoopFrameCallback(
       std::bind(&okvis::ThreadedKFVio::addLoopFrameAndMatches,
                 this, std::placeholders::_1));

@@ -66,8 +66,7 @@ Estimator::Estimator(
       minTrackLength_(3u),
       useEpipolarConstraint_(false),
       cameraObservationModelId_(0),
-      landmarkModelId_(0),
-      maxOdometryConstraintForAKeyframe_(3)
+      landmarkModelId_(0)
 {
 }
 
@@ -81,8 +80,7 @@ Estimator::Estimator()
       minTrackLength_(3u),
       useEpipolarConstraint_(false),
       cameraObservationModelId_(0),
-      landmarkModelId_(0),
-      maxOdometryConstraintForAKeyframe_(3)
+      landmarkModelId_(0)
 {
 }
 
@@ -1479,11 +1477,13 @@ bool Estimator::computeCovariance(Eigen::MatrixXd* cov) const {
 
 // getters
 bool Estimator::getStateVariance(
-    Eigen::Matrix<double, Eigen::Dynamic, 1>* variances) const {
-  Eigen::MatrixXd covariance;
-  bool status = computeCovariance(&covariance);
-  *variances = covariance.diagonal();
-  return status;
+    Eigen::Matrix<double, Eigen::Dynamic, 1>* /*variances*/) const {
+  return true;
+  // TODO(jhuai): Severe Jacobian rank deficiency in computing covariance.
+//  Eigen::MatrixXd covariance;
+//  bool status = computeCovariance(&covariance);
+//  *variances = covariance.diagonal();
+//  return status;
 }
 
 bool Estimator::getImageDelay(uint64_t poseId, int camIdx,
@@ -1520,7 +1520,6 @@ int Estimator::getCameraExtrinsicOptType(size_t cameraIdx) const {
 }
 
 void Estimator::getCameraCalibrationEstimate(
-    int /*camIdx*/,
     Eigen::Matrix<double, Eigen::Dynamic, 1>* /*cameraParams*/) const {
 }
 

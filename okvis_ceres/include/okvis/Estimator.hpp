@@ -439,14 +439,14 @@ class Estimator : public VioBackendInterface
   int getCameraExtrinsicOptType(size_t cameraIdx) const;
 
   /**
-   * @brief getCameraCalibrationEstimate get the latest estimate of camera
+   * @brief getCameraCalibrationEstimate get the estimate of OPTIMIZED camera
    * calibration parameters
    * @param cameraParams[out] including projection and distortion intrinsic
    * parameters and time delay and readout time.
    * @return
    */
   virtual void getCameraCalibrationEstimate(
-      int cameraIndex, Eigen::Matrix<double, Eigen::Dynamic, 1>* cameraParams) const;
+      Eigen::Matrix<double, Eigen::Dynamic, 1>* cameraParams) const;
 
   /**
    * @brief getImuAugmentedStatesEstimate get the lastest estimate of IMU augmented params.
@@ -539,6 +539,10 @@ class Estimator : public VioBackendInterface
 
   void setLandmarkModel(int landmarkModelId) {
     landmarkModelId_ = landmarkModelId;
+  }
+
+  void setPoseGraphParameters(const PoseGraphParameters& pgp) {
+    poseGraphParameters_ = pgp;
   }
 
   /**
@@ -854,7 +858,8 @@ class Estimator : public VioBackendInterface
 
   int landmarkModelId_; // see PointLandmarkModels.hpp
 
-  int maxOdometryConstraintForAKeyframe_;
+  PoseGraphParameters poseGraphParameters_;
+
 };
 
 /**

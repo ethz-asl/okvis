@@ -275,6 +275,14 @@ void parseOptimizationParameters(cv::FileNode optNode,
             << optParams->initializeWithoutEnoughParallax;
 }
 
+void parsePoseGraphParameters(cv::FileNode pgNode,
+                              PoseGraphParameters* pgParams) {
+  if (pgNode["maxOdometryConstraintForAKeyframe"].isInt()) {
+    pgNode["maxOdometryConstraintForAKeyframe"] >>
+        pgParams->maxOdometryConstraintForAKeyframe;
+  }
+}
+
 // Read and parse a config file.
 void VioParametersReader::readConfigFile(const std::string& filename) {
   vioParameters_.optimization.useMedianFilter = false;
@@ -306,6 +314,8 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
 
   parseOptimizationParameters(
       file["optimization"], &vioParameters_.optimization);
+
+  parsePoseGraphParameters(file["pose_graph"], &vioParameters_.poseGraphParams);
 
   // minimum ceres iterations
   if (file["ceres_options"]["minIterations"].isInt()) {

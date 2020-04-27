@@ -275,11 +275,17 @@ struct Optimization{
   // parameter to check motion of a feature for triangulation.
   double triangulationTranslationThreshold;
   double triangulationMaxDepth;
+
   bool useEpipolarConstraint;
   int cameraObservationModelId;
   int landmarkModelId;
   bool initializeWithoutEnoughParallax;
   Optimization();
+};
+
+struct PoseGraphParameters {
+  int maxOdometryConstraintForAKeyframe;
+  PoseGraphParameters();
 };
 
 /**
@@ -342,6 +348,7 @@ struct VioParameters {
   PublishingParameters publishing; ///< Publishing parameters.
   InputData input;
   InitialNavState initialState;
+  PoseGraphParameters poseGraphParams;
 };
 
 } // namespace okvis
