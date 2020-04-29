@@ -52,6 +52,15 @@ class MultipleTransformPointJacobian {
 
   Eigen::Vector4d evaluate() const;
 
+  /**
+   * @brief computeJacobians
+   * The method to compute Jacobians is essentially the reverse mode autodiff algorithm.
+   * In the forward pass(from input to output), intermediate values at
+   * each node are computed, i.e., p, Tk^{a_k} * p, T(k-1)^{a_{k-1}} * p, ..., q.
+   * In the reverse pass(from output to input), intermediate Jacobians
+   * are computed as well as accumulated Jacobians by the chain rule.
+   * Because there is only one output, intermediate Jacobians are computed in the forward pass.
+   */
   void computeJacobians();
 
   /**
