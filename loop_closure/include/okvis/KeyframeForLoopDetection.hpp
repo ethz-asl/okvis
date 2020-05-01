@@ -275,8 +275,7 @@ class LoopQueryKeyframeMessage {
                            multiframe->getKeypoints(kQueryCameraIndex));
     cv::Mat descriptors;
     cv::Mat rawDescriptors = multiframe->getDescriptors(kQueryCameraIndex);
-    OKVIS_ASSERT_GT(std::runtime_error, rawDescriptors.rows, 0,
-                    "Empty frontend nframe descriptors");
+    // With motion blurred images, rawDescriptors may be empty.
     rawDescriptors.copyTo(descriptors);
     nframe->resetDescriptors(kQueryCameraIndex, descriptors);
     nframe_ = nframe;
