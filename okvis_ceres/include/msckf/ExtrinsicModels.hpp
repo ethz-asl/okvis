@@ -144,8 +144,9 @@ class Extrinsic_p_CB final : public ::ceres::LocalParameterization {
   static void toParamsInfo(const std::string delimiter,
                            std::string* extrinsic_format) {
     *extrinsic_format =
-        "p_BC_B_x[m]" + delimiter + "p_BC_B_y" + delimiter + "p_BC_B_z";
+        "p_CS_C_x[m]" + delimiter + "p_CS_C_y" + delimiter + "p_CS_C_z";
   }
+
   static void toParamsValueString(const okvis::kinematics::Transformation& T_BC,
                                   const std::string delimiter,
                                   std::string* extrinsic_string) {
@@ -154,6 +155,7 @@ class Extrinsic_p_CB final : public ::ceres::LocalParameterization {
     ss << r[0] << delimiter << r[1] << delimiter << r[2];
     *extrinsic_string = ss.str();
   }
+
   static void toParamValues(
       const okvis::kinematics::Transformation& T_BC,
       Eigen::VectorXd* extrinsic_opt_coeffs) {
@@ -336,9 +338,9 @@ public:
 
   static void toParamsInfo(const std::string delimiter,
                            std::string* extrinsic_format) {
-    *extrinsic_format = "p_BC_S_x[m]" + delimiter + "p_BC_S_y" + delimiter +
-                        "p_BC_S_z" + delimiter + "q_BC_x" + delimiter +
-                        "q_BC_y" + delimiter + "q_BC_z" + delimiter + "q_BC_w";
+    *extrinsic_format = "p_SC_S_x[m]" + delimiter + "p_SC_S_y" + delimiter +
+                        "p_SC_S_z" + delimiter + "q_SC_x" + delimiter +
+                        "q_SC_y" + delimiter + "q_SC_z" + delimiter + "q_SC_w";
   }
 
   template <class Scalar>
@@ -440,9 +442,10 @@ public:
 };
 
 #ifndef EXTRINSIC_MODEL_CASES
-#define EXTRINSIC_MODEL_CASES          \
-  EXTRINSIC_MODEL_CASE(Extrinsic_p_CB) \
-  EXTRINSIC_MODEL_CASE(Extrinsic_p_BC_q_BC)
+#define EXTRINSIC_MODEL_CASES               \
+  EXTRINSIC_MODEL_CASE(Extrinsic_p_CB)      \
+  EXTRINSIC_MODEL_CASE(Extrinsic_p_BC_q_BC) \
+  EXTRINSIC_MODEL_CASE(Extrinsic_p_C0C_q_C0C)
 #endif
 
 inline int ExtrinsicModelGetMinimalDim(int model_id) {
@@ -489,7 +492,7 @@ inline int ExtrinsicModelNameToId(std::string extrinsic_opt_rep, bool* isFixed =
     if (isFixed) {
       *isFixed = false;
     }
-    return Extrinsic_p_BC_q_BC::kModelId;
+    return Extrinsic_p_C0C_q_C0C::kModelId;
   } else if (extrinsic_opt_rep.compare("P_CB") == 0) {
     if (isFixed) {
       *isFixed = false;
@@ -521,7 +524,26 @@ inline void ExtrinsicModelUpdateState(int model_id, const Eigen::Vector3d& r,
   }
 }
 
-inline void ExtrinsicModelBoxminus(int model_id, const double* rq,
+inline void ExtrinsicModelOplus(int model_id, const double* const deltaT_XC,
+                                okvis::kinematics::Transformation* T_XC) {
+  std::pair<Eigen::Matrix<double, 3, 1>, Eigen::Quaternion<double>>
+      pair_T_XC = std::make_pair(T_XC->r(), T_XC->q());
+  switch (model_id) {
+#define MODEL_CASES EXTRINSIC_MODEL_CASES
+#define EXTRINSIC_MODEL_CASE(ExtrinsicModel)                          \
+  case ExtrinsicModel::kModelId:                                      \
+    ExtrinsicModel::oplus(deltaT_XC, &pair_T_XC);                     \
+    T_XC->set(pair_T_XC.first, pair_T_XC.second);                     \
+    break;
+
+    MODEL_SWITCH_CASES
+
+#undef EXTRINSIC_MODEL_CASE
+#undef MODEL_CASES
+  }
+}
+
+inline void ExtrinsicModelOminus(int model_id, const double* rq,
                                    const double* rq_delta,
                                    double* delta) {
   switch (model_id) {
