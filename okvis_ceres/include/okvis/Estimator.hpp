@@ -399,9 +399,13 @@ class Estimator : public VioBackendInterface
    */
   virtual bool getStateVariance(Eigen::Matrix<double, Eigen::Dynamic, 1>* variances) const;
 
-  /// print out the most recent state vector and/or the stds of its elements. This
-  /// function can be called in the optimizationLoop, but a better way to save
-  /// results is use the publisher loop
+  /**
+   * @brief print the most recent nav state estimate and OPTIMIZED sensor
+   * parameters and/or stddevs of these optimized variables.
+   * Constant parameters will not be printed.
+   * @param stream
+   * @return true
+   */
   virtual bool print(std::ostream& stream) const;
 
   virtual void printTrackLengthHistogram(std::ostream& /*stream*/) const {}
@@ -525,7 +529,8 @@ class Estimator : public VioBackendInterface
 
   virtual void setKeyframeRedundancyThresholds(double /*dist*/, double /*angle*/,
                                                double /*trackingRate*/,
-                                               size_t minTrackLength) {
+                                               size_t minTrackLength,
+                                               size_t /*numImuFrames*/) {
     minTrackLength_ = minTrackLength;
   }
 

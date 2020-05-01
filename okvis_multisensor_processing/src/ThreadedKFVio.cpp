@@ -809,17 +809,19 @@ void ThreadedKFVio::optimizationLoop() {
       okvis::Duration optimizedImageDelay;
       estimator_->getImageDelay(frame_pairs->id(), 0, &optimizedImageDelay);
       deleteImuMeasurementsUntil =
-          estimator_->oldestFrameTimestamp() + optimizedImageDelay - temporal_imu_data_overlap;
+          estimator_->oldestFrameTimestamp() + optimizedImageDelay - Estimator::half_window_;
 
       marginalizationTimer.start();
       estimator_->setKeyframeRedundancyThresholds(
           parameters_.optimization.translationThreshold,
           parameters_.optimization.rotationThreshold,
           parameters_.optimization.trackingRateThreshold,
-          parameters_.optimization.minTrackLength);
+          parameters_.optimization.minTrackLength,
+          parameters_.optimization.numImuFrames);
       estimator_->applyMarginalizationStrategy(
           parameters_.optimization.numKeyframes,
-          parameters_.optimization.numImuFrames, result.transferredLandmarks);
+          parameters_.optimization.numImuFrames,
+          result.transferredLandmarks);
       marginalizationTimer.stop();
       afterOptimizationTimer.start();
 
