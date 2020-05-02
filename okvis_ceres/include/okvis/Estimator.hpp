@@ -431,7 +431,7 @@ class Estimator : public VioBackendInterface
   }
 
   int landmarkModelId() const {
-    return landmarkModelId_;
+    return pointLandmarkOptions_.landmarkModelId;
   }
 
   int cameraObservationModelId() const {
@@ -542,12 +542,12 @@ class Estimator : public VioBackendInterface
     cameraObservationModelId_ = cameraObservationModelId;
   }
 
-  void setLandmarkModel(int landmarkModelId) {
-    landmarkModelId_ = landmarkModelId;
+  void setPointLandmarkOptions(const PointLandmarkOptions& plOptions) {
+    pointLandmarkOptions_ = plOptions;
   }
 
-  void setPoseGraphParameters(const PoseGraphParameters& pgp) {
-    poseGraphParameters_ = pgp;
+  void setPoseGraphOptions(const PoseGraphOptions& pgp) {
+    poseGraphOptions_ = pgp;
   }
 
   /**
@@ -858,9 +858,9 @@ class Estimator : public VioBackendInterface
 
   int cameraObservationModelId_; // see CameraRig.hpp
 
-  int landmarkModelId_; // see PointLandmarkModels.hpp
+  PointLandmarkOptions pointLandmarkOptions_; // see PointLandmarkModels.hpp
 
-  PoseGraphParameters poseGraphParameters_;
+  PoseGraphOptions poseGraphOptions_;
 
 };
 

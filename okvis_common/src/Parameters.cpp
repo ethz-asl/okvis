@@ -112,9 +112,15 @@ Optimization::Optimization()
       triangulationMaxDepth(1000.0),
       useEpipolarConstraint(false),
       cameraObservationModelId(0),
-      landmarkModelId(0),
       initializeWithoutEnoughParallax(true) {}
 
-PoseGraphParameters::PoseGraphParameters() : maxOdometryConstraintForAKeyframe(3) {}
+PoseGraphOptions::PoseGraphOptions()
+    : maxOdometryConstraintForAKeyframe(3) {}
+
+PointLandmarkOptions::PointLandmarkOptions()
+    : landmarkModelId(0), anchorAtObservationTime(false) {}
+
+PointLandmarkOptions::PointLandmarkOptions(int lmkModelId, bool anchorAtObsTime)
+    : landmarkModelId(lmkModelId), anchorAtObservationTime(anchorAtObsTime) {}
 
 }  // namespace okvis

@@ -182,7 +182,7 @@ void parseInitialState(cv::FileNode initialStateNode,
             << std::endl;
 }
 
-void parseOptimizationParameters(cv::FileNode optNode,
+void parseOptimizationOptions(cv::FileNode optNode,
                                  Optimization* optParams) {
   if (optNode["keyframeInsertionOverlapThreshold"].isReal()) {
     optNode["keyframeInsertionOverlapThreshold"] >>
@@ -260,13 +260,6 @@ void parseOptimizationParameters(cv::FileNode optNode,
   LOG(INFO) << "Camera observation model Id "
             << optParams->cameraObservationModelId;
 
-  if (optNode["landmarkModelId"].isInt()) {
-    optParams->landmarkModelId = static_cast<int>(optNode["landmarkModelId"]);
-  } else {
-    optParams->landmarkModelId = 0;
-  }
-  LOG(INFO) << "Landmark model Id " << optParams->landmarkModelId;
-
   optParams->initializeWithoutEnoughParallax =
       optParams->initializeWithoutEnoughParallax;
   parseBoolean(optNode["initializeWithoutEnoughParallax"],
@@ -275,12 +268,26 @@ void parseOptimizationParameters(cv::FileNode optNode,
             << optParams->initializeWithoutEnoughParallax;
 }
 
-void parsePoseGraphParameters(cv::FileNode pgNode,
-                              PoseGraphParameters* pgParams) {
+void parsePointLandmarkOptions(cv::FileNode plNode,
+                               PointLandmarkOptions* plOptions) {
+  if (plNode["landmarkModelId"].isInt()) {
+    plOptions->landmarkModelId = static_cast<int>(plNode["landmarkModelId"]);
+  }
+  LOG(INFO) << "Landmark model Id " << plOptions->landmarkModelId;
+  parseBoolean(plNode["anchorAtObservationTime"],
+               plOptions->anchorAtObservationTime);
+  LOG(INFO)
+      << "Body frame for anchor image at observation epoch (or state epoch)? "
+      << plOptions->anchorAtObservationTime;
+}
+
+void parsePoseGraphOptions(cv::FileNode pgNode, PoseGraphOptions* pgOptions) {
   if (pgNode["maxOdometryConstraintForAKeyframe"].isInt()) {
     pgNode["maxOdometryConstraintForAKeyframe"] >>
-        pgParams->maxOdometryConstraintForAKeyframe;
+        pgOptions->maxOdometryConstraintForAKeyframe;
   }
+  LOG(INFO) << "Max odometry constraint for a keyframe "
+            << pgOptions->maxOdometryConstraintForAKeyframe;
 }
 
 // Read and parse a config file.
@@ -312,10 +319,12 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
     vioParameters_.optimization.numImuFrames = 2;
   }
 
-  parseOptimizationParameters(
+  parseOptimizationOptions(
       file["optimization"], &vioParameters_.optimization);
 
-  parsePoseGraphParameters(file["pose_graph"], &vioParameters_.poseGraphParams);
+  parsePointLandmarkOptions(file["point_landmark"], &vioParameters_.pointLandmarkOptions);
+
+  parsePoseGraphOptions(file["pose_graph"], &vioParameters_.poseGraphOptions);
 
   // minimum ceres iterations
   if (file["ceres_options"]["minIterations"].isInt()) {

@@ -65,8 +65,7 @@ Estimator::Estimator(
       marginalizationResidualId_(0),
       minTrackLength_(3u),
       useEpipolarConstraint_(false),
-      cameraObservationModelId_(0),
-      landmarkModelId_(0)
+      cameraObservationModelId_(0)
 {
 }
 
@@ -79,8 +78,7 @@ Estimator::Estimator()
       marginalizationResidualId_(0),
       minTrackLength_(3u),
       useEpipolarConstraint_(false),
-      cameraObservationModelId_(0),
-      landmarkModelId_(0)
+      cameraObservationModelId_(0)
 {
 }
 

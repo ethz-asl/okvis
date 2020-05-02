@@ -989,10 +989,9 @@ void ThreadedKFVio::configureBackendAndFrontendPartly(okvis::VioParameters& para
       InitialNavState(parameters.initialState));
   estimator_->setUseEpipolarConstraint(parameters.optimization.useEpipolarConstraint);
   estimator_->setCameraObservationModel(parameters.optimization.cameraObservationModelId);
-  estimator_->setLandmarkModel(parameters.optimization.landmarkModelId);
-  estimator_->setPoseGraphParameters(parameters.poseGraphParams);
-  LOG(INFO) << "Max odometry constraint for a keyframe "
-            << parameters.poseGraphParams.maxOdometryConstraintForAKeyframe;
+  estimator_->setPointLandmarkOptions(parameters.pointLandmarkOptions);
+  estimator_->setPoseGraphOptions(parameters.poseGraphOptions);
+
   loopClosureModule_.setOutputLoopFrameCallback(
       std::bind(&okvis::ThreadedKFVio::addLoopFrameAndMatches,
                 this, std::placeholders::_1));

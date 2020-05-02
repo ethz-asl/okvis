@@ -278,14 +278,23 @@ struct Optimization{
 
   bool useEpipolarConstraint;
   int cameraObservationModelId;
-  int landmarkModelId;
+
   bool initializeWithoutEnoughParallax;
   Optimization();
 };
 
-struct PoseGraphParameters {
+struct PointLandmarkOptions {
+  int landmarkModelId;
+  bool anchorAtObservationTime;  ///< body frame for anchor image is at
+                                 ///< observation epoch or state epoch? It only
+                                 ///< affects AIDP.
+  PointLandmarkOptions();
+  PointLandmarkOptions(int lmkModelId, bool anchorAtObsTime);
+};
+
+struct PoseGraphOptions {
   int maxOdometryConstraintForAKeyframe;
-  PoseGraphParameters();
+  PoseGraphOptions();
 };
 
 /**
@@ -348,7 +357,8 @@ struct VioParameters {
   PublishingParameters publishing; ///< Publishing parameters.
   InputData input;
   InitialNavState initialState;
-  PoseGraphParameters poseGraphParams;
+  PointLandmarkOptions pointLandmarkOptions;
+  PoseGraphOptions poseGraphOptions;
 };
 
 } // namespace okvis
