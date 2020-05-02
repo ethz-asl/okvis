@@ -139,14 +139,7 @@ class PointSharedData {
   /// @name Functions for anchors.
   /// @{
   void setAnchors(const std::vector<okvis::AnchorFrameIdentifier>& anchorIds) {
-    anchorIds_ = anchorIds;
-    T_WBa_list_.clear();
-    T_WBa_list_.reserve(anchorIds.size());
-    for (auto anchorIdentifier : anchorIds) {
-      T_WBa_list_.push_back(
-          stateInfoForObservations_[anchorIdentifier.observationIndex_]
-              .T_WBtij);
-    }
+    anchorIds_ = anchorIds;    
   }
 
   const std::vector<okvis::AnchorFrameIdentifier>& anchorIds() const {
@@ -160,11 +153,34 @@ class PointSharedData {
    */
   std::vector<int> anchorObservationIds() const;
 
-  const std::vector<
-      okvis::kinematics::Transformation,
-      Eigen::aligned_allocator<okvis::kinematics::Transformation>>&
-  T_WBa_list() const {
-    return T_WBa_list_;
+  okvis::kinematics::Transformation T_WB_mainAnchor() const {
+    return stateInfoForObservations_[anchorIds_[0].observationIndex_].T_WBtij;
+  }
+
+  okvis::kinematics::Transformation T_WB_mainAnchorForJacobian() const {
+    return stateInfoForObservations_[anchorIds_[0].observationIndex_].lP_T_WBtij;
+  }
+
+  okvis::kinematics::Transformation T_WB_mainAnchorStateEpoch() const {
+    const StateInfoForOneKeypoint& mainAnchorItem =
+        stateInfoForObservations_.at(anchorIds_[0].observationIndex_);
+    return std::static_pointer_cast<const okvis::ceres::PoseParameterBlock>(
+            mainAnchorItem.T_WBj_ptr)
+            ->estimate();
+  }
+
+  okvis::kinematics::Transformation T_WB_mainAnchorStateEpochForJacobian() const {
+    const StateInfoForOneKeypoint& mainAnchorItem =
+        stateInfoForObservations_.at(anchorIds_[0].observationIndex_);
+    okvis::kinematics::Transformation lP_T_WB =
+        std::static_pointer_cast<const okvis::ceres::PoseParameterBlock>(
+            mainAnchorItem.T_WBj_ptr)
+            ->estimate();
+    std::shared_ptr<const Eigen::Matrix<double, 6, 1>> posVelFirstEstimatePtr =
+        mainAnchorItem.positionVelocityPtr;
+    lP_T_WB = okvis::kinematics::Transformation(
+        posVelFirstEstimatePtr->head<3>(), lP_T_WB.q());
+    return lP_T_WB;
   }
   /// @}
 
@@ -291,9 +307,10 @@ class PointSharedData {
 
   /// @name Getters for parameter blocks
   /// @{
-  std::shared_ptr<const okvis::ceres::ParameterBlock> poseParameterBlockPtr(
-      int index) const {
-    return stateInfoForObservations_.at(index).T_WBj_ptr;
+  std::shared_ptr<const okvis::ceres::PoseParameterBlock> poseParameterBlockPtr(
+      int observationIndex) const {
+    return std::static_pointer_cast<const okvis::ceres::PoseParameterBlock>(
+        stateInfoForObservations_.at(observationIndex).T_WBj_ptr);
   }
 
   std::shared_ptr<const okvis::ceres::ParameterBlock>
