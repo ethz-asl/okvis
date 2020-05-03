@@ -150,6 +150,25 @@ void PointSharedData::removeExtraObservations(
   CHECK_EQ(orderedSelectedFrameIds.size(), foundSize);
   stateInfoForObservations_.resize(keepSize);
   imageNoise2dStdList->resize(keepSize * 2);
+
+  // Also update the observation index for anchor frames.
+  for (std::vector<okvis::AnchorFrameIdentifier>::iterator anchorIdIter =
+           anchorIds_.begin();
+       anchorIdIter != anchorIds_.end(); ++anchorIdIter) {
+    bool found = false;
+    int index = (int)stateInfoForObservations_.size() - 1;
+    for (auto riter = stateInfoForObservations_.rbegin();
+         riter != stateInfoForObservations_.rend(); ++riter, --index) {
+      if (riter->frameId == anchorIdIter->frameId_ &&
+          riter->cameraId == anchorIdIter->cameraIndex_) {
+        anchorIdIter->observationIndex_ = index;
+        found = true;
+        break;
+      }
+    }
+    LOG_IF(WARNING, !found)
+        << "Observation for anchor frame is not found in stateInfo list!";
+  }
 }
 
 void PointSharedData::removeExtraObservationsLegacy(

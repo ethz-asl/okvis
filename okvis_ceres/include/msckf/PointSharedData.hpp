@@ -337,9 +337,6 @@ class PointSharedData {
       stateInfoForObservations_;
 
   std::vector<okvis::AnchorFrameIdentifier> anchorIds_;
-  std::vector<okvis::kinematics::Transformation,
-              Eigen::aligned_allocator<okvis::kinematics::Transformation>>
-      T_WBa_list_;
 
   std::vector<std::shared_ptr<const okvis::ceres::ParameterBlock>> tdParamBlockPtrs_;
   std::vector<std::shared_ptr<const okvis::ceres::ParameterBlock>> trParamBlockPtrs_;
