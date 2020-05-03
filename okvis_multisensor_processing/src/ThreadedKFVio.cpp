@@ -817,6 +817,7 @@ void ThreadedKFVio::optimizationLoop() {
           parameters_.optimization.rotationThreshold,
           parameters_.optimization.trackingRateThreshold,
           parameters_.optimization.minTrackLength,
+          parameters_.optimization.numKeyframes,
           parameters_.optimization.numImuFrames);
       estimator_->applyMarginalizationStrategy(
           parameters_.optimization.numKeyframes,
