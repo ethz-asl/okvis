@@ -208,6 +208,9 @@ void ThreadedKFVio::startThreads() {
 
 // Destructor. This calls Shutdown() for all threadsafe queues and joins all threads.
 ThreadedKFVio::~ThreadedKFVio() {
+  loopClosureModule_.shutdown();
+  loopFrames_.Shutdown();
+
   for (size_t i = 0; i < numCameras_; ++i) {
     cameraMeasurementsReceived_.at(i)->Shutdown();
   }
@@ -218,8 +221,7 @@ ThreadedKFVio::~ThreadedKFVio() {
   visualizationData_.Shutdown();
   imuFrameSynchronizer_.shutdown();
   positionMeasurementsReceived_.Shutdown();
-  loopFrames_.Shutdown();
-  loopClosureModule_.shutdown();
+
   // consumer threads
   for (size_t i = 0; i < numCameras_; ++i) {
     frameConsumerThreads_.at(i).join();
