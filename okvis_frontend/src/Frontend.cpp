@@ -47,6 +47,7 @@
 #include <glog/logging.h>
 
 #include <okvis/ceres/ImuError.hpp>
+#include <okvis/StereoMatchingAlgorithm.hpp>
 #include <okvis/VioKeyframeWindowMatchingAlgorithm.hpp>
 #include <okvis/IdProvider.hpp>
 
@@ -568,6 +569,12 @@ void Frontend::matchStereo(okvis::Estimator& estimator,
                                            false);  // TODO: make sure this is changed when switching back to uncertainty based matching
       matchingAlgorithm.setFrames(mfId, mfId, im0, im1);  // newest frame
 
+      // TODO(jhuai): do 3D-2D, 2D-2D, 3D-3D matching in one step, so that
+      // epipolar line can be used for removing outliers and
+      // feature tracks corresponding to landmarks can be fused.
+//      matchingAlgorithm.setMatchingType(MATCHING_ALGORITHM::Match3D3D);
+//      matcher_->match<MATCHING_ALGORITHM>(matchingAlgorithm);
+
       // match 2D-2D
       matcher_->match<MATCHING_ALGORITHM>(matchingAlgorithm);
 
@@ -869,4 +876,44 @@ void Frontend::initialiseBriskFeatureDetectors() {
   }
 }
 
+void Frontend::matchStereoSwitch(
+    okvis::cameras::NCameraSystem::DistortionType distortionType,
+    okvis::Estimator& estimator,
+    std::shared_ptr<okvis::MultiFrame> framesInOut) {
+  // do stereo match to get new landmarks
+  TimerSwitchable matchStereoTimer("2.4.3 matchStereo");
+  switch (distortionType) {
+    case okvis::cameras::NCameraSystem::RadialTangential: {
+      matchStereo<
+          StereoMatchingAlgorithm<okvis::cameras::PinholeCamera<
+              okvis::cameras::RadialTangentialDistortion> > >(estimator,
+                                                              framesInOut);
+      break;
+    }
+    case okvis::cameras::NCameraSystem::Equidistant: {
+      matchStereo<
+          StereoMatchingAlgorithm<okvis::cameras::PinholeCamera<
+              okvis::cameras::EquidistantDistortion> > >(estimator,
+                                                         framesInOut);
+      break;
+    }
+    case okvis::cameras::NCameraSystem::RadialTangential8: {
+      matchStereo<
+          StereoMatchingAlgorithm<okvis::cameras::PinholeCamera<
+              okvis::cameras::RadialTangentialDistortion8> > >(estimator,
+                                                               framesInOut);
+      break;
+    }
+    case okvis::cameras::NCameraSystem::FOV: {
+      matchStereo<StereoMatchingAlgorithm<
+          okvis::cameras::PinholeCamera<okvis::cameras::FovDistortion> > >(
+          estimator, framesInOut);
+      break;
+    }
+    default:
+      OKVIS_THROW(Exception, "Unsupported distortion type.")
+      break;
+  }
+  matchStereoTimer.stop();
+}
 }  // namespace okvis

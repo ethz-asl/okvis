@@ -420,6 +420,10 @@ class Frontend : public VioFrontendInterface {
   /// (re)instantiates feature detectors and descriptor extractors. Used after settings changed or at startup.
   void initialiseBriskFeatureDetectors();
 
+  void matchStereoSwitch(
+      okvis::cameras::NCameraSystem::DistortionType distortionType,
+      okvis::Estimator& estimator,
+      std::shared_ptr<okvis::MultiFrame> framesInOut);
 };
 
 }  // namespace okvis
