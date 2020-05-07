@@ -238,6 +238,8 @@ class PointSharedData {
 
   /// @name Getters
   /// @{
+  // TODO(jhuai): use original timestamp for each frame to compute relative
+  // time to the state epoch.
   double normalizedFeatureTime(int observationIndex) const {
     size_t cameraIdx = stateInfoForObservations_[observationIndex].cameraId;
     return tdParamBlockPtrs_[cameraIdx]->parameters()[0] +

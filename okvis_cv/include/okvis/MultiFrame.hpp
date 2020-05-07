@@ -80,6 +80,9 @@ class MultiFrame
   /// @param[in] timestamp The time this frame was recorded.
   inline void setTimestamp(const okvis::Time & timestamp);
 
+  /// \brief (Re)set the timestamp for frame at cameraIdx.
+  inline void setTimestamp(const okvis::Time& stamp, size_t cameraIdx);
+
   /// \brief (Re)set the id
   /// @param[in] id A unique frame Id.
   inline void setId(uint64_t id);
@@ -87,6 +90,8 @@ class MultiFrame
   /// \brief Obtain the frame timestamp
   /// \return The time this frame was recorded.
   inline const okvis::Time & timestamp() const;
+
+  inline okvis::Time timestamp(size_t cameraIdx) const;
 
   /// \brief Obtain the frame id
   /// \return The unique frame Id.

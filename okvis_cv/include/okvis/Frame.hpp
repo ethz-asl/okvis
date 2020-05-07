@@ -217,6 +217,14 @@ class Frame
     return keypoints_;
   }
 
+  inline void setTimestamp(const okvis::Time& stamp) {
+    stamp_ = stamp;
+  }
+
+  inline okvis::Time timestamp() const {
+    return stamp_;
+  }
+
   inline cv::Mat copyDescriptorsAt(
       const std::vector<int>& descriptorIndices) const;
 
@@ -236,6 +244,7 @@ class Frame
   std::vector<uint64_t> landmarkIds_;  ///< landmark Id, if associated -- 0 otherwise
   uint64_t relativeFrameId_;
   RelativeMotionType relativeMotionType_;
+  okvis::Time stamp_;
 };
 
 inline cv::Mat selectDescriptors(const cv::Mat descriptors,

@@ -76,6 +76,11 @@ void MultiFrame::setTimestamp(const okvis::Time & timestamp)
   timestamp_ = timestamp;
 }
 
+void MultiFrame::setTimestamp(const okvis::Time& timestamp, size_t cameraIdx)
+{
+  frames_[cameraIdx].setTimestamp(timestamp);
+}
+
 // (Re)set the id
 void MultiFrame::setId(uint64_t id)
 {
@@ -86,6 +91,11 @@ void MultiFrame::setId(uint64_t id)
 const okvis::Time & MultiFrame::timestamp() const
 {
   return timestamp_;
+}
+
+okvis::Time MultiFrame::timestamp(size_t cameraIdx) const
+{
+  return frames_[cameraIdx].timestamp();
 }
 
 // Obtain the frame id
