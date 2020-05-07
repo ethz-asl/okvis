@@ -10,6 +10,9 @@
 #include <okvis/KeyframeForLoopDetection.hpp>
 
 namespace okvis {
+// TODO(jhuai): Add heuristic rules to throttle loop query keyframes.
+// 1, minimum time gap, 2, minimum distance, 3, minimum number of keypoints
+// while keeping the keyframe of the previous message in the sliding window.
 bool Estimator::getLoopQueryKeyframeMessage(
     okvis::MultiFramePtr multiFrame,
     std::shared_ptr<okvis::LoopQueryKeyframeMessage>* queryKeyframe) const {
