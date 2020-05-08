@@ -16,7 +16,7 @@ class PointSharedDataTest : public ::testing::Test {
       psd.addKeypointObservation(
           okvis::KeypointIdentifier(frameId, 0, 0),
           std::shared_ptr<const okvis::ceres::ParameterBlock>(),
-          std::rand() % 13 / 13.0);
+          std::rand() % 13 / 13.0, okvis::Time(i+1, 0));
       frameIds.push_back(frameId);
       indices.push_back(i);
       noise2dList.push_back(frameId);

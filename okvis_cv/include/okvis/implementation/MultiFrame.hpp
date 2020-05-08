@@ -76,7 +76,7 @@ void MultiFrame::setTimestamp(const okvis::Time & timestamp)
   timestamp_ = timestamp;
 }
 
-void MultiFrame::setTimestamp(const okvis::Time& timestamp, size_t cameraIdx)
+void MultiFrame::setTimestamp(size_t cameraIdx, const okvis::Time& timestamp)
 {
   frames_[cameraIdx].setTimestamp(timestamp);
 }

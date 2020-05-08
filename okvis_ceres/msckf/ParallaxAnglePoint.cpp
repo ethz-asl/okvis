@@ -43,10 +43,9 @@ bool ParallaxAnglePoint::optimizePosition(
   msckf::BearingResiduals f(pointDataPtr, 0.01);
   Eigen::Matrix<double, 6, 1> x;
   copy(&x);
-  msckf::ceres::TinySolver<msckf::BearingResiduals> solver;
-  solver.options.max_num_iterations = 15;
   msckf::ParallaxAngleParameterization localPap;
-  solver.localParameterization_ = &localPap;
+  msckf::ceres::TinySolver<msckf::BearingResiduals> solver(&localPap);
+  solver.options.max_num_iterations = 15;  
   solver.Solve(f, &x);
   set(x.data());
   return solver.summary.status !=

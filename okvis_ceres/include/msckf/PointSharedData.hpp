@@ -23,11 +23,12 @@ struct StateInfoForOneKeypoint {
     StateInfoForOneKeypoint(
         uint64_t _frameId, size_t _camIdx,
         std::shared_ptr<const okvis::ceres::ParameterBlock> T_WB_ptr,
-        double _normalizedRow)
+        double _normalizedRow, okvis::Time imageStamp)
         : frameId(_frameId),
           cameraId(_camIdx),
           T_WBj_ptr(T_WB_ptr),
-          normalizedRow(_normalizedRow) {}
+          normalizedRow(_normalizedRow),
+          imageTimestamp(imageStamp) {}
 
     uint64_t frameId;
     size_t cameraId;
@@ -36,8 +37,8 @@ struct StateInfoForOneKeypoint {
     // IMU measurements covering the state epoch.
     std::shared_ptr<const okvis::ImuMeasurementDeque> imuMeasurementPtr;
     okvis::Time stateEpoch;
-    double tdAtCreation;
     double normalizedRow; // v / imageHeight - 0.5.
+    okvis::Time imageTimestamp; // raw image frame timestamp may be different for cameras in NFrame.
     // linearization points at the state.
     std::shared_ptr<const Eigen::Matrix<double, 6, 1>> positionVelocityPtr;
     // Pose of the body frame in the world frame at the feature observation epoch.
@@ -61,7 +62,6 @@ enum class PointSharedDataState {
 // The data of the class members may be updated in ceres EvaluationCallback.
 class PointSharedData {
  public:
-
   typedef std::vector<StateInfoForOneKeypoint,
                       Eigen::aligned_allocator<StateInfoForOneKeypoint>>
       StateInfoForObservationsType;
@@ -72,9 +72,9 @@ class PointSharedData {
   void addKeypointObservation(
       const okvis::KeypointIdentifier& kpi,
       std::shared_ptr<const okvis::ceres::ParameterBlock> T_WBj_ptr,
-      double normalizedRow) {
+      double normalizedRow, okvis::Time imageTimestamp) {
     stateInfoForObservations_.emplace_back(kpi.frameId, kpi.cameraIndex,
-                                           T_WBj_ptr, normalizedRow);
+                                           T_WBj_ptr, normalizedRow, imageTimestamp);
   }
 
   /// @name Setters for data for IMU propagation.
@@ -86,11 +86,10 @@ class PointSharedData {
   }
 
   void setImuInfo(
-      int index, const okvis::Time stateEpoch, double td0,
+      int index, const okvis::Time stateEpoch,
       std::shared_ptr<const okvis::ImuMeasurementDeque> imuMeasurements,
       std::shared_ptr<const Eigen::Matrix<double, 6, 1>> positionVelocityPtr) {
     stateInfoForObservations_[index].stateEpoch = stateEpoch;
-    stateInfoForObservations_[index].tdAtCreation = td0;
     stateInfoForObservations_[index].imuMeasurementPtr = imuMeasurements;
     stateInfoForObservations_[index].positionVelocityPtr = positionVelocityPtr;
   }
@@ -238,14 +237,15 @@ class PointSharedData {
 
   /// @name Getters
   /// @{
-  // TODO(jhuai): use original timestamp for each frame to compute relative
-  // time to the state epoch.
   double normalizedFeatureTime(int observationIndex) const {
-    size_t cameraIdx = stateInfoForObservations_[observationIndex].cameraId;
+    return normalizedFeatureTime(stateInfoForObservations_[observationIndex]);
+  }
+
+  double normalizedFeatureTime(const StateInfoForOneKeypoint& item) const {
+    size_t cameraIdx = item.cameraId;
     return tdParamBlockPtrs_[cameraIdx]->parameters()[0] +
-           trParamBlockPtrs_[cameraIdx]->parameters()[0] *
-               stateInfoForObservations_[observationIndex].normalizedRow -
-           stateInfoForObservations_[observationIndex].tdAtCreation;
+           trParamBlockPtrs_[cameraIdx]->parameters()[0] * item.normalizedRow +
+        (item.imageTimestamp - item.stateEpoch).toSec();
   }
 
   size_t cameraIndex(size_t observationIndex) const {
