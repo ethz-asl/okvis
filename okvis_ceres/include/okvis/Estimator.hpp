@@ -577,6 +577,14 @@ class Estimator : public VioBackendInterface
   bool replaceEpipolarWithReprojectionErrors(uint64_t lmId);
 
   /**
+   * @brief merge two landmarks: fuse the shorter feature track to the longer,
+   * replace residuals of the shorter feature track,
+   * also reset landmark ids for relevant keypoints in multiframes.
+   */
+  template<class GEOMETRY_TYPE>
+  uint64_t mergeTwoLandmarks(uint64_t lmIdA, uint64_t lmIdB);
+
+  /**
    * @brief add the input keypoint as an observation to the landmark and add an
    * epipolar constraint between the input keypoint and its first obs. Assume
    * the same camIdx for the two keypoints. thread unsafe, call it when the

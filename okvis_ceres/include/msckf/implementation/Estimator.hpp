@@ -110,6 +110,59 @@ bool Estimator::replaceEpipolarWithReprojectionErrors(uint64_t lmId) {
 }
 
 template <class CAMERA_GEOMETRY_T>
+uint64_t Estimator::mergeTwoLandmarks(uint64_t lmIdA, uint64_t lmIdB) {
+  PointMap::iterator lmItA = landmarksMap_.find(lmIdA);
+  PointMap::iterator lmItB = landmarksMap_.find(lmIdB);
+  if (lmItB->second.observations.size() > lmItA->second.observations.size()) {
+    std::swap(lmIdA, lmIdB);
+    std::swap(lmItA, lmItB);
+  }
+  std::map<okvis::KeypointIdentifier, uint64_t>& obsMapA =
+      lmItA->second.observations;
+  std::map<okvis::KeypointIdentifier, uint64_t>& obsMapB =
+      lmItB->second.observations;
+  for (std::map<okvis::KeypointIdentifier, uint64_t>::iterator obsIter =
+           obsMapB.begin();
+       obsIter != obsMapB.end(); ++obsIter) {
+    if (obsIter->second != 0u) {
+      mapPtr_->removeResidualBlock(
+          reinterpret_cast<::ceres::ResidualBlockId>(obsIter->second));
+      obsIter->second = 0u;
+    }
+    // reset landmark ids for relevant keypoints in multiframe.
+    const KeypointIdentifier& kpi = obsIter->first;
+    okvis::MultiFramePtr multiFramePtr = multiFramePtrMap_.at(kpi.frameId);
+    auto iterA = std::find_if(obsMapA.begin(), obsMapA.end(),
+                              okvis::IsObservedInFrame(kpi.frameId, kpi.cameraIndex));
+    if (iterA != obsMapA.end()) {
+      multiFramePtr->setLandmarkId(kpi.cameraIndex, kpi.keypointIndex, 0u);
+      continue;
+    }
+    multiFramePtr->setLandmarkId(kpi.cameraIndex, kpi.keypointIndex, lmIdA);
+
+    Eigen::Vector2d measurement;
+    multiFramePtr->getKeypoint(kpi.cameraIndex, kpi.keypointIndex, measurement);
+    Eigen::Matrix2d information = Eigen::Matrix2d::Identity();
+    double size = 1.0;
+    multiFramePtr->getKeypointSize(kpi.cameraIndex, kpi.keypointIndex, size);
+    information *= 64.0 / (size * size);
+
+    std::shared_ptr<const okvis::cameras::CameraBase> baseCameraGeometry =
+        camera_rig_.getCameraGeometry(kpi.cameraIndex);
+    std::shared_ptr<const CAMERA_GEOMETRY_T> argCameraGeometry =
+        std::static_pointer_cast<const CAMERA_GEOMETRY_T>(baseCameraGeometry);
+    ::ceres::ResidualBlockId retVal =
+        addPointFrameResidual(lmIdA, kpi.frameId, kpi.cameraIndex, measurement,
+                              information, argCameraGeometry);
+    // remember
+    obsMapA.emplace(kpi, reinterpret_cast<uint64_t>(retVal));
+  }
+  mapPtr_->removeParameterBlock(lmIdB);
+  landmarksMap_.erase(lmItB);
+  return lmIdA;
+}
+
+template <class CAMERA_GEOMETRY_T>
 bool Estimator::addEpipolarConstraint(uint64_t landmarkId, uint64_t poseId,
                                       size_t camIdx, size_t keypointIdx,
                                       bool removeExisting) {

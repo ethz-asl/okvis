@@ -15,6 +15,7 @@ add_library(${PROJECT_NAME}
   src/FrameMatchingStats.cpp
   src/Frontend.cpp
   src/StereoMatchingAlgorithm.cpp
+  src/TwoViewGeometry.cpp
   src/VioKeyframeWindowMatchingAlgorithm.cpp
   src/stereo_triangulation.cpp
   src/ProbabilisticStereoTriangulator.cpp

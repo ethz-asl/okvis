@@ -112,6 +112,10 @@ class StereoMatchingAlgorithm : public okvis::MatchingAlgorithm {
   /// \brief Set the distance threshold for which matches exceeding it will not be returned as matches.
   void setDistanceThreshold(float distanceThreshold);
 
+  virtual float epipolarDistanceThreshold() const;
+
+  void setEpipolarDistanceThreshold(float distanceThreshold);
+
   /// \brief Should we skip the item in list A? This will be called once for each item in the list
   virtual bool skipA(size_t indexA) const {
     return skipA_[indexA];
@@ -184,6 +188,10 @@ class StereoMatchingAlgorithm : public okvis::MatchingAlgorithm {
 
   /// Distances above this threshold will not be returned as matches.
   float distanceThreshold_;
+
+  float epipolarDistanceThreshold_;
+
+  float epipolarDistanceThresholdSquared_;
 
   /// \name Store some transformations that are often used
   /// \{

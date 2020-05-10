@@ -555,9 +555,6 @@ void Frontend::matchStereo(okvis::Estimator& estimator,
 
   for (size_t im0 = 0; im0 < camNumber; im0++) {
     for (size_t im1 = im0 + 1; im1 < camNumber; im1++) {
-      // first, check the possibility for overlap
-      // FIXME: implement this in the Multiframe...!!
-
       // check overlap
       if(!multiFrame->hasOverlap(im0, im1)){
         continue;
@@ -569,22 +566,21 @@ void Frontend::matchStereo(okvis::Estimator& estimator,
                                            false);  // TODO: make sure this is changed when switching back to uncertainty based matching
       matchingAlgorithm.setFrames(mfId, mfId, im0, im1);  // newest frame
 
-      // TODO(jhuai): do 3D-2D, 2D-2D, 3D-3D matching in one step, so that
+      // do 3D-2D, 2D-2D, 3D-3D matching in one step, so that
       // epipolar line can be used for removing outliers and
       // feature tracks corresponding to landmarks can be fused.
-//      matchingAlgorithm.setMatchingType(MATCHING_ALGORITHM::Match3D3D);
-//      matcher_->match<MATCHING_ALGORITHM>(matchingAlgorithm);
+      matcher_->match<MATCHING_ALGORITHM>(matchingAlgorithm);
 
       // match 2D-2D
-      matcher_->match<MATCHING_ALGORITHM>(matchingAlgorithm);
+//      matcher_->match<MATCHING_ALGORITHM>(matchingAlgorithm);
 
       // match 3D-2D
-      matchingAlgorithm.setMatchingType(MATCHING_ALGORITHM::Match3D2D);
-      matcher_->match<MATCHING_ALGORITHM>(matchingAlgorithm);
+//      matchingAlgorithm.setMatchingType(MATCHING_ALGORITHM::Match3D2D);
+//      matcher_->match<MATCHING_ALGORITHM>(matchingAlgorithm);
 
       // match 2D-3D
-      matchingAlgorithm.setFrames(mfId, mfId, im1, im0);  // newest frame
-      matcher_->match<MATCHING_ALGORITHM>(matchingAlgorithm);
+//      matchingAlgorithm.setFrames(mfId, mfId, im1, im0);  // newest frame
+//      matcher_->match<MATCHING_ALGORITHM>(matchingAlgorithm);
     }
   }
 

@@ -112,6 +112,30 @@ struct KeypointIdentifier
 
 };
 
+struct IsObservedInNFrame {
+  IsObservedInNFrame(uint64_t x) : frameId(x) {}
+  bool operator()(
+      const std::pair<okvis::KeypointIdentifier, uint64_t> &v) const {
+    return v.first.frameId == frameId;
+  }
+
+ private:
+  uint64_t frameId;  ///< Multiframe ID.
+};
+
+struct IsObservedInFrame {
+  IsObservedInFrame(uint64_t _frameId, size_t _camIdx) :
+    frameId(_frameId), cameraIndex(_camIdx) {}
+  bool operator()(
+      const std::pair<okvis::KeypointIdentifier, uint64_t> &v) const {
+    return v.first.frameId == frameId && v.first.cameraIndex == cameraIndex;
+  }
+
+ private:
+  uint64_t frameId;  ///< Multiframe ID.
+  size_t cameraIndex;
+};
+
 /// \brief Type to store the result of matching.
 struct Match
 {
