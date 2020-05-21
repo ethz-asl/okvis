@@ -290,8 +290,24 @@ class PointSharedData {
     return stateInfoForObservations_[index].omega_Btij;
   }
 
+  Eigen::Vector3d v_WBtij(int index) const {
+    return stateInfoForObservations_[index].v_WBtij;
+  }
+
   okvis::kinematics::Transformation T_WBtij_ForJacobian(int index) const {
     return stateInfoForObservations_[index].lP_T_WBtij;
+  }
+
+  Eigen::Matrix3d Phi_pq_feature(int observationIndex) const {
+    const StateInfoForOneKeypoint& item =
+        stateInfoForObservations_[observationIndex];
+    double relFeatureTime = normalizedFeatureTime(item);
+    Eigen::Vector3d gW(0, 0, -imuParameters_->g);
+    Eigen::Vector3d dr =
+        -(item.lP_T_WBtij.r() - item.positionVelocityPtr->head<3>() -
+          item.positionVelocityPtr->tail<3>() * relFeatureTime -
+          0.5 * gW * relFeatureTime * relFeatureTime);
+    return okvis::kinematics::crossMx(dr);
   }
 
   Eigen::Vector3d v_WBtij_ForJacobian(int index) const {

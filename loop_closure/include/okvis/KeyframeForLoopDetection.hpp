@@ -270,6 +270,7 @@ class LoopQueryKeyframeMessage {
         multiframe->cameraSystem(), multiframe->timestamp(), multiframe->id()));
     // shallow copy one image.
     nframe->setImage(kQueryCameraIndex, multiframe->image(kQueryCameraIndex));
+    nframe->setTimestamp(multiframe->timestamp());
     nframe->setTimestamp(kQueryCameraIndex, multiframe->timestamp(kQueryCameraIndex));
     nframe->resetKeypoints(kQueryCameraIndex,
                            multiframe->getKeypoints(kQueryCameraIndex));

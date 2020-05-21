@@ -163,14 +163,17 @@ TEST(okvisTestSuite, Estimator) {
       // assemble a multi-frame
       std::shared_ptr<okvis::MultiFrame> mf(new okvis::MultiFrame);
       mf->setId(okvis::IdProvider::instance().newId());
-      mf->setTimestamp(t0 + okvis::Duration(double(k) * DURATION / double(K)));
+      okvis::Time nframeStamp = t0 + okvis::Duration(double(k) * DURATION / double(K));
+      mf->setTimestamp(nframeStamp);
 
       // reference ID will be and stay the first frame added.
       id = mf->id();
 
       // add frames
       mf->resetCameraSystemAndFrames(*cameraSystem);
-
+      for (size_t c = 0; c < cameraSystem->numCameras(); ++c) {
+        mf->setTimestamp(c, nframeStamp);
+      }
       // add it in the window to create a new time instance
       estimator.addStates(mf, imuMeasurements, k % 3 == 0);
       std::cout << "Frame " << k << " successfully added." << std::endl;
