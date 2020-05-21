@@ -505,7 +505,7 @@ bool PinholeCamera<DISTORTION_T>::backProjectHomogeneous(
   Eigen::Vector3d ray;
   bool success = backProject(imagePoint, &ray);
   direction->template head<3>() = ray;
-  (*direction)[4] = 1.0;  // arbitrary
+  (*direction)[3] = 1.0;  // arbitrary
   return success;
 }
 
@@ -519,7 +519,7 @@ bool PinholeCamera<DISTORTION_T>::backProjectHomogeneous(
   Eigen::Matrix<double, 3, 2> pointJacobian3;
   bool success = backProject(imagePoint, &ray, &pointJacobian3);
   direction->template head<3>() = ray;
-  (*direction)[4] = 1.0;  // arbitrary
+  (*direction)[3] = 1.0;  // arbitrary
   pointJacobian->template bottomRightCorner<1,2>() = Eigen::Vector2d::Zero();
   pointJacobian->template topLeftCorner<3, 2>() = pointJacobian3;
   return success;
