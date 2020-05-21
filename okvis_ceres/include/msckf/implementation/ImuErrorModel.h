@@ -80,27 +80,43 @@ IMUErrorModel<Scalar>& IMUErrorModel<Scalar>::operator=(
 }
 
 template <class Scalar>
-void IMUErrorModel<Scalar>::resetBgBa(const Eigen::Matrix<Scalar, 6, 1> b_ga) {
-  b_g = b_ga.template head<3>();
-  b_a = b_ga.template tail<3>();
+void IMUErrorModel<Scalar>::setBg(const Eigen::Matrix<Scalar, 3, 1>& bg) {
+  b_g = bg;
 }
 
 template <class Scalar>
-void IMUErrorModel<Scalar>::estimate(const Eigen::Matrix<Scalar, 3, 1> w_m,
-                                     const Eigen::Matrix<Scalar, 3, 1> a_m) {
+void IMUErrorModel<Scalar>::setBa(const Eigen::Matrix<Scalar, 3, 1>& ba) {
+  b_a = ba;
+}
+
+template <class Scalar>
+void IMUErrorModel<Scalar>::estimate(const Eigen::Matrix<Scalar, 3, 1>& w_m,
+                                     const Eigen::Matrix<Scalar, 3, 1>& a_m) {
   a_est = invT_a * (a_m - b_a);
   w_est = invT_g * (w_m - b_g - T_s * a_est);
 }
+
 template <class Scalar>
-void IMUErrorModel<Scalar>::predict(const Eigen::Matrix<Scalar, 3, 1> w_s,
-                                    const Eigen::Matrix<Scalar, 3, 1> a_s) {
-  a_obs = S_a * a_s + a_s + b_a;
-  w_obs = S_g * w_s + w_s + T_s * a_s + b_g;
+void IMUErrorModel<Scalar>::estimate(const Eigen::Matrix<Scalar, 3, 1>& w_m,
+                                     const Eigen::Matrix<Scalar, 3, 1>& a_m,
+                                     Eigen::Matrix<Scalar, 3, 1>* w_s,
+                                     Eigen::Matrix<Scalar, 3, 1>* a_s) const {
+  *a_s = invT_a * (a_m - b_a);
+  *w_s = invT_g * (w_m - b_g - T_s * (*a_s));
+}
+
+template <class Scalar>
+void IMUErrorModel<Scalar>::predict(const Eigen::Matrix<Scalar, 3, 1>& w_s,
+                                    const Eigen::Matrix<Scalar, 3, 1>& a_s,
+                                    Eigen::Matrix<Scalar, 3, 1>* w_m,
+                                    Eigen::Matrix<Scalar, 3, 1>* a_m) const {
+  *a_m = S_a * a_s + a_s + b_a;
+  *w_m = S_g * w_s + w_s + T_s * a_s + b_g;
 }
 
 template <class Scalar>
 Eigen::Matrix<Scalar, 3, 9> IMUErrorModel<Scalar>::dmatrix3_dvector9_multiply(
-    const Eigen::Matrix<Scalar, 3, 1> rhs) {
+    const Eigen::Matrix<Scalar, 3, 1> rhs) const {
   Eigen::Matrix<Scalar, 3, 9> m = Eigen::Matrix<Scalar, 3, 9>::Zero();
   m.template topLeftCorner<1, 3>() = rhs.transpose();
   m.template block<1, 3>(1, 3) = rhs.transpose();
@@ -109,7 +125,7 @@ Eigen::Matrix<Scalar, 3, 9> IMUErrorModel<Scalar>::dmatrix3_dvector9_multiply(
 }
 
 template <class Scalar>
-Eigen::Matrix<Scalar, 3, 6> IMUErrorModel<Scalar>::domega_B_dbgba() {
+Eigen::Matrix<Scalar, 3, 6> IMUErrorModel<Scalar>::domega_B_dbgba() const {
   Eigen::Matrix<Scalar, 3, 6> dwB_dbgba = Eigen::Matrix<Scalar, 3, 6>::Zero();
   dwB_dbgba.template block<3, 3>(0, 0) = -invT_g;
   dwB_dbgba.template block<3, 3>(0, 3) = invT_g * T_s * invT_a;
@@ -117,7 +133,7 @@ Eigen::Matrix<Scalar, 3, 6> IMUErrorModel<Scalar>::domega_B_dbgba() {
 }
 
 template <class Scalar>
-Eigen::Matrix<Scalar, 3, 27> IMUErrorModel<Scalar>::domega_B_dSgTsSa() {
+Eigen::Matrix<Scalar, 3, 27> IMUErrorModel<Scalar>::domega_B_dSgTsSa() const {
   Eigen::Matrix<Scalar, 3, 27> dwB_dSgTsSa =
       Eigen::Matrix<Scalar, 3, 27>::Zero();
   dwB_dSgTsSa.template block<3, 9>(0, 0) =
@@ -130,14 +146,14 @@ Eigen::Matrix<Scalar, 3, 27> IMUErrorModel<Scalar>::domega_B_dSgTsSa() {
 }
 
 template <class Scalar>
-Eigen::Matrix<Scalar, 3, 6> IMUErrorModel<Scalar>::dacc_B_dbgba() {
+Eigen::Matrix<Scalar, 3, 6> IMUErrorModel<Scalar>::dacc_B_dbgba() const {
   Eigen::Matrix<Scalar, 3, 6> daB_dbgba = Eigen::Matrix<Scalar, 3, 6>::Zero();
   daB_dbgba.template block<3, 3>(0, 3) = -invT_a;
   return daB_dbgba;
 }
 
 template <class Scalar>
-Eigen::Matrix<Scalar, 3, 27> IMUErrorModel<Scalar>::dacc_B_dSgTsSa() {
+Eigen::Matrix<Scalar, 3, 27> IMUErrorModel<Scalar>::dacc_B_dSgTsSa() const {
   Eigen::Matrix<Scalar, 3, 27> daB_dSgTsSa =
       Eigen::Matrix<Scalar, 3, 27>::Zero();
   daB_dSgTsSa.template block<3, 9>(0, 18) =
@@ -147,7 +163,7 @@ Eigen::Matrix<Scalar, 3, 27> IMUErrorModel<Scalar>::dacc_B_dSgTsSa() {
 
 template <class Scalar>
 void IMUErrorModel<Scalar>::dwa_B_dbgbaSTS(
-    Eigen::Matrix<Scalar, 6, 6 + 27>& output) {
+    Eigen::Matrix<Scalar, 6, 6 + 27>& output) const {
   output.template block<3, 6>(0, 0) = domega_B_dbgba();
   output.template block<3, 6>(3, 0) = dacc_B_dbgba();
   output.template block<3, 27>(0, 6) = domega_B_dSgTsSa();

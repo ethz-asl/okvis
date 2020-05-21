@@ -43,40 +43,52 @@ class IMUErrorModel {
 
   IMUErrorModel<Scalar>& operator=(const IMUErrorModel<Scalar>& rhs);
 
-  void resetBgBa(const Eigen::Matrix<Scalar, 6, 1> b_ga);
-  void estimate(const Eigen::Matrix<Scalar, 3, 1> w_m,
-                const Eigen::Matrix<Scalar, 3, 1> a_m);
-  void predict(const Eigen::Matrix<Scalar, 3, 1> w_s,
-               const Eigen::Matrix<Scalar, 3, 1> a_s);
+  void setBg(const Eigen::Matrix<Scalar, 3, 1>& bg);
+
+  void setBa(const Eigen::Matrix<Scalar, 3, 1>& ba);
+
+  void estimate(const Eigen::Matrix<Scalar, 3, 1>& w_m,
+                const Eigen::Matrix<Scalar, 3, 1>& a_m);
+
+  void estimate(const Eigen::Matrix<Scalar, 3, 1>& w_m,
+                const Eigen::Matrix<Scalar, 3, 1>& a_m,
+                Eigen::Matrix<Scalar, 3, 1>* w_est,
+                Eigen::Matrix<Scalar, 3, 1>* a_est) const;
+
+  void predict(const Eigen::Matrix<Scalar, 3, 1>& w_s,
+               const Eigen::Matrix<Scalar, 3, 1>& a_s,
+               Eigen::Matrix<Scalar, 3, 1>* w_m,
+               Eigen::Matrix<Scalar, 3, 1>* a_m) const;
 
   // the following functions refer to Michael Andrew Shelley master thesis 2014
   // with some corrections calculate $\frac{\partial{T_{3\times3}}}{\partial
   // \vec{T}_9}\vec{a}_{3}$
   Eigen::Matrix<Scalar, 3, 9> dmatrix3_dvector9_multiply(
-      const Eigen::Matrix<Scalar, 3, 1> rhs);
+      const Eigen::Matrix<Scalar, 3, 1> rhs) const;
+
   // calculate $\frac{\partial\ \omega_{WB}^B}{\partial {(b_g, b_a)}}$
-  Eigen::Matrix<Scalar, 3, 6> domega_B_dbgba();
+  Eigen::Matrix<Scalar, 3, 6> domega_B_dbgba() const;
   // calculate $\frac{\partial\ \omega_{WB}^B}{\partial {(\vec{T}_g, \vec{T}_s,
   // \vec{T}_a)}}$ which is also
   //$\frac{\partial\ \omega_{WB}^B}{\partial {(\vec{S}_g, \vec{T}_s,
   //\vec{S}_a)}}$
   // Note call this function after estimate because it requires the latest
   // a_est, and w_est
-  Eigen::Matrix<Scalar, 3, 27> domega_B_dSgTsSa();
+  Eigen::Matrix<Scalar, 3, 27> domega_B_dSgTsSa() const;
 
   // calculate $\frac{\partial\ a^B}{\partial {(b_g, b_a)}}$
-  Eigen::Matrix<Scalar, 3, 6> dacc_B_dbgba();
+  Eigen::Matrix<Scalar, 3, 6> dacc_B_dbgba() const;
   // calculate $\frac{\partial\ a^B}{\partial {(\vec{T}_g, \vec{T}_s,
   // \vec{T}_a)}}$ which is also
   //$\frac{\partial\ a^B}{\partial {(\vec{S}_g, \vec{T}_s, \vec{S}_a)}}$
   // Note call this function after estimate because it requires the latest
   // a_est, and w_est
-  Eigen::Matrix<Scalar, 3, 27> dacc_B_dSgTsSa();
+  Eigen::Matrix<Scalar, 3, 27> dacc_B_dSgTsSa() const;
 
   // calculate $\frac{\partial\ [\omega_{WB}^B, a^B]}{\partial {(b_g, b_a,
   // \vec{T}_g, \vec{T}_s, \vec{T}_a)}}$ Note call this function after estimate
   // because it requires the latest a_est, and w_est
-  void dwa_B_dbgbaSTS(Eigen::Matrix<Scalar, 6, 27 + 6>& output);
+  void dwa_B_dbgbaSTS(Eigen::Matrix<Scalar, 6, 27 + 6>& output) const;
 };
 
 #include "../implementation/ImuErrorModel.h"

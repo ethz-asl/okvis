@@ -46,7 +46,7 @@ class IMUOdometry {
       const okvis::ImuMeasurementDeque& imuMeasurements,
       const okvis::ImuParameters& imuParams,
       okvis::kinematics::Transformation& T_WS, Eigen::Vector3d& v_WS,
-      IMUErrorModel<double>& iem, const okvis::Time& t_start,
+      const IMUErrorModel<double>& iem, const okvis::Time& t_start,
       const okvis::Time& t_end,
       Eigen::Matrix<double, ceres::ode::OdoErrorStateDim,
                     ceres::ode::OdoErrorStateDim>* covariance_t = 0,
@@ -58,7 +58,7 @@ class IMUOdometry {
       const okvis::ImuMeasurementDeque& imuMeasurements,
       const okvis::ImuParameters& imuParams,
       okvis::kinematics::Transformation& T_WS, Eigen::Vector3d& v_WS,
-      IMUErrorModel<double>& iem, const okvis::Time& t_start,
+      const IMUErrorModel<double>& iem, const okvis::Time& t_start,
       const okvis::Time& t_end,
       Eigen::Matrix<double, ceres::ode::OdoErrorStateDim,
                     ceres::ode::OdoErrorStateDim>* covariance_t = 0,
@@ -66,12 +66,11 @@ class IMUOdometry {
                     ceres::ode::OdoErrorStateDim>* jacobian = 0);
 
   // t_start is greater than t_end
-  // this function does not support backward covariance propagation
   static int propagationBackward(
       const okvis::ImuMeasurementDeque& imuMeasurements,
       const okvis::ImuParameters& imuParams,
       okvis::kinematics::Transformation& T_WS, Eigen::Vector3d& v_WS,
-      IMUErrorModel<double>& iem, const okvis::Time& t_start,
+      const IMUErrorModel<double>& iem, const okvis::Time& t_start,
       const okvis::Time& t_end);
 
   static int propagation_RungeKutta(
@@ -86,10 +85,18 @@ class IMUOdometry {
       Eigen::Matrix<double, okvis::ceres::ode::OdoErrorStateDim,
                     okvis::ceres::ode::OdoErrorStateDim>* F_tot_ptr = 0);
 
-  // propagate pose, speedAndBias
-  // startTime is greater than finishTime
-  // note this method assumes that the z direction of the world frame is
-  // negative gravity direction
+  /**
+   * @brief propagationBackward_RungeKutta propagate pose, speed and biases.
+   * @warning This method assumes that z direction of the world frame is along negative gravity.
+   * @param imuMeasurements [t0, t1, ..., t_{n-1}]
+   * @param imuParams
+   * @param T_WS pose at t_start
+   * @param speedAndBias linear velocity and bias at t_start
+   * @param vTgTsTa
+   * @param t_start
+   * @param t_end t_start >= t_end
+   * @return number of used IMU measurements
+   */
   static int propagationBackward_RungeKutta(
       const okvis::ImuMeasurementDeque& imuMeasurements,
       const okvis::ImuParameters& imuParams,
@@ -109,7 +116,7 @@ class IMUOdometry {
    *     extrapolation or empty imuMeas
    */
   static bool interpolateInertialData(const okvis::ImuMeasurementDeque& imuMeas,
-                                      IMUErrorModel<double>& iem,
+                                      const IMUErrorModel<double>& iem,
                                       const okvis::Time& queryTime,
                                       okvis::ImuMeasurement& queryValue);
 
@@ -120,7 +127,7 @@ class IMUOdometry {
       okvis::SpeedAndBias& speedAndBiases, const okvis::Time& t_start,
       const okvis::Time& t_end, covariance_t* covariance = 0,
       jacobian_t* jacobian = 0);
-};
+}; // class IMUOdometry
 
 /**
  * @brief poseAndVelocityAtObservation for feature i, estimate

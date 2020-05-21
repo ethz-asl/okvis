@@ -18,7 +18,7 @@ int IMUOdometry::propagation(
     const okvis::ImuMeasurementDeque& imuMeasurements,
     const okvis::ImuParameters& imuParams,
     okvis::kinematics::Transformation& T_WS, Eigen::Vector3d& v_WS,
-    IMUErrorModel<double>& iem, const okvis::Time& t_start,
+    const IMUErrorModel<double>& iem, const okvis::Time& t_start,
     const okvis::Time& t_end,
     Eigen::Matrix<double, ceres::ode::OdoErrorStateDim,
                   ceres::ode::OdoErrorStateDim>* covariance,
@@ -197,12 +197,14 @@ int IMUOdometry::propagation(
     }
 
     Eigen::Quaterniond dq;  // q_{S_{i+1}}^{S_i}
-    iem.estimate(omega_S_0, acc_S_0);
-    Eigen::Vector3d omega_est = iem.w_est;
-    Eigen::Vector3d acc_est = iem.a_est;
-    iem.estimate(omega_S_1, acc_S_1);
-    Eigen::Vector3d omega_est_1 = iem.w_est;
-    Eigen::Vector3d acc_est_1 = iem.a_est;
+
+    Eigen::Vector3d omega_est;
+    Eigen::Vector3d acc_est;
+    iem.estimate(omega_S_0, acc_S_0, &omega_est, &acc_est);
+
+    Eigen::Vector3d omega_est_1;
+    Eigen::Vector3d acc_est_1;
+    iem.estimate(omega_S_1, acc_S_1, &omega_est_1, &acc_est_1);
 
     const Eigen::Vector3d omega_S_true = 0.5 * (omega_est + omega_est_1);
     const double theta_half = omega_S_true.norm() * 0.5 * dt;
@@ -524,7 +526,7 @@ int IMUOdometry::propagation_original(
     const okvis::ImuMeasurementDeque& imuMeasurements,
     const okvis::ImuParameters& imuParams,
     okvis::kinematics::Transformation& T_WS, Eigen::Vector3d& v_WS,
-    IMUErrorModel<double>& iem, const okvis::Time& t_start,
+    const IMUErrorModel<double>& iem, const okvis::Time& t_start,
     const okvis::Time& t_end,
     Eigen::Matrix<double, ceres::ode::OdoErrorStateDim,
                   ceres::ode::OdoErrorStateDim>* covariance,
@@ -684,12 +686,13 @@ int IMUOdometry::propagation_original(
     // actual propagation
     Eigen::Quaterniond dq;  // q_{S_{i+1}}^{S_i}
 
-    iem.estimate(omega_S_0, acc_S_0);
-    Eigen::Vector3d omega_est = iem.w_est;
-    Eigen::Vector3d acc_est = iem.a_est;
-    iem.estimate(omega_S_1, acc_S_1);
-    Eigen::Vector3d omega_est_1 = iem.w_est;
-    Eigen::Vector3d acc_est_1 = iem.a_est;
+    Eigen::Vector3d omega_est;
+    Eigen::Vector3d acc_est;
+    iem.estimate(omega_S_0, acc_S_0, &omega_est, &acc_est);
+
+    Eigen::Vector3d omega_est_1;
+    Eigen::Vector3d acc_est_1;
+    iem.estimate(omega_S_1, acc_S_1, &omega_est_1, &acc_est_1);
 
     const Eigen::Vector3d omega_S_true = 0.5 * (omega_est + omega_est_1);
     const double theta_half = omega_S_true.norm() * 0.5 * dt;
@@ -939,7 +942,7 @@ int IMUOdometry::propagationBackward(
     const okvis::ImuMeasurementDeque& imuMeasurements,
     const okvis::ImuParameters& imuParams,
     okvis::kinematics::Transformation& T_WS, Eigen::Vector3d& v_WS,
-    IMUErrorModel<double>& iem, const okvis::Time& t_start,
+    const IMUErrorModel<double>& iem, const okvis::Time& t_start,
     const okvis::Time& t_end) {
   okvis::Time time = t_start;
 
@@ -1046,12 +1049,13 @@ int IMUOdometry::propagationBackward(
     // actual propagation
     Eigen::Quaterniond dq;  // q_{S_{i+1}}^{S_i}
 
-    iem.estimate(omega_S_0, acc_S_0);
-    Eigen::Vector3d omega_est = iem.w_est;
-    Eigen::Vector3d acc_est = iem.a_est;
-    iem.estimate(omega_S_1, acc_S_1);
-    Eigen::Vector3d omega_est_1 = iem.w_est;
-    Eigen::Vector3d acc_est_1 = iem.a_est;
+    Eigen::Vector3d omega_est;
+    Eigen::Vector3d acc_est;
+    iem.estimate(omega_S_0, acc_S_0, &omega_est, &acc_est);
+
+    Eigen::Vector3d omega_est_1;
+    Eigen::Vector3d acc_est_1;
+    iem.estimate(omega_S_1, acc_S_1, &omega_est_1, &acc_est_1);
 
     const Eigen::Vector3d omega_S_true = 0.5 * (omega_est + omega_est_1);
     const double theta_half = omega_S_true.norm() * 0.5 * dt;
@@ -1262,7 +1266,7 @@ int IMUOdometry::propagationBackward_RungeKutta(
 }
 
 bool IMUOdometry::interpolateInertialData(
-    const okvis::ImuMeasurementDeque& imuMeas, IMUErrorModel<double>& iem,
+    const okvis::ImuMeasurementDeque& imuMeas, const IMUErrorModel<double>& iem,
     const okvis::Time& queryTime, okvis::ImuMeasurement& queryValue) {
   OKVIS_ASSERT_GT(Exception, imuMeas.size(), 0u, "not enough imu meas!");
   auto iterLeft = imuMeas.begin(), iterRight = imuMeas.end();
@@ -1296,9 +1300,8 @@ bool IMUOdometry::interpolateInertialData(
                             iterLeft->measurement.accelerometers) *
                                ratio +
                            iterLeft->measurement.accelerometers;
-  iem.estimate(omega_S0, acc_S0);
-  queryValue.measurement.gyroscopes = iem.w_est;
-  queryValue.measurement.accelerometers = iem.a_est;
+  iem.estimate(omega_S0, acc_S0, &queryValue.measurement.gyroscopes,
+               &queryValue.measurement.accelerometers);
   return true;
 }
 
