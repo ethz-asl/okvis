@@ -17,7 +17,7 @@ InitialNavState::InitialNavState()
 InitialNavState::InitialNavState(const okvis::InitialNavState& rhs)
     : initWithExternalSource(rhs.initWithExternalSource),
       stateTime(rhs.stateTime),
-      p_WS(0, 0, 0),
+      p_WS(rhs.p_WS),
       q_WS(rhs.q_WS),
       v_WS(rhs.v_WS),
       std_p_WS(rhs.std_p_WS),
