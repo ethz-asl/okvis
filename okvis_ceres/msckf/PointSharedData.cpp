@@ -64,9 +64,9 @@ void PointSharedData::computePoseAndVelocityAtObservation() {
 }
 
 void PointSharedData::computePoseAndVelocityForJacobians(
-    bool useLinearizationPoint) {
+    bool useFirstEstimate) {
   CHECK(status_ == PointSharedDataState::NavStateReady);
-  if (useLinearizationPoint) {
+  if (useFirstEstimate) {
     Eigen::Matrix<double, -1, 1> vTGTSTA;
     okvis::getImuAugmentedStatesEstimate(
         imuAugmentedParamBlockPtrs_, &vTGTSTA,

@@ -156,8 +156,11 @@ class PointSharedData {
     return stateInfoForObservations_[anchorIds_[0].observationIndex_].T_WBtij;
   }
 
-  okvis::kinematics::Transformation T_WB_mainAnchorForJacobian() const {
-    return stateInfoForObservations_[anchorIds_[0].observationIndex_].lP_T_WBtij;
+  okvis::kinematics::Transformation T_WB_mainAnchorForJacobian(bool useFirstEstimate) const {
+    if (useFirstEstimate)
+      return stateInfoForObservations_[anchorIds_[0].observationIndex_].lP_T_WBtij;
+    else
+      return T_WB_mainAnchor();
   }
 
   okvis::kinematics::Transformation T_WB_mainAnchorStateEpoch() const {
@@ -168,17 +171,20 @@ class PointSharedData {
             ->estimate();
   }
 
-  okvis::kinematics::Transformation T_WB_mainAnchorStateEpochForJacobian() const {
+  okvis::kinematics::Transformation T_WB_mainAnchorStateEpochForJacobian(
+      bool useFirstEstimate) const {
     const StateInfoForOneKeypoint& mainAnchorItem =
         stateInfoForObservations_.at(anchorIds_[0].observationIndex_);
     okvis::kinematics::Transformation lP_T_WB =
         std::static_pointer_cast<const okvis::ceres::PoseParameterBlock>(
             mainAnchorItem.T_WBj_ptr)
             ->estimate();
-    std::shared_ptr<const Eigen::Matrix<double, 6, 1>> posVelFirstEstimatePtr =
-        mainAnchorItem.positionVelocityPtr;
-    lP_T_WB = okvis::kinematics::Transformation(
-        posVelFirstEstimatePtr->head<3>(), lP_T_WB.q());
+    if (useFirstEstimate) {
+      std::shared_ptr<const Eigen::Matrix<double, 6, 1>>
+          posVelFirstEstimatePtr = mainAnchorItem.positionVelocityPtr;
+      lP_T_WB = okvis::kinematics::Transformation(
+          posVelFirstEstimatePtr->head<3>(), lP_T_WB.q());
+    }
     return lP_T_WB;
   }
   /// @}
