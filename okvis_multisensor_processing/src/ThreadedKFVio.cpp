@@ -90,13 +90,14 @@ ThreadedKFVio::ThreadedKFVio(okvis::VioParameters& parameters)
       frameSynchronizer_(okvis::FrameSynchronizer(parameters)),
       lastAddedImageTimestamp_(okvis::Time(0, 0)),
       optimizationDone_(true),
-      frontend_(new okvis::Frontend(parameters.nCameraSystem.numCameras())),
+      frontend_(new okvis::Frontend(parameters.nCameraSystem.numCameras(),
+                                    parameters.frontendOptions)),
       loopClosureModule_(),
       parameters_(parameters),
       viewerNamePrefix_("Feature matches for camera"),
-      maxImuInputQueueSize_(
-          2 * max_camera_input_queue_size * parameters.imu.rate
-              / parameters.sensors_information.cameraRate) {
+      maxImuInputQueueSize_(2 * max_camera_input_queue_size *
+                            parameters.imu.rate /
+                            parameters.sensors_information.cameraRate) {
   switch (parameters.optimization.algorithm) {
     case EstimatorAlgorithm::General:
       estimator_.reset(new okvis::GeneralEstimator());

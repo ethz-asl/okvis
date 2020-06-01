@@ -279,8 +279,29 @@ struct Optimization{
   bool useEpipolarConstraint;
   int cameraObservationModelId;
 
-  bool initializeWithoutEnoughParallax;
   Optimization();
+};
+
+struct FrontendOptions {
+  ///< Initialize the frontend under insufficient parallax, e.g., during pure
+  ///< rotation?
+  bool initializeWithoutEnoughParallax;
+
+  ///< stereo matching with epipolar check and landmark fusion or
+  /// the okvis stereo matching 2d-2d + 3d-2d + 3d-2d?
+  bool stereoMatchWithEpipolarCheck;
+
+  double epipolarDistanceThreshold;
+
+  ///< 0 default okvis brisk keyframe and back-to-back frame matching
+  ///< 1 KLT back-to-back frame matching,
+  ///< 2 brisk back-to-back frame matching
+  int featureTrackingMethod;
+
+  FrontendOptions(bool initWithoutEnoughParallax = true,
+                  bool stereoWithEpipolarCheck = true,
+                  double epipolarDistanceThreshold = 2.5,
+                  int featureTrackingMethod = 0);
 };
 
 struct PointLandmarkOptions {
@@ -357,6 +378,7 @@ struct VioParameters {
   PublishingParameters publishing; ///< Publishing parameters.
   InputData input;
   InitialNavState initialState;
+  FrontendOptions frontendOptions;
   PointLandmarkOptions pointLandmarkOptions;
   PoseGraphOptions poseGraphOptions;
 };

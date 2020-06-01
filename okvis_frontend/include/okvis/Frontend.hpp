@@ -68,7 +68,7 @@ class Frontend : public VioFrontendInterface {
    * @brief Constructor.
    * @param numCameras Number of cameras in the sensor configuration.
    */
-  Frontend(size_t numCameras);
+  Frontend(size_t numCameras, const FrontendOptions& frontendOptions);
   virtual ~Frontend() {
   }
 
@@ -326,6 +326,8 @@ class Frontend : public VioFrontendInterface {
    */
   float keyframeInsertionMatchingRatioThreshold_;  //0.2
 
+  FrontendOptions frontendOptions_;
+
   /**
    * @brief Decision whether a new frame should be keyframe or not.
    * @param estimator     const reference to the estimator.
@@ -421,6 +423,16 @@ class Frontend : public VioFrontendInterface {
   void initialiseBriskFeatureDetectors();
 
   void matchStereoSwitch(
+      okvis::cameras::NCameraSystem::DistortionType distortionType,
+      okvis::Estimator& estimator,
+      std::shared_ptr<okvis::MultiFrame> framesInOut);
+
+  template <class MATCHING_ALGORITHM>
+  void matchStereoWithEpipolarCheck(
+      okvis::Estimator& estimator,
+      std::shared_ptr<okvis::MultiFrame> multiFrame);
+
+  void matchStereoWithEpipolarCheckSwitch(
       okvis::cameras::NCameraSystem::DistortionType distortionType,
       okvis::Estimator& estimator,
       std::shared_ptr<okvis::MultiFrame> framesInOut);

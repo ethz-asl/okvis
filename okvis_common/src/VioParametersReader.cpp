@@ -237,8 +237,6 @@ void parseOptimizationOptions(cv::FileNode optNode,
   if (optNode["triangulationMaxDepth"].isReal()) {
     optNode["triangulationMaxDepth"] >>
         optParams->triangulationMaxDepth;
-  } else {
-    optParams->triangulationMaxDepth = 1000.0;
   }
   LOG(INFO) << "Max depth in triangulation is set to "
             << optParams->triangulationMaxDepth;
@@ -260,12 +258,30 @@ void parseOptimizationOptions(cv::FileNode optNode,
   LOG(INFO) << "Camera observation model Id "
             << optParams->cameraObservationModelId;
 
-  optParams->initializeWithoutEnoughParallax =
-      optParams->initializeWithoutEnoughParallax;
-  parseBoolean(optNode["initializeWithoutEnoughParallax"],
-               optParams->initializeWithoutEnoughParallax);
+}
+
+void parseFrontendOptions(cv::FileNode frontendNode,
+                          FrontendOptions* frontendOptions) {
+  parseBoolean(frontendNode["initializeWithoutEnoughParallax"],
+               frontendOptions->initializeWithoutEnoughParallax);
   LOG(INFO) << "Initialize without enough parallax? "
-            << optParams->initializeWithoutEnoughParallax;
+            << frontendOptions->initializeWithoutEnoughParallax;
+  parseBoolean(frontendNode["stereoMatchWithEpipolarCheck"],
+               frontendOptions->stereoMatchWithEpipolarCheck);
+  LOG(INFO) << "Stereo match with epipolar check? "
+            << frontendOptions->stereoMatchWithEpipolarCheck;
+  if (frontendNode["epipolarDistanceThreshold"].isReal()) {
+    frontendNode["epipolarDistanceThreshold"] >>
+        frontendOptions->epipolarDistanceThreshold;
+  }
+  LOG(INFO) << "Epipolar distance threshold in stereo matching: "
+            << frontendOptions->epipolarDistanceThreshold;
+  if (frontendNode["featureTrackingMethod"].isInt()) {
+    frontendNode["featureTrackingMethod"] >>
+        frontendOptions->featureTrackingMethod;
+  }
+  LOG(INFO) << "Feature tracking method in frontend: "
+            << frontendOptions->featureTrackingMethod;
 }
 
 void parsePointLandmarkOptions(cv::FileNode plNode,
@@ -321,6 +337,8 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
 
   parseOptimizationOptions(
       file["optimization"], &vioParameters_.optimization);
+
+  parseFrontendOptions(file["frontend"], &vioParameters_.frontendOptions);
 
   parsePointLandmarkOptions(file["point_landmark"], &vioParameters_.pointLandmarkOptions);
 

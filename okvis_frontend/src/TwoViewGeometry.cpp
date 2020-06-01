@@ -1,6 +1,6 @@
 #include "msckf/TwoViewGeometry.hpp"
 namespace okvis {
-double TwoViewGeometry::computeErrorEssentialMat(
+float TwoViewGeometry::computeErrorEssentialMat(
     okvis::kinematics::Transformation T_ji, Eigen::Vector3d bearing_i,
     Eigen::Vector3d bearing_j, double fi, double fj, double sigmai,
     double sigmaj) {
@@ -18,11 +18,11 @@ double TwoViewGeometry::computeErrorEssentialMat(
  * @param focal_length nominal focal length to convert the epipolar line error into error of pixel unit.
  * @return squared distance to epipolar line. Distance has a unit of pixels.
  */
-double TwoViewGeometry::computeErrorEssentialMat(Eigen::Matrix3d E_ji,
-                                                 Eigen::Vector3d bearing_i,
-                                                 Eigen::Vector3d bearing_j,
-                                                 double fi, double fj,
-                                                 double sigmai, double sigmaj) {
+float TwoViewGeometry::computeErrorEssentialMat(Eigen::Matrix3d E_ji,
+                                                Eigen::Vector3d bearing_i,
+                                                Eigen::Vector3d bearing_j,
+                                                double fi, double fj,
+                                                double sigmai, double sigmaj) {
   Eigen::Vector3d abc = E_ji * bearing_i;
   double d1, d2, s1, s2;
   s2 = 1. / (abc[0] * abc[0] + abc[1] * abc[1]);

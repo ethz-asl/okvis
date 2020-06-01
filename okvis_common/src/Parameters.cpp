@@ -111,8 +111,16 @@ Optimization::Optimization()
       triangulationTranslationThreshold(-1.0),
       triangulationMaxDepth(1000.0),
       useEpipolarConstraint(false),
-      cameraObservationModelId(0),
-      initializeWithoutEnoughParallax(true) {}
+      cameraObservationModelId(0) {}
+
+FrontendOptions::FrontendOptions(bool initWithoutEnoughParallax,
+                                 bool stereoWithEpipolarCheck,
+                                 double epipolarDistanceThresh,
+                                 int featureTrackingApproach)
+    : initializeWithoutEnoughParallax(initWithoutEnoughParallax),
+      stereoMatchWithEpipolarCheck(stereoWithEpipolarCheck),
+      epipolarDistanceThreshold(epipolarDistanceThresh),
+      featureTrackingMethod(featureTrackingApproach) {}
 
 PoseGraphOptions::PoseGraphOptions()
     : maxOdometryConstraintForAKeyframe(3) {}

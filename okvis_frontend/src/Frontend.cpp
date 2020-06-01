@@ -68,7 +68,7 @@
 namespace okvis {
 
 // Constructor.
-Frontend::Frontend(size_t numCameras)
+Frontend::Frontend(size_t numCameras, const FrontendOptions& frontendOptions)
     : isInitialized_(false),
       numCameras_(numCameras),
       briskDetectionOctaves_(0),
@@ -81,7 +81,8 @@ Frontend::Frontend(size_t numCameras)
       matcher_(
           std::unique_ptr<okvis::DenseMatcher>(new okvis::DenseMatcher(4))),
       keyframeInsertionOverlapThreshold_(0.6),
-      keyframeInsertionMatchingRatioThreshold_(0.2) {
+      keyframeInsertionMatchingRatioThreshold_(0.2),
+      frontendOptions_(frontendOptions) {
   // create mutexes for feature detectors and descriptor extractors
   for (size_t i = 0; i < numCameras_; ++i) {
     featureDetectorMutexes_.push_back(
@@ -255,6 +256,15 @@ bool Frontend::dataAssociationAndInitialization(
     *asKeyframe = true;  // first frame needs to be keyframe
 
   // do stereo match to get new landmarks
+  matchStereoSwitch(distortionType, estimator, framesInOut);
+
+  return true;
+}
+
+void Frontend::matchStereoSwitch(
+    okvis::cameras::NCameraSystem::DistortionType distortionType,
+    okvis::Estimator& estimator,
+    std::shared_ptr<okvis::MultiFrame> framesInOut) {
   TimerSwitchable matchStereoTimer("2.4.3 matchStereo");
   switch (distortionType) {
     case okvis::cameras::NCameraSystem::RadialTangential: {
@@ -294,9 +304,8 @@ bool Frontend::dataAssociationAndInitialization(
       break;
   }
   matchStereoTimer.stop();
-
-  return true;
 }
+
 
 // Propagates pose, speeds and biases with given IMU measurements.
 bool Frontend::propagation(const okvis::ImuMeasurementDeque & imuMeasurements,
@@ -566,21 +575,16 @@ void Frontend::matchStereo(okvis::Estimator& estimator,
                                            false);  // TODO: make sure this is changed when switching back to uncertainty based matching
       matchingAlgorithm.setFrames(mfId, mfId, im0, im1);  // newest frame
 
-      // do 3D-2D, 2D-2D, 3D-3D matching in one step, so that
-      // epipolar line can be used for removing outliers and
-      // feature tracks corresponding to landmarks can be fused.
+      // match 2D-2D
       matcher_->match<MATCHING_ALGORITHM>(matchingAlgorithm);
 
-      // match 2D-2D
-//      matcher_->match<MATCHING_ALGORITHM>(matchingAlgorithm);
-
       // match 3D-2D
-//      matchingAlgorithm.setMatchingType(MATCHING_ALGORITHM::Match3D2D);
-//      matcher_->match<MATCHING_ALGORITHM>(matchingAlgorithm);
+      matchingAlgorithm.setMatchingType(MATCHING_ALGORITHM::Match3D2D);
+      matcher_->match<MATCHING_ALGORITHM>(matchingAlgorithm);
 
       // match 2D-3D
-//      matchingAlgorithm.setFrames(mfId, mfId, im1, im0);  // newest frame
-//      matcher_->match<MATCHING_ALGORITHM>(matchingAlgorithm);
+      matchingAlgorithm.setFrames(mfId, mfId, im1, im0);  // newest frame
+      matcher_->match<MATCHING_ALGORITHM>(matchingAlgorithm);
     }
   }
 
@@ -589,6 +593,47 @@ void Frontend::matchStereo(okvis::Estimator& estimator,
   // TODO: ensure 1-1 matching.
 
   // TODO: no RANSAC ?
+
+  for (size_t im = 0; im < camNumber; im++) {
+    const size_t ksize = multiFrame->numKeypoints(im);
+    for (size_t k = 0; k < ksize; ++k) {
+      if (multiFrame->landmarkId(im, k) != 0) {
+        continue;  // already identified correspondence
+      }
+      multiFrame->setLandmarkId(im, k, okvis::IdProvider::instance().newId());
+    }
+  }
+}
+
+// Match the frames inside the multiframe to each other to initialise new landmarks.
+template <class MATCHING_ALGORITHM>
+void Frontend::matchStereoWithEpipolarCheck(
+    okvis::Estimator& estimator,
+    std::shared_ptr<okvis::MultiFrame> multiFrame) {
+  const size_t camNumber = multiFrame->numFrames();
+  const uint64_t mfId = multiFrame->id();
+
+  for (size_t im0 = 0; im0 < camNumber; im0++) {
+    for (size_t im1 = im0 + 1; im1 < camNumber; im1++) {
+      // check overlap
+      if(!multiFrame->hasOverlap(im0, im1)){
+        continue;
+      }
+
+      MATCHING_ALGORITHM matchingAlgorithm(estimator,
+                                           MATCHING_ALGORITHM::Match2D2D,
+                                           briskMatchingThreshold_,
+                                           false);
+      matchingAlgorithm.setEpipolarDistanceThreshold(
+          static_cast<float>(frontendOptions_.epipolarDistanceThreshold));
+      matchingAlgorithm.setFrames(mfId, mfId, im0, im1);  // newest frame
+
+      // do 3D-2D, 2D-2D, 3D-3D matching in one step, so that
+      // epipolar line can be used for removing outliers and
+      // feature tracks corresponding to landmarks can be fused.
+      matcher_->match<MATCHING_ALGORITHM>(matchingAlgorithm);
+    }
+  }
 
   for (size_t im = 0; im < camNumber; im++) {
     const size_t ksize = multiFrame->numKeypoints(im);
@@ -872,7 +917,7 @@ void Frontend::initialiseBriskFeatureDetectors() {
   }
 }
 
-void Frontend::matchStereoSwitch(
+void Frontend::matchStereoWithEpipolarCheckSwitch(
     okvis::cameras::NCameraSystem::DistortionType distortionType,
     okvis::Estimator& estimator,
     std::shared_ptr<okvis::MultiFrame> framesInOut) {
@@ -880,28 +925,28 @@ void Frontend::matchStereoSwitch(
   TimerSwitchable matchStereoTimer("2.4.3 matchStereo");
   switch (distortionType) {
     case okvis::cameras::NCameraSystem::RadialTangential: {
-      matchStereo<
+      matchStereoWithEpipolarCheck<
           StereoMatchingAlgorithm<okvis::cameras::PinholeCamera<
               okvis::cameras::RadialTangentialDistortion> > >(estimator,
                                                               framesInOut);
       break;
     }
     case okvis::cameras::NCameraSystem::Equidistant: {
-      matchStereo<
+      matchStereoWithEpipolarCheck<
           StereoMatchingAlgorithm<okvis::cameras::PinholeCamera<
               okvis::cameras::EquidistantDistortion> > >(estimator,
                                                          framesInOut);
       break;
     }
     case okvis::cameras::NCameraSystem::RadialTangential8: {
-      matchStereo<
+      matchStereoWithEpipolarCheck<
           StereoMatchingAlgorithm<okvis::cameras::PinholeCamera<
               okvis::cameras::RadialTangentialDistortion8> > >(estimator,
                                                                framesInOut);
       break;
     }
     case okvis::cameras::NCameraSystem::FOV: {
-      matchStereo<StereoMatchingAlgorithm<
+      matchStereoWithEpipolarCheck<StereoMatchingAlgorithm<
           okvis::cameras::PinholeCamera<okvis::cameras::FovDistortion> > >(
           estimator, framesInOut);
       break;

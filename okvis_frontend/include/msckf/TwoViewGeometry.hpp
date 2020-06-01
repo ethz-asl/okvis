@@ -6,11 +6,11 @@
 namespace okvis {
 class TwoViewGeometry {
  public:
-  static double computeErrorEssentialMat(okvis::kinematics::Transformation T_ji,
-                                         Eigen::Vector3d bearing_i,
-                                         Eigen::Vector3d bearing_j, double fi,
-                                         double fj, double sigmai = 1.0,
-                                         double sigmaj = 1.0);
+  static float computeErrorEssentialMat(okvis::kinematics::Transformation T_ji,
+                                        Eigen::Vector3d bearing_i,
+                                        Eigen::Vector3d bearing_j, double fi,
+                                        double fj, double sigmai = 1.0,
+                                        double sigmaj = 1.0);
 
   /**
    * @brief deviationFromEpipolarLine compute deviation in pixels from the
@@ -25,11 +25,11 @@ class TwoViewGeometry {
    * into error of pixel unit.
    * @return squared distance to epipolar line. Distance has a unit of pixels.
    */
-  static double computeErrorEssentialMat(Eigen::Matrix3d E_ji,
-                                         Eigen::Vector3d bearing_i,
-                                         Eigen::Vector3d bearing_j, double fi,
-                                         double fj, double sigmai = 1.0,
-                                         double sigmaj = 1.0);
+  static float computeErrorEssentialMat(Eigen::Matrix3d E_ji,
+                                        Eigen::Vector3d bearing_i,
+                                        Eigen::Vector3d bearing_j, double fi,
+                                        double fj, double sigmai = 1.0,
+                                        double sigmaj = 1.0);
 };
 }  // namespace okvis
 

@@ -64,8 +64,8 @@ StereoMatchingAlgorithm<CAMERA_GEOMETRY_T>::StereoMatchingAlgorithm(
     bool usePoseUncertainty) {
   matchingType_ = matchingType;
   distanceThreshold_ = distanceThreshold;
-  epipolarDistanceThreshold_ = 2.5;
-  epipolarDistanceThresholdSquared_ = 6.25;
+  epipolarDistanceThreshold_ = 2.5f;
+  epipolarDistanceThresholdSquared_ = 6.25f;
   estimator_ = &estimator;
   usePoseUncertainty_ = usePoseUncertainty;
 }
@@ -329,7 +329,7 @@ bool StereoMatchingAlgorithm<CAMERA_GEOMETRY_T>::verifyMatch(
   frameB_->geometryAs<CAMERA_GEOMETRY_T>(camIdB_)->backProject(
       keypointCoordinatesB, &backProjectionDirectionB);
 
-  double chi2 = TwoViewGeometry::computeErrorEssentialMat(
+  float chi2 = TwoViewGeometry::computeErrorEssentialMat(
       T_CaCb_, backProjectionDirectionB, backProjectionDirectionA, 1.0, 1.0,
       raySigmasB_[indexB], raySigmasA_[indexA]);
   if (chi2 > epipolarDistanceThresholdSquared_) {
