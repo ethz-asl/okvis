@@ -528,6 +528,14 @@ void ThreadedKFVio::frameConsumerLoop(size_t cameraIndex) {
   }
 }
 
+okvis::Time minusSafe(okvis::Time right, okvis::Duration dura) {
+  if (right > okvis::Time(dura.sec, dura.nsec)) {
+    return right - dura;
+  } else {
+    return okvis::Time(0, 0);
+  }
+}
+
 // Loop that matches frames with existing frames.
 void ThreadedKFVio::matchingLoop() {
   TimerSwitchable prepareToAddStateTimer("2.1 prepareToAddState",true);
@@ -555,7 +563,7 @@ void ThreadedKFVio::matchingLoop() {
     okvis::Time imuDataBeginTime =
         lastAddedStateTimestamp_ - Estimator::half_window_;
     if (imuDataBeginTime.toSec() == 0.0) {  // first state not yet added
-      imuDataBeginTime = frame->timestamp() - Estimator::half_window_;
+      imuDataBeginTime = minusSafe(frame->timestamp(), Estimator::half_window_);
     }
     // at maximum Duration(.) sec of data is allowed
     if (imuDataEndTime - imuDataBeginTime > Duration(8)) {
