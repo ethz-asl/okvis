@@ -806,8 +806,6 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
     Tg << initTg[0], initTg[1], initTg[2], initTg[3], initTg[4], initTg[5],
         initTg[6], initTg[7], initTg[8];
     vioParameters_.imu.Tg0 = Tg;
-  } else {
-    vioParameters_.imu.Tg0 << 1, 0, 0, 0, 1, 0, 0, 0, 1;
   }
 
   cv::FileNode initTs = file["imu_params"]["Ts0"];
@@ -816,8 +814,6 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
     Ts << initTs[0], initTs[1], initTs[2], initTs[3], initTs[4], initTs[5],
         initTs[6], initTs[7], initTs[8];
     vioParameters_.imu.Ts0 = Ts;
-  } else {
-    vioParameters_.imu.Ts0.setZero();
   }
 
   cv::FileNode initTa = file["imu_params"]["Ta0"];
@@ -826,8 +822,6 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
     Ta << initTa[0], initTa[1], initTa[2], initTa[3], initTa[4], initTa[5],
         initTa[6], initTa[7], initTa[8];
     vioParameters_.imu.Ta0 = Ta;
-  } else {
-    vioParameters_.imu.Ta0 << 1, 0, 0, 0, 1, 0, 0, 0, 1;
   }
   s.str(std::string());
   s << vioParameters_.imu.Ta0.transpose();
@@ -1003,16 +997,11 @@ bool VioParametersReader::getCalibrationViaConfig(
       if ((*it)["extrinsic_opt_mode"].isString()) {
         calib.extrinsicOptMode =
             static_cast<std::string>((*it)["extrinsic_opt_mode"]);
-      } else {
-        calib.extrinsicOptMode = "";
       }
       if ((*it)["projection_opt_mode"].isString()) {
         calib.projOptMode =
             static_cast<std::string>((*it)["projection_opt_mode"]);
-      } else {
-        calib.projOptMode = "";
       }
-
       calibrations.push_back(calib);
       print(calib);
     }

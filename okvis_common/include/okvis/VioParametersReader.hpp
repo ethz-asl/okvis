@@ -113,6 +113,7 @@ class VioParametersReader{
     double readoutTimeSecs;
     std::string projOptMode;
     std::string extrinsicOptMode;
+    CameraCalibration() {}
     std::string toString() const {
       std::stringstream ss;
       ss << "T_SC\n" << T_SC.T3x4()

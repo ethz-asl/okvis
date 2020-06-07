@@ -46,6 +46,8 @@
 #include <okvis/assert_macros.hpp>
 #include <okvis/ceres/ImuError.hpp>
 #include <okvis/KeyframeForLoopDetection.hpp>
+
+#include <msckf/checkSensorRig.hpp>
 #include <msckf/GeneralEstimator.hpp>
 #include <msckf/PriorlessEstimator.hpp>
 
@@ -98,6 +100,8 @@ ThreadedKFVio::ThreadedKFVio(okvis::VioParameters& parameters)
       maxImuInputQueueSize_(2 * max_camera_input_queue_size *
                             parameters.imu.rate /
                             parameters.sensors_information.cameraRate) {
+  doesExtrinsicModelFitImuModel(parameters.nCameraSystem.extrinsicOptRep(0u),
+                                parameters.imu.model_type);
   switch (parameters.optimization.algorithm) {
     case EstimatorAlgorithm::General:
       estimator_.reset(new okvis::GeneralEstimator());
