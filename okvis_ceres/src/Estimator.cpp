@@ -1464,7 +1464,10 @@ bool Estimator::computeCovariance(Eigen::MatrixXd* cov) const {
       Eigen::Matrix<double, -1, -1, Eigen::RowMajor>,
       Eigen::aligned_allocator<Eigen::Matrix<double, -1, -1, Eigen::RowMajor>>>
       varianceList;
-  bool status = mapPtr_->getParameterBlockMinimalCovariance(
+  bool status = false;
+  return status;
+  // TODO(jhuai): Severe Jacobian rank deficiency in computing covariance.
+  status = mapPtr_->getParameterBlockMinimalCovariance(
       parameterBlockIdList, &varianceList);
   if (status) {
     cov->topLeftCorner<6, 6>() = varianceList[0];
@@ -1475,13 +1478,11 @@ bool Estimator::computeCovariance(Eigen::MatrixXd* cov) const {
 
 // getters
 bool Estimator::getStateVariance(
-    Eigen::Matrix<double, Eigen::Dynamic, 1>* /*variances*/) const {
-  return true;
-  // TODO(jhuai): Severe Jacobian rank deficiency in computing covariance.
-//  Eigen::MatrixXd covariance;
-//  bool status = computeCovariance(&covariance);
-//  *variances = covariance.diagonal();
-//  return status;
+    Eigen::Matrix<double, Eigen::Dynamic, 1>* variances) const {
+  Eigen::MatrixXd covariance;
+  bool status = computeCovariance(&covariance);
+  *variances = covariance.diagonal();
+  return status;
 }
 
 bool Estimator::getImageDelay(uint64_t poseId, int camIdx,

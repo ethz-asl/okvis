@@ -335,16 +335,26 @@ bool StereoMatchingAlgorithm<CAMERA_GEOMETRY_T>::verifyMatch(
   if (chi2 > epipolarDistanceThresholdSquared_) {
     return false;
   } else {
-    return true;
+    // check if we can triangulate.
+    Eigen::Vector4d hP;
+    bool canBeInitialized;
+    bool valid = probabilisticStereoTriangulator_.stereoTriangulate(
+        indexA, indexB, hP, canBeInitialized,
+        std::max(raySigmasA_[indexA], raySigmasB_[indexB]));
+    if (valid && canBeInitialized) {
+      return true;
+    } else {
+      return false;
+    }
   }
 
   //  if (matchingType_ == Match2D2D) {
 
   //    // potential 2d2d match - verify by triangulation
   //    Eigen::Vector4d hP;
-  //    bool isParallel;
+  //    bool canBeInitialized;
   //    bool valid = probabilisticStereoTriangulator_.stereoTriangulate(
-  //        indexA, indexB, hP, isParallel, std::max(raySigmasA_[indexA],
+  //        indexA, indexB, hP, canBeInitialized, std::max(raySigmasA_[indexA],
   //        raySigmasB_[indexB]));
   //    if (valid) {
   //      return true;

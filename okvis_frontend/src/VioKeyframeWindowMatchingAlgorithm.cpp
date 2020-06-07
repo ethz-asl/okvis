@@ -309,9 +309,9 @@ bool VioKeyframeWindowMatchingAlgorithm<CAMERA_GEOMETRY_T>::verifyMatch(
 
     // potential 2d2d match - verify by triangulation
     Eigen::Vector4d hP;
-    bool isParallel;
+    bool canBeInitialized;
     bool valid = probabilisticStereoTriangulator_.stereoTriangulate(
-        indexA, indexB, hP, isParallel, std::max(raySigmasA_[indexA], raySigmasB_[indexB]));
+        indexA, indexB, hP, canBeInitialized, std::max(raySigmasA_[indexA], raySigmasB_[indexB]));
     if (valid) {
       return true;
     }
