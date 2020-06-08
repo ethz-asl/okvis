@@ -59,23 +59,19 @@ namespace ceres {
 /// implemented in okvis.
 namespace ode {
 
-const int NavErrorStateDim = 9;
-const int ImuErrorStateDim = 6 + 9 + 9 + 9;
-const int OdoErrorStateDim = NavErrorStateDim + ImuErrorStateDim;
+const int kNavErrorStateDim = 9;
 // Note this function assume that the W frame is with z up, negative gravity
 // direction, because in computing sb_dot and G world-centric velocities
 __inline__ void evaluateContinuousTimeOde(
     const Eigen::Vector3d& gyr, const Eigen::Vector3d& acc, double g,
     const Eigen::Vector3d& p_WS_W, const Eigen::Quaterniond& q_WS,
     const okvis::SpeedAndBiases& sb,
-    const Eigen::Matrix<double, 27, 1>& vTgTsTa, Eigen::Vector3d& p_WS_W_dot,
+    const ImuErrorModel<double>& iem, Eigen::Vector3d& p_WS_W_dot,
     Eigen::Vector4d& q_WS_dot, okvis::SpeedAndBiases& sb_dot,
-    Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim>* F_c_ptr = 0) {
-  // "true" rates and accelerations
-  IMUErrorModel<double> iem(sb.tail<6>(), vTgTsTa);
-  iem.estimate(gyr, acc);
-  const Eigen::Vector3d omega_S = iem.w_est;  // gyr - sb.segment<3>(3);
-  const Eigen::Vector3d acc_S = iem.a_est;    // acc - sb.tail<3>();
+    Eigen::MatrixXd* F_c_ptr = 0) {
+  Eigen::Vector3d omega_S;
+  Eigen::Vector3d acc_S;
+  iem.estimate(gyr, acc, &omega_S, &acc_S);
 
   // nonlinear states
   // start with the pose
@@ -106,13 +102,14 @@ __inline__ void evaluateContinuousTimeOde(
     Eigen::Matrix<double, 9, 6> N = Eigen::Matrix<double, 9, 6>::Zero();
     N.block<3, 3>(3, 0) = C_WS;
     N.block<3, 3>(6, 3) = C_WS;
+    int colsF = F_c_ptr->cols();
     Eigen::Matrix<double, 6, 6 + 27> dwaB_dbgbaSTS;
-    iem.dwa_B_dbgbaSTS(dwaB_dbgbaSTS);
-    F_c_ptr->block<9, 6 + 27>(0, 9) = N * dwaB_dbgbaSTS;
+    iem.dwa_B_dbgbaSTS(omega_S, acc_S, dwaB_dbgbaSTS);
+    F_c_ptr->block(0, 9, 9, colsF - 9) = N * dwaB_dbgbaSTS.rightCols(colsF - 9);
   }
 }
 
-// p_WS_W, q_WS, sb, vTgTsTa are states at k
+// p_WS_W, q_WS, sb are states at k
 /* * covariance error states $\Delta y = \Delta[\mathbf{p}_{WS}^W,
 \Delta\mathbf{\alpha}, \Delta\mathbf{v}_S^W,
  * \Delta\mathbf{b_g}, \Delta\mathbf{b_a}, \Delta\mathbf{Tg}, \Delta\mathbf{Ts},
@@ -136,7 +133,7 @@ $k_2 = f(t_n+h/2,y_n\oplus k_1 h/2 ,(u_n +u_{n+1})/2)$
 $k_3 = f(t_n+h/2,y_n\oplus k_2 h/2 ,(u_n +u_{n+1})/2)$
 $k_4 = f(t_n+h,y_n\oplus k_3 h , u_{n+1})$
 $y_{n+1}=y_n\oplus\left(h(k_1 +2k_2 +2k_3 +k_4)/6 \right )$
-Caution: provide both F_tot_ptr(e.g., identity) and P_ptr(e.g., zero) if
+Caution: provide both F_tot_ptr(e.g., identity) and P_ptr(e.g., zero matrix) if
 covariance is to be computed
 */
 __inline__ void integrateOneStep_RungeKutta(
@@ -144,15 +141,36 @@ __inline__ void integrateOneStep_RungeKutta(
     const Eigen::Vector3d& gyr_1, const Eigen::Vector3d& acc_1, double g,
     double sigma_g_c, double sigma_a_c, double sigma_gw_c, double sigma_aw_c,
     double dt, Eigen::Vector3d& p_WS_W, Eigen::Quaterniond& q_WS,
-    okvis::SpeedAndBiases& sb, const Eigen::Matrix<double, 27, 1>& vTgTsTa,
-    Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim>* P_ptr = 0,
-    Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim>* F_tot_ptr = 0) {
+    okvis::SpeedAndBiases& sb, const ImuErrorModel<double>& iem,
+    Eigen::MatrixXd* P_ptr = 0,
+    Eigen::MatrixXd* F_tot_ptr = 0) {
   Eigen::Vector3d k1_p_WS_W_dot;
   Eigen::Vector4d k1_q_WS_dot;
+
   okvis::SpeedAndBiases k1_sb_dot;
-  Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim> k1_F_c;
-  evaluateContinuousTimeOde(gyr_0, acc_0, g, p_WS_W, q_WS, sb, vTgTsTa,
-                            k1_p_WS_W_dot, k1_q_WS_dot, k1_sb_dot, &k1_F_c);
+  int covRows = 0;
+  Eigen::MatrixXd k1_F_c;
+  Eigen::MatrixXd k2_F_c;
+  Eigen::MatrixXd k3_F_c;
+  Eigen::MatrixXd k4_F_c;
+  Eigen::MatrixXd* k1_F_c_ptr = nullptr;
+  Eigen::MatrixXd* k2_F_c_ptr = nullptr;
+  Eigen::MatrixXd* k3_F_c_ptr = nullptr;
+  Eigen::MatrixXd* k4_F_c_ptr = nullptr;
+  if (P_ptr || F_tot_ptr) {
+      covRows = P_ptr ? P_ptr->rows() : F_tot_ptr->rows();
+      k1_F_c.resize(covRows, covRows);
+      k2_F_c.resize(covRows, covRows);
+      k3_F_c.resize(covRows, covRows);
+      k4_F_c.resize(covRows, covRows);
+      k1_F_c_ptr = &k1_F_c;
+      k2_F_c_ptr = &k2_F_c;
+      k3_F_c_ptr = &k3_F_c;
+      k4_F_c_ptr = &k4_F_c;
+  }
+
+  evaluateContinuousTimeOde(gyr_0, acc_0, g, p_WS_W, q_WS, sb, iem,
+                            k1_p_WS_W_dot, k1_q_WS_dot, k1_sb_dot, k1_F_c_ptr);
 
   Eigen::Vector3d p_WS_W1 = p_WS_W;
   Eigen::Quaterniond q_WS1 = q_WS;
@@ -171,10 +189,9 @@ __inline__ void integrateOneStep_RungeKutta(
   Eigen::Vector3d k2_p_WS_W_dot;
   Eigen::Vector4d k2_q_WS_dot;
   okvis::SpeedAndBiases k2_sb_dot;
-  Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim> k2_F_c;
   evaluateContinuousTimeOde(0.5 * (gyr_0 + gyr_1), 0.5 * (acc_0 + acc_1), g,
-                            p_WS_W1, q_WS1, sb1, vTgTsTa, k2_p_WS_W_dot,
-                            k2_q_WS_dot, k2_sb_dot, &k2_F_c);
+                            p_WS_W1, q_WS1, sb1, iem, k2_p_WS_W_dot,
+                            k2_q_WS_dot, k2_sb_dot, k2_F_c_ptr);
 
   Eigen::Vector3d p_WS_W2 = p_WS_W;
   Eigen::Quaterniond q_WS2 = q_WS;
@@ -193,10 +210,9 @@ __inline__ void integrateOneStep_RungeKutta(
   Eigen::Vector3d k3_p_WS_W_dot;
   Eigen::Vector4d k3_q_WS_dot;
   okvis::SpeedAndBiases k3_sb_dot;
-  Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim> k3_F_c;
   evaluateContinuousTimeOde(0.5 * (gyr_0 + gyr_1), 0.5 * (acc_0 + acc_1), g,
-                            p_WS_W2, q_WS2, sb2, vTgTsTa, k3_p_WS_W_dot,
-                            k3_q_WS_dot, k3_sb_dot, &k3_F_c);
+                            p_WS_W2, q_WS2, sb2, iem, k3_p_WS_W_dot,
+                            k3_q_WS_dot, k3_sb_dot, k3_F_c_ptr);
 
   Eigen::Vector3d p_WS_W3 = p_WS_W;
   Eigen::Quaterniond q_WS3 = q_WS;
@@ -215,9 +231,8 @@ __inline__ void integrateOneStep_RungeKutta(
   Eigen::Vector3d k4_p_WS_W_dot;
   Eigen::Vector4d k4_q_WS_dot;
   okvis::SpeedAndBiases k4_sb_dot;
-  Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim> k4_F_c;
-  evaluateContinuousTimeOde(gyr_1, acc_1, g, p_WS_W3, q_WS3, sb3, vTgTsTa,
-                            k4_p_WS_W_dot, k4_q_WS_dot, k4_sb_dot, &k4_F_c);
+  evaluateContinuousTimeOde(gyr_1, acc_1, g, p_WS_W3, q_WS3, sb3, iem,
+                            k4_p_WS_W_dot, k4_q_WS_dot, k4_sb_dot, k4_F_c_ptr);
 
   // now assemble
   p_WS_W +=
@@ -241,33 +256,22 @@ __inline__ void integrateOneStep_RungeKutta(
   if (F_tot_ptr) {
     // compute state transition matrix, note $\frac{d\Phi(t, t_0)}{dt}=
     // F(t)\Phi(t, t_0)$
-    Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim>& F_tot =
-        *F_tot_ptr;
-    const Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim>& J1 =
-        k1_F_c;
-    const Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim> J2 =
-        k2_F_c *
-        (Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim>::Identity() +
-         0.5 * dt * J1);
-    const Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim> J3 =
-        k3_F_c *
-        (Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim>::Identity() +
-         0.5 * dt * J2);
-    const Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim> J4 =
-        k4_F_c *
-        (Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim>::Identity() +
-         dt * J3);
-    Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim> F =
-        Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim>::Identity() +
-        dt * (J1 + 2 * (J2 + J3) + J4) / 6.0;
-    //        + dt * J1;
-    //    std::cout<<J1<<std::endl << std::endl << J2 <<std::endl;
+    Eigen::MatrixXd& F_tot = *F_tot_ptr;
+    const Eigen::MatrixXd& J1 = k1_F_c;
+    const Eigen::MatrixXd J2 =
+        k2_F_c * (Eigen::MatrixXd::Identity(covRows, covRows) + 0.5 * dt * J1);
+    const Eigen::MatrixXd J3 =
+        k3_F_c * (Eigen::MatrixXd::Identity(covRows, covRows) + 0.5 * dt * J2);
+    const Eigen::MatrixXd J4 =
+        k4_F_c * (Eigen::MatrixXd::Identity(covRows, covRows) + dt * J3);
+    Eigen::MatrixXd F = Eigen::MatrixXd::Identity(covRows, covRows) +
+                        dt * (J1 + 2 * (J2 + J3) + J4) / 6.0;
     F_tot =
         (F * F_tot)
             .eval();  // F is $\Phi(t_k, t_{k-1})$, F_tot is $\Phi(t_k, t_{0})$
 
     if (P_ptr) {
-      Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim>& cov = *P_ptr;
+      Eigen::MatrixXd& cov = *P_ptr;
       cov = F * (cov * F.transpose()).eval();
 
       // add process noise
@@ -295,7 +299,7 @@ __inline__ void integrateOneStep_RungeKutta(
   }
 }
 
-/* p_WS_W, q_WS, sb, vTgTsTa are states at k+1, dt= t(k+1) -t(k)
+/* p_WS_W, q_WS, sb are states at k+1, dt= t(k+1) -t(k)
 $y = [\mathbf{p}_{WS}^W, \mathbf{q}_S^W, \mathbf{v}_S^W, \mathbf{b_g},
 \mathbf{b_a}]$ $u = [\mathbf{\omega}_{WS}^S,\mathbf{a}^S]$ $h = t_{n}-t_{n+1}$
 $\mathbf{p}_{WS}^W \oplus = \mathbf{p}_{WS}^W +$
@@ -318,15 +322,36 @@ __inline__ void integrateOneStepBackward_RungeKutta(
     const Eigen::Vector3d& gyr_1, const Eigen::Vector3d& acc_1, double g,
     double sigma_g_c, double sigma_a_c, double sigma_gw_c, double sigma_aw_c,
     double dt, Eigen::Vector3d& p_WS_W, Eigen::Quaterniond& q_WS,
-    okvis::SpeedAndBiases& sb, const Eigen::Matrix<double, 27, 1>& vTgTsTa,
-    Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim>* P_ptr = 0,
-    Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim>* F_tot_ptr = 0) {
+    okvis::SpeedAndBiases& sb, const ImuErrorModel<double>& iem,
+    Eigen::MatrixXd* P_ptr = 0,
+    Eigen::MatrixXd* F_tot_ptr = 0) {
   Eigen::Vector3d k1_p_WS_W_dot;
   Eigen::Vector4d k1_q_WS_dot;
   okvis::SpeedAndBiases k1_sb_dot;
-  Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim> k1_F_c;
-  evaluateContinuousTimeOde(gyr_1, acc_1, g, p_WS_W, q_WS, sb, vTgTsTa,
-                            k1_p_WS_W_dot, k1_q_WS_dot, k1_sb_dot, &k1_F_c);
+
+  int covRows = 0;
+  Eigen::MatrixXd k1_F_c;
+  Eigen::MatrixXd k2_F_c;
+  Eigen::MatrixXd k3_F_c;
+  Eigen::MatrixXd k4_F_c;
+  Eigen::MatrixXd* k1_F_c_ptr = nullptr;
+  Eigen::MatrixXd* k2_F_c_ptr = nullptr;
+  Eigen::MatrixXd* k3_F_c_ptr = nullptr;
+  Eigen::MatrixXd* k4_F_c_ptr = nullptr;
+  if (P_ptr || F_tot_ptr) {
+      covRows = P_ptr ? P_ptr->rows() : F_tot_ptr->rows();
+      k1_F_c.resize(covRows, covRows);
+      k2_F_c.resize(covRows, covRows);
+      k3_F_c.resize(covRows, covRows);
+      k4_F_c.resize(covRows, covRows);
+      k1_F_c_ptr = &k1_F_c;
+      k2_F_c_ptr = &k2_F_c;
+      k3_F_c_ptr = &k3_F_c;
+      k4_F_c_ptr = &k4_F_c;
+  }
+
+  evaluateContinuousTimeOde(gyr_1, acc_1, g, p_WS_W, q_WS, sb, iem,
+                            k1_p_WS_W_dot, k1_q_WS_dot, k1_sb_dot, k1_F_c_ptr);
 
   Eigen::Vector3d p_WS_W1 = p_WS_W;
   Eigen::Quaterniond q_WS1 = q_WS;
@@ -345,10 +370,9 @@ __inline__ void integrateOneStepBackward_RungeKutta(
   Eigen::Vector3d k2_p_WS_W_dot;
   Eigen::Vector4d k2_q_WS_dot;
   okvis::SpeedAndBiases k2_sb_dot;
-  Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim> k2_F_c;
   evaluateContinuousTimeOde(0.5 * (gyr_0 + gyr_1), 0.5 * (acc_0 + acc_1), g,
-                            p_WS_W1, q_WS1, sb1, vTgTsTa, k2_p_WS_W_dot,
-                            k2_q_WS_dot, k2_sb_dot, &k2_F_c);
+                            p_WS_W1, q_WS1, sb1, iem, k2_p_WS_W_dot,
+                            k2_q_WS_dot, k2_sb_dot, k2_F_c_ptr);
 
   Eigen::Vector3d p_WS_W2 = p_WS_W;
   Eigen::Quaterniond q_WS2 = q_WS;
@@ -367,10 +391,9 @@ __inline__ void integrateOneStepBackward_RungeKutta(
   Eigen::Vector3d k3_p_WS_W_dot;
   Eigen::Vector4d k3_q_WS_dot;
   okvis::SpeedAndBiases k3_sb_dot;
-  Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim> k3_F_c;
   evaluateContinuousTimeOde(0.5 * (gyr_0 + gyr_1), 0.5 * (acc_0 + acc_1), g,
-                            p_WS_W2, q_WS2, sb2, vTgTsTa, k3_p_WS_W_dot,
-                            k3_q_WS_dot, k3_sb_dot, &k3_F_c);
+                            p_WS_W2, q_WS2, sb2, iem, k3_p_WS_W_dot,
+                            k3_q_WS_dot, k3_sb_dot, k3_F_c_ptr);
 
   Eigen::Vector3d p_WS_W3 = p_WS_W;
   Eigen::Quaterniond q_WS3 = q_WS;
@@ -389,9 +412,8 @@ __inline__ void integrateOneStepBackward_RungeKutta(
   Eigen::Vector3d k4_p_WS_W_dot;
   Eigen::Vector4d k4_q_WS_dot;
   okvis::SpeedAndBiases k4_sb_dot;
-  Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim> k4_F_c;
-  evaluateContinuousTimeOde(gyr_0, acc_0, g, p_WS_W3, q_WS3, sb3, vTgTsTa,
-                            k4_p_WS_W_dot, k4_q_WS_dot, k4_sb_dot, &k4_F_c);
+  evaluateContinuousTimeOde(gyr_0, acc_0, g, p_WS_W3, q_WS3, sb3, iem,
+                            k4_p_WS_W_dot, k4_q_WS_dot, k4_sb_dot, k4_F_c_ptr);
 
   // now assemble
   p_WS_W -=
@@ -416,31 +438,20 @@ __inline__ void integrateOneStepBackward_RungeKutta(
     assert(false);  // the following section is not well perused and tested
     // compute state transition matrix, note $\frac{d\Phi(t, t_0)}{dt}=
     // F(t)\Phi(t, t_0)$
-    Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim>& F_tot =
-        *F_tot_ptr;
-    const Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim>& J1 =
-        k1_F_c;
-    const Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim> J2 =
-        k2_F_c *
-        (Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim>::Identity() -
-         0.5 * dt * J1);
-    const Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim> J3 =
-        k3_F_c *
-        (Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim>::Identity() -
-         0.5 * dt * J2);
-    const Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim> J4 =
-        k4_F_c *
-        (Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim>::Identity() -
-         dt * J3);
-    Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim> F =
-        Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim>::Identity() -
-        dt * (J1 + 2 * (J2 + J3) + J4) / 6.0;
-    //+ dt * J1;
-    // std::cout<<F<<std::endl;
+    Eigen::MatrixXd& F_tot = *F_tot_ptr;
+    const Eigen::MatrixXd& J1 = k1_F_c;
+    const Eigen::MatrixXd J2 =
+        k2_F_c * (Eigen::MatrixXd::Identity(covRows, covRows) - 0.5 * dt * J1);
+    const Eigen::MatrixXd J3 =
+        k3_F_c * (Eigen::MatrixXd::Identity(covRows, covRows) - 0.5 * dt * J2);
+    const Eigen::MatrixXd J4 =
+        k4_F_c * (Eigen::MatrixXd::Identity(covRows, covRows) - dt * J3);
+    Eigen::MatrixXd F = Eigen::MatrixXd::Identity(covRows, covRows) -
+                        dt * (J1 + 2 * (J2 + J3) + J4) / 6.0;
     F_tot = (F * F_tot).eval();
 
     if (P_ptr) {
-      Eigen::Matrix<double, OdoErrorStateDim, OdoErrorStateDim>& cov = *P_ptr;
+      Eigen::MatrixXd& cov = *P_ptr;
       cov = F * (cov * F.transpose()).eval();
 
       // add process noise

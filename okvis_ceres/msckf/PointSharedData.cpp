@@ -13,10 +13,9 @@ void PointSharedData::computePoseAndVelocityAtObservation() {
   CHECK(status_ >= PointSharedDataState::ImuInfoReady)
       << "Set IMU data, params, camera time params before calling this method.";
   int imuModelId = okvis::ImuModelNameToId(imuParameters_->model_type);
-  Eigen::Matrix<double, -1, 1> vTGTSTA;
-  okvis::getImuAugmentedStatesEstimate(
-      imuAugmentedParamBlockPtrs_, &vTGTSTA,
-      imuModelId);
+  Eigen::Matrix<double, -1, 1> imuAugmentedParams;
+  okvis::getImuAugmentedStatesEstimate(imuAugmentedParamBlockPtrs_,
+                                       &imuAugmentedParams, imuModelId);
   if (0) {
     // naive approach, ignoring the rolling shutter effect and the time offset.
     for (auto& item : stateInfoForObservations_) {
@@ -30,9 +29,9 @@ void PointSharedData::computePoseAndVelocityAtObservation() {
               item.speedAndBiasPtr)
               ->estimate();
       item.v_WBtij = sbj.head<3>();
-      IMUErrorModel<double> iem(sbj.tail<6>(), vTGTSTA, true);
+      ImuErrorModel<double> iem(sbj.tail<6>(), imuAugmentedParams, true);
       okvis::ImuMeasurement interpolatedInertialData;
-      okvis::IMUOdometry::interpolateInertialData(*item.imuMeasurementPtr, iem,
+      okvis::ImuOdometry::interpolateInertialData(*item.imuMeasurementPtr, iem,
                                                   item.stateEpoch,
                                                   interpolatedInertialData);
       item.omega_Btij = interpolatedInertialData.measurement.gyroscopes;
@@ -52,7 +51,7 @@ void PointSharedData::computePoseAndVelocityAtObservation() {
             ->estimate();
     okvis::Duration featureTime(normalizedFeatureTime(item));
     okvis::ImuMeasurement interpolatedInertialData;
-    okvis::poseAndVelocityAtObservation(*item.imuMeasurementPtr, vTGTSTA.data(),
+    okvis::poseAndVelocityAtObservation(*item.imuMeasurementPtr, imuAugmentedParams,
                                         *imuParameters_, item.stateEpoch,
                                         featureTime, &T_WB, &sb,
                                         &interpolatedInertialData, false);
@@ -67,9 +66,9 @@ void PointSharedData::computePoseAndVelocityForJacobians(
     bool useFirstEstimate) {
   CHECK(status_ == PointSharedDataState::NavStateReady);
   if (useFirstEstimate) {
-    Eigen::Matrix<double, -1, 1> vTGTSTA;
+    Eigen::Matrix<double, -1, 1> imuAugmentedParams;
     okvis::getImuAugmentedStatesEstimate(
-        imuAugmentedParamBlockPtrs_, &vTGTSTA,
+        imuAugmentedParamBlockPtrs_, &imuAugmentedParams,
         okvis::ImuModelNameToId(imuParameters_->model_type));
     for (auto& item : stateInfoForObservations_) {
       okvis::kinematics::Transformation lP_T_WB =
@@ -88,7 +87,7 @@ void PointSharedData::computePoseAndVelocityForJacobians(
       lP_sb.head<3>() = posVelFirstEstimatePtr->tail<3>();
       okvis::Duration featureTime(normalizedFeatureTime(item));
       okvis::poseAndLinearVelocityAtObservation(
-          *item.imuMeasurementPtr, vTGTSTA.data(), *imuParameters_,
+          *item.imuMeasurementPtr, imuAugmentedParams, *imuParameters_,
           item.stateEpoch, featureTime, &lP_T_WB, &lP_sb);
       item.lP_v_WBtij = lP_sb.head<3>();
       item.lP_T_WBtij = lP_T_WB;

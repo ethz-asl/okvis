@@ -12,7 +12,7 @@
 
 namespace okvis {
 
-class IMUOdometry {
+class ImuOdometry {
   /// \brief The type of the covariance.
   typedef Eigen::Matrix<double, 15, 15> covariance_t;
 
@@ -26,14 +26,15 @@ class IMUOdometry {
   /**
    * @brief Propagates pose, speeds and biases with given IMU measurements.
    * @remark This can be used externally to perform propagation
+   * @warning covariance and jacobian should be provided at the same time.
    * @param[in] imuMeasurements All the IMU measurements.
    * @param[in] imuParams The parameters to be used.
    * @param[inout] T_WS Start pose.
    * @param[inout] speedAndBiases Start speed and biases.
    * @param[in] t_start Start time.
    * @param[in] t_end End time.
-   * @param[out] covariance Covariance for GIVEN start states.
-   * @param[out] jacobian Jacobian w.r.t. start states.
+   * @param[in,out] covariance Covariance for the propagated state.
+   * @param[in,out] jacobian Jacobian w.r.t. the start state.
    * @param[in] linearizationPointAtTStart is the first estimates of position
    * p_WS and velocity v_WS at t_start
    * @return Number of integration steps.
@@ -46,31 +47,18 @@ class IMUOdometry {
       const okvis::ImuMeasurementDeque& imuMeasurements,
       const okvis::ImuParameters& imuParams,
       okvis::kinematics::Transformation& T_WS, Eigen::Vector3d& v_WS,
-      const IMUErrorModel<double>& iem, const okvis::Time& t_start,
+      const ImuErrorModel<double>& iem, const okvis::Time& t_start,
       const okvis::Time& t_end,
-      Eigen::Matrix<double, ceres::ode::OdoErrorStateDim,
-                    ceres::ode::OdoErrorStateDim>* covariance_t = 0,
-      Eigen::Matrix<double, ceres::ode::OdoErrorStateDim,
-                    ceres::ode::OdoErrorStateDim>* jacobian = 0,
+      Eigen::MatrixXd* covariance_t = 0,
+      Eigen::MatrixXd* jacobian = 0,
       const Eigen::Matrix<double, 6, 1>* linearizationPointAtTStart = 0);
-  // a copy of the original implementation forreference
-  static int propagation_original(
-      const okvis::ImuMeasurementDeque& imuMeasurements,
-      const okvis::ImuParameters& imuParams,
-      okvis::kinematics::Transformation& T_WS, Eigen::Vector3d& v_WS,
-      const IMUErrorModel<double>& iem, const okvis::Time& t_start,
-      const okvis::Time& t_end,
-      Eigen::Matrix<double, ceres::ode::OdoErrorStateDim,
-                    ceres::ode::OdoErrorStateDim>* covariance_t = 0,
-      Eigen::Matrix<double, ceres::ode::OdoErrorStateDim,
-                    ceres::ode::OdoErrorStateDim>* jacobian = 0);
 
   // t_start is greater than t_end
   static int propagationBackward(
       const okvis::ImuMeasurementDeque& imuMeasurements,
       const okvis::ImuParameters& imuParams,
       okvis::kinematics::Transformation& T_WS, Eigen::Vector3d& v_WS,
-      const IMUErrorModel<double>& iem, const okvis::Time& t_start,
+      const ImuErrorModel<double>& iem, const okvis::Time& t_start,
       const okvis::Time& t_end);
 
   static int propagation_RungeKutta(
@@ -78,12 +66,10 @@ class IMUOdometry {
       const okvis::ImuParameters& imuParams,
       okvis::kinematics::Transformation& T_WS,
       okvis::SpeedAndBiases& speedAndBias,
-      const Eigen::Matrix<double, 27, 1>& vTgTsTa, const okvis::Time& t_start,
+      const ImuErrorModel<double>& iem, const okvis::Time& t_start,
       const okvis::Time& t_end,
-      Eigen::Matrix<double, okvis::ceres::ode::OdoErrorStateDim,
-                    okvis::ceres::ode::OdoErrorStateDim>* P_ptr = 0,
-      Eigen::Matrix<double, okvis::ceres::ode::OdoErrorStateDim,
-                    okvis::ceres::ode::OdoErrorStateDim>* F_tot_ptr = 0);
+      Eigen::MatrixXd* P_ptr = 0,
+      Eigen::MatrixXd* F_tot_ptr = 0);
 
   /**
    * @brief propagationBackward_RungeKutta propagate pose, speed and biases.
@@ -92,7 +78,7 @@ class IMUOdometry {
    * @param imuParams
    * @param T_WS pose at t_start
    * @param speedAndBias linear velocity and bias at t_start
-   * @param vTgTsTa
+   * @param iem
    * @param t_start
    * @param t_end t_start >= t_end
    * @return number of used IMU measurements
@@ -102,7 +88,7 @@ class IMUOdometry {
       const okvis::ImuParameters& imuParams,
       okvis::kinematics::Transformation& T_WS,
       okvis::SpeedAndBiases& speedAndBias,
-      const Eigen::Matrix<double, 27, 1>& vTgTsTa, const okvis::Time& t_start,
+      const ImuErrorModel<double>& iem, const okvis::Time& t_start,
       const okvis::Time& t_end);
 
   /**
@@ -116,7 +102,7 @@ class IMUOdometry {
    *     extrapolation or empty imuMeas
    */
   static bool interpolateInertialData(const okvis::ImuMeasurementDeque& imuMeas,
-                                      const IMUErrorModel<double>& iem,
+                                      const ImuErrorModel<double>& iem,
                                       const okvis::Time& queryTime,
                                       okvis::ImuMeasurement& queryValue);
 
@@ -127,7 +113,7 @@ class IMUOdometry {
       okvis::SpeedAndBias& speedAndBiases, const okvis::Time& t_start,
       const okvis::Time& t_end, covariance_t* covariance = 0,
       jacobian_t* jacobian = 0);
-}; // class IMUOdometry
+}; // class ImuOdometry
 
 /**
  * @brief poseAndVelocityAtObservation for feature i, estimate
@@ -146,7 +132,8 @@ class IMUOdometry {
  *     featureTime after correction for biases etc.
  */
 void poseAndVelocityAtObservation(
-    const ImuMeasurementDeque& imuMeas, const double* imuAugmentedParams,
+    const ImuMeasurementDeque& imuMeas,
+    const Eigen::Matrix<double, Eigen::Dynamic, 1>& imuAugmentedParams,
     const okvis::ImuParameters& imuParameters, const okvis::Time& stateEpoch,
     const okvis::Duration& featureTime, kinematics::Transformation* T_WB,
     SpeedAndBiases* sb, okvis::ImuMeasurement* interpolatedInertialData,
@@ -165,7 +152,8 @@ void poseAndVelocityAtObservation(
  * @param sb
  */
 void poseAndLinearVelocityAtObservation(
-    const ImuMeasurementDeque& imuMeas, const double* imuAugmentedParams,
+    const ImuMeasurementDeque& imuMeas,
+    const Eigen::Matrix<double, Eigen::Dynamic, 1>& imuAugmentedParams,
     const okvis::ImuParameters& imuParameters, const okvis::Time& stateEpoch,
     const okvis::Duration& featureTime, kinematics::Transformation* T_WB,
     SpeedAndBiases* sb);

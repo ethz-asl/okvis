@@ -7,7 +7,7 @@
 // easy to implement method. Here we follow exactly the model used in
 // Mingyang Li ICRA 2014 and Shelley 2014 master thesis
 template <class Scalar>
-class IMUErrorModel {
+class ImuErrorModel {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   // a volatile class to estimate linear acceleration and angular rate given
@@ -23,32 +23,32 @@ class IMUErrorModel {
   Eigen::Matrix<Scalar, 3, 3> invT_a;  // inverse of T_a
 
   // intermediate variables
-  Eigen::Matrix<Scalar, 3, 1> a_est;
-  Eigen::Matrix<Scalar, 3, 1> w_est;
-  Eigen::Matrix<Scalar, 3, 1> a_obs;
-  Eigen::Matrix<Scalar, 3, 1> w_obs;
+//  Eigen::Matrix<Scalar, 3, 1> a_est;
+//  Eigen::Matrix<Scalar, 3, 1> w_est;
+//  Eigen::Matrix<Scalar, 3, 1> a_obs;
+//  Eigen::Matrix<Scalar, 3, 1> w_obs;
 
-  IMUErrorModel(const Eigen::Matrix<Scalar, 6, 1> b_ga =
+  ImuErrorModel(const Eigen::Matrix<Scalar, 6, 1>& b_ga =
                     Eigen::Matrix<Scalar, 6, 1>::Zero());
 
-  IMUErrorModel(const Eigen::Matrix<Scalar, 6, 1> b_ga,
-                const Eigen::Matrix<Scalar, 27, 1> shapeMatrices,
+  ImuErrorModel(const Eigen::Matrix<Scalar, 6, 1>& b_ga,
+                const Eigen::Matrix<Scalar, -1, 1>& shapeMatrices,
                 bool bTgTsTa = true);
 
-  IMUErrorModel(const Eigen::Matrix<Scalar, 27, 1> vSaSgTs,
-                const Eigen::Matrix<Scalar, 6, 1> b_ag);
+//  ImuErrorModel(const Eigen::Matrix<Scalar, 27, 1>& vSaSgTs,
+//                const Eigen::Matrix<Scalar, 6, 1>& b_ag);
 
   // copy constructor
-  IMUErrorModel(const IMUErrorModel<Scalar>& iem);
+  ImuErrorModel(const ImuErrorModel<Scalar>& iem);
 
-  IMUErrorModel<Scalar>& operator=(const IMUErrorModel<Scalar>& rhs);
+  ImuErrorModel<Scalar>& operator=(const ImuErrorModel<Scalar>& rhs);
 
   void setBg(const Eigen::Matrix<Scalar, 3, 1>& bg);
 
   void setBa(const Eigen::Matrix<Scalar, 3, 1>& ba);
 
-  void estimate(const Eigen::Matrix<Scalar, 3, 1>& w_m,
-                const Eigen::Matrix<Scalar, 3, 1>& a_m);
+//  void estimate(const Eigen::Matrix<Scalar, 3, 1>& w_m,
+//                const Eigen::Matrix<Scalar, 3, 1>& a_m);
 
   void estimate(const Eigen::Matrix<Scalar, 3, 1>& w_m,
                 const Eigen::Matrix<Scalar, 3, 1>& a_m,
@@ -74,7 +74,9 @@ class IMUErrorModel {
   //\vec{S}_a)}}$
   // Note call this function after estimate because it requires the latest
   // a_est, and w_est
-  Eigen::Matrix<Scalar, 3, 27> domega_B_dSgTsSa() const;
+  Eigen::Matrix<Scalar, 3, 27> domega_B_dSgTsSa(
+      const Eigen::Matrix<Scalar, 3, 1>& w_est,
+      const Eigen::Matrix<Scalar, 3, 1>& a_est) const;
 
   // calculate $\frac{\partial\ a^B}{\partial {(b_g, b_a)}}$
   Eigen::Matrix<Scalar, 3, 6> dacc_B_dbgba() const;
@@ -83,12 +85,15 @@ class IMUErrorModel {
   //$\frac{\partial\ a^B}{\partial {(\vec{S}_g, \vec{T}_s, \vec{S}_a)}}$
   // Note call this function after estimate because it requires the latest
   // a_est, and w_est
-  Eigen::Matrix<Scalar, 3, 27> dacc_B_dSgTsSa() const;
+  Eigen::Matrix<Scalar, 3, 27> dacc_B_dSgTsSa(
+      const Eigen::Matrix<Scalar, 3, 1>& a_est) const;
 
   // calculate $\frac{\partial\ [\omega_{WB}^B, a^B]}{\partial {(b_g, b_a,
   // \vec{T}_g, \vec{T}_s, \vec{T}_a)}}$ Note call this function after estimate
   // because it requires the latest a_est, and w_est
-  void dwa_B_dbgbaSTS(Eigen::Matrix<Scalar, 6, 27 + 6>& output) const;
+  void dwa_B_dbgbaSTS(const Eigen::Matrix<Scalar, 3, 1>& w_est,
+                      const Eigen::Matrix<Scalar, 3, 1>& a_est,
+                      Eigen::Matrix<Scalar, 6, 27 + 6>& output) const;
 };
 
 #include "../implementation/ImuErrorModel.h"

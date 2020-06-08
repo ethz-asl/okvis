@@ -362,14 +362,19 @@ class PointSharedData {
 
   std::vector<okvis::AnchorFrameIdentifier> anchorIds_;
 
-  std::vector<std::shared_ptr<const okvis::ceres::ParameterBlock>> tdParamBlockPtrs_;
-  std::vector<std::shared_ptr<const okvis::ceres::ParameterBlock>> trParamBlockPtrs_;
-  std::vector<std::shared_ptr<const okvis::ceres::ParameterBlock>> imuAugmentedParamBlockPtrs_;
+  std::vector<std::shared_ptr<const okvis::ceres::ParameterBlock>>
+      tdParamBlockPtrs_;
+  std::vector<std::shared_ptr<const okvis::ceres::ParameterBlock>>
+      trParamBlockPtrs_;
+  std::vector<std::shared_ptr<const okvis::ceres::ParameterBlock>>
+      imuAugmentedParamBlockPtrs_;
   const okvis::ImuParameters* imuParameters_;
 
   // The structure of sharedJacobians is determined by an external cameraObservationModelId.
-  std::vector<Eigen::Matrix<double, -1, -1, Eigen::RowMajor>,
-      Eigen::aligned_allocator<Eigen::Matrix<double, -1, -1, Eigen::RowMajor>>> sharedJacobians_;
+  std::vector<
+      Eigen::Matrix<double, -1, -1, Eigen::RowMajor>,
+      Eigen::aligned_allocator<Eigen::Matrix<double, -1, -1, Eigen::RowMajor>>>
+      sharedJacobians_;
   PointSharedDataState status_;
 };
 } // namespace msckf
