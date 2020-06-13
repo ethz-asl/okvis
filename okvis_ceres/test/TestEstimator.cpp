@@ -207,7 +207,7 @@ TEST(okvisTestSuite, Estimator) {
       // check number of landmarks, landmark positions are in camera frame,
       // the constraint list, poses, etc.
       if (isKf) {
-        EXPECT_TRUE(queryKeyframe);
+        EXPECT_TRUE(queryKeyframe != nullptr);
         EXPECT_EQ(queryKeyframe->id_, mf->id());
         EXPECT_EQ(queryKeyframe->stamp_, mf->timestamp());
         okvis::kinematics::Transformation T_WS_kf;
