@@ -100,8 +100,6 @@ ThreadedKFVio::ThreadedKFVio(okvis::VioParameters& parameters)
       maxImuInputQueueSize_(2 * max_camera_input_queue_size *
                             parameters.imu.rate /
                             parameters.sensors_information.cameraRate) {
-  doesExtrinsicModelFitImuModel(parameters.nCameraSystem.extrinsicOptRep(0u),
-                                parameters.imu.model_type);
   switch (parameters.optimization.algorithm) {
     case EstimatorAlgorithm::General:
       estimator_.reset(new okvis::GeneralEstimator());
@@ -115,7 +113,6 @@ ThreadedKFVio::ThreadedKFVio(okvis::VioParameters& parameters)
       break;
   }
   configureBackendAndFrontendPartly(parameters);
-
   setBlocking(false);
   init();
 }
@@ -998,6 +995,8 @@ void ThreadedKFVio::saveStatistics(const std::string &filename) const {
 }
 
 void ThreadedKFVio::configureBackendAndFrontendPartly(okvis::VioParameters& parameters) {
+  doesExtrinsicModelFitImuModel(parameters.nCameraSystem.extrinsicOptRep(0u),
+                                parameters.imu.model_type);
   frontend_->setLandmarkTriangulationParameters(
       parameters.optimization.triangulationTranslationThreshold,
       parameters.optimization.triangulationMaxDepth);
