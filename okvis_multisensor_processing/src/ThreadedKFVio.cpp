@@ -949,7 +949,7 @@ void ThreadedKFVio::dumpCalibrationParameters(uint64_t latestNFrameId, Optimizat
   estimator_->getImuAugmentedStatesEstimate(&result->imuExtraParams_);
   estimator_->getCameraCalibrationEstimate(&result->cameraParams_);
 
-  // bool covStatus = estimator_->getStateVariance(&result->stateVariance_);
+  estimator_->getStateVariance(&result->stateVariance_);
 }
 
 // Loop that publishes the newest state and landmarks.
