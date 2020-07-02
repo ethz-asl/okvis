@@ -111,7 +111,7 @@ if(${USE_SYSTEM_BRISK})
   message(STATUS "Using system brisk. Found at ${BRISK_INCLUDE_DIRS}.")
 else()
   ExternalProject_Add(brisk_external
-    URL "https://www.doc.ic.ac.uk/~sleutene/software/brisk-2.0.3.zip"    
+    URL "https://www.doc.ic.ac.uk/~sleutene/software/brisk-2.0.5.zip"    
     INSTALL_DIR ${CMAKE_BINARY_DIR}
     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR> -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/brisk
@@ -152,6 +152,7 @@ else()
     GIT_TAG ${CERES_TAG}
     UPDATE_COMMAND ""
     INSTALL_DIR ${CMAKE_BINARY_DIR}
+    PATCH_COMMAND patch internal/ceres/schur_eliminator.h < ${CMAKE_CURRENT_SOURCE_DIR}/ceres.patch
     CMAKE_ARGS 
       -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR> 
       -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
