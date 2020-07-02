@@ -53,7 +53,7 @@ macro(_eigen3_check_version)
   endif(NOT EIGEN_VERSION_OK)
 endmacro(_eigen3_check_version)
 
-if (EIGEN_INCLUDE_DIRS)
+if (EIGEN_INCLUDE_DIR)
 
   # in cache already
   _eigen3_check_version()
