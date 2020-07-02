@@ -72,6 +72,8 @@ TEST(okvisTestSuite, Estimator) {
     imuParameters.sigma_a_c = 2.0e-3;
     imuParameters.sigma_gw_c = 3.0e-6;
     imuParameters.sigma_aw_c = 2.0e-5;
+    imuParameters.sigma_ba = 0.1;
+    imuParameters.sigma_bg = 0.03;
     imuParameters.tau = 3600.0;
     std::cout << "case " << c % 2 << ", " << c / 2 << std::endl;
 
