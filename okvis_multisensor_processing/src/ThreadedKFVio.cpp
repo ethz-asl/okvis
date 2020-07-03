@@ -873,7 +873,7 @@ void ThreadedKFVio::publisherLoop() {
                                        result.vector_of_T_SCi);
     if (landmarksCallback_ && !result.landmarksVector.empty())
       landmarksCallback_(result.stamp, result.landmarksVector,
-                         result.transferredLandmarks);  //TODO(gohlp): why two maps?
+                         result.transferredLandmarks, result.T_WS, result.vector_of_T_SCi);  //TODO(gohlp): why two maps?
   }
 }
 

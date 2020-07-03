@@ -83,8 +83,11 @@ class VioInterface {
               Eigen::aligned_allocator<okvis::kinematics::Transformation> >&)> FullStateCallbackWithExtrinsics;
   typedef Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic> EigenImage;
   typedef std::function<
-      void(const okvis::Time &, const okvis::MapPointVector &,
-           const okvis::MapPointVector &)> LandmarksCallback;
+      void(const okvis::Time &, const okvis::MapPointVector & actualLandmarks,
+    const okvis::MapPointVector & transferredLandmarks,const okvis::kinematics::Transformation & T_WS,    
+    const std::vector<okvis::kinematics::Transformation,
+        Eigen::aligned_allocator<okvis::kinematics::Transformation> > & extrinsics)> LandmarksCallback;
+      
 
   VioInterface();
   virtual ~VioInterface();
