@@ -392,12 +392,12 @@ class Estimator : public VioBackendInterface
   virtual bool computeCovariance(Eigen::MatrixXd* cov) const;
 
   /**
-   * @brief get variance for nav state (p,q,v), imu(bg ba), and optionally
+   * @brief get std. dev. of state for nav state (p,q,v), imu(bg ba), and optionally
    * imu augmented intrinsic parameters, camera extrinsic, intrinsic, td, tr.
-   * @param variances
-   * @return true if variance of states are computed successfully.
+   * @param stateStd
+   * @return true if std. dev. of states are computed successfully.
    */
-  virtual bool getStateVariance(Eigen::Matrix<double, Eigen::Dynamic, 1>* variances) const;
+  virtual bool getStateStd(Eigen::Matrix<double, Eigen::Dynamic, 1>* stateStd) const;
 
   /**
    * @brief print the most recent nav state estimate and OPTIMIZED sensor

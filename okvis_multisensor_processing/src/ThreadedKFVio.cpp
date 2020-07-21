@@ -949,7 +949,7 @@ void ThreadedKFVio::dumpCalibrationParameters(uint64_t latestNFrameId, Optimizat
   estimator_->getImuAugmentedStatesEstimate(&result->imuExtraParams_);
   estimator_->getCameraCalibrationEstimate(&result->cameraParams_);
 
-  estimator_->getStateVariance(&result->stateVariance_);
+  estimator_->getStateStd(&result->stateStd_);
 }
 
 // Loop that publishes the newest state and landmarks.
@@ -975,7 +975,7 @@ void ThreadedKFVio::publisherLoop() {
       fullStateCallbackWithAllCalibration_(
           result.stamp, result.T_WS, result.speedAndBiases, result.omega_S,
           result.frameIdInSource, result.opt_T_SCi_coeffs, result.imuExtraParams_,
-          result.cameraParams_, result.stateVariance_, result.vector_of_T_SCi);
+          result.cameraParams_, result.stateStd_, result.vector_of_T_SCi);
     }
     if (landmarksCallback_ && !result.landmarksVector.empty())
       landmarksCallback_(result.stamp, result.landmarksVector,

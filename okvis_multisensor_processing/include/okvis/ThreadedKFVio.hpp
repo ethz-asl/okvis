@@ -309,7 +309,7 @@ class ThreadedKFVio : public VioInterface {
     Eigen::Matrix<double, Eigen::Dynamic, 1> imuExtraParams_;
     Eigen::Matrix<double, Eigen::Dynamic, 1> cameraParams_;  ///< camera projection intrinsic parameters, distortion, time delay, readout time
  
-    Eigen::Matrix<double, Eigen::Dynamic, 1> stateVariance_;  ///< variance of nav, imu, [cam extrinsic, intrinsic, td tr] parameters
+    Eigen::Matrix<double, Eigen::Dynamic, 1> stateStd_;  ///< std. dev. of nav, imu, [cam extrinsic, intrinsic, td tr] parameters
   };
 
   /// \brief copy calibration parameters from estimator to optimization result.

@@ -1477,11 +1477,11 @@ bool Estimator::computeCovariance(Eigen::MatrixXd* cov) const {
 }
 
 // getters
-bool Estimator::getStateVariance(
-    Eigen::Matrix<double, Eigen::Dynamic, 1>* variances) const {
+bool Estimator::getStateStd(
+    Eigen::Matrix<double, Eigen::Dynamic, 1>* stateStd) const {
   Eigen::MatrixXd covariance;
   bool status = computeCovariance(&covariance);
-  *variances = covariance.diagonal();
+  *stateStd = covariance.diagonal().cwiseSqrt();
   return status;
 }
 
