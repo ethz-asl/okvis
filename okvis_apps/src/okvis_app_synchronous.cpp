@@ -66,19 +66,40 @@ class PoseViewer
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   constexpr static const double imageSize = 500.0;
-  PoseViewer()
+  PoseViewer(std::string trajectoryCsvPath)
   {
     cv::namedWindow("OKVIS Top View");
     _image.create(imageSize, imageSize, CV_8UC3);
     drawing_ = false;
     showing_ = false;
+    csvFile.open(trajectoryCsvPath);
+    if(csvFile.good()) {
+      csvFile << "timestamp" << ", " << "p_WS_W_x" << ", " << "p_WS_W_y" << ", "
+          << "p_WS_W_z" << ", " << "q_WS_x" << ", " << "q_WS_y" << ", "
+          << "q_WS_z" << ", " << "q_WS_w" << ", " << "v_WS_W_x" << ", "
+          << "v_WS_W_y" << ", " << "v_WS_W_z" << ", " << "b_g_x" << ", "
+          << "b_g_y" << ", " << "b_g_z" << ", " << "b_a_x" << ", " << "b_a_y"
+          << ", " << "b_a_z" << std::endl;
+    }
   }
   // this we can register as a callback
   void publishFullStateAsCallback(
-      const okvis::Time & /*t*/, const okvis::kinematics::Transformation & T_WS,
+      const okvis::Time & t, const okvis::kinematics::Transformation & T_WS,
       const Eigen::Matrix<double, 9, 1> & speedAndBiases,
       const Eigen::Matrix<double, 3, 1> & /*omega_S*/)
   {
+    // write trajectory in any case
+    if(csvFile.good()) {
+      std::stringstream time;
+      time << t.sec << std::setw(9) << std::setfill('0') <<  t.nsec;
+      csvFile << time.str() << ", " << std::scientific
+          << std::setprecision(18)
+          << T_WS.r()[0] << ", " << T_WS.r()[1] << ", " << T_WS.r()[2] << ", "
+          << T_WS.q().x() << ", " << T_WS.q().y() << ", " << T_WS.q().z() << ", " << T_WS.q().w() << ", "
+          << speedAndBiases[0] << ", " << speedAndBiases[1] << ", " << speedAndBiases[2] << ", "
+          << speedAndBiases[3] << ", " << speedAndBiases[4] << ", " << speedAndBiases[5] << ", "
+          << speedAndBiases[6] << ", " << speedAndBiases[7] << ", " << speedAndBiases[8] << ", " << std::endl;
+    }
 
     // just append the path
     Eigen::Vector3d r = T_WS.r();
@@ -193,6 +214,7 @@ class PoseViewer
   const double _frameScale = 0.2;  // [m]
   std::atomic_bool drawing_;
   std::atomic_bool showing_;
+  std::ofstream csvFile;
 };
 
 // this is just a workbench. most of the stuff here will go into the Frontend class.
@@ -222,16 +244,17 @@ int main(int argc, char **argv)
 
   okvis::ThreadedKFVio okvis_estimator(parameters);
 
-  PoseViewer poseViewer;
+  // the folder path
+  std::string path(argv[2]);
+  
+  // viewer
+  PoseViewer poseViewer(path + "/okvis_trajectory.csv");
   okvis_estimator.setFullStateCallback(
       std::bind(&PoseViewer::publishFullStateAsCallback, &poseViewer,
                 std::placeholders::_1, std::placeholders::_2,
                 std::placeholders::_3, std::placeholders::_4));
 
   okvis_estimator.setBlocking(true);
-
-  // the folder path
-  std::string path(argv[2]);
 
   const unsigned int numCameras = parameters.nCameraSystem.numCameras();
 
@@ -299,7 +322,7 @@ int main(int argc, char **argv)
     for (size_t i = 0; i < numCameras; ++i) {
       if (cam_iterators[i] == image_names[i].end()) {
         std::cout << std::endl << "Finished. Press any key to exit." << std::endl << std::flush;
-        cv::waitKey();
+        cv::waitKey(100);
         return 0;
       }
     }
@@ -325,7 +348,7 @@ int main(int argc, char **argv)
       do {
         if (!std::getline(imu_file, line)) {
           std::cout << std::endl << "Finished. Press any key to exit." << std::endl << std::flush;
-          cv::waitKey();
+          cv::waitKey(100);
           return 0;
         }
 
