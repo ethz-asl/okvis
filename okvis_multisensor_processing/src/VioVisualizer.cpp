@@ -90,8 +90,8 @@ cv::Mat VioVisualizer::drawMatches(VisualizationData::Ptr& data,
   cv::Mat current = outimg(cv::Rect(0, rowJump, im_cols, im_rows));
   cv::Mat actKeyframe = outimg(cv::Rect(0, 0, im_cols, im_rows));
 
-  cv::cvtColor(frame->image(image_number), current, CV_GRAY2BGR);
-  cv::cvtColor(keyframe->image(image_number), actKeyframe, CV_GRAY2BGR);
+  cv::cvtColor(frame->image(image_number), current, cv::COLOR_GRAY2BGR);
+  cv::cvtColor(keyframe->image(image_number), actKeyframe, cv::COLOR_GRAY2BGR);
 
   // the keyframe trafo
   Eigen::Vector2d keypoint;
@@ -178,15 +178,15 @@ cv::Mat VioVisualizer::drawMatches(VisualizationData::Ptr& data,
         // found in the keyframe. draw line
         cv::line(outimg, cv::Point2f(keyframePt[0], keyframePt[1]),
                  cv::Point2f(keypoint[0], keypoint[1] + rowJump), color, 1,
-                 CV_AA);
+                 cv::LINE_AA);
         cv::circle(actKeyframe, cv::Point2f(keyframePt[0], keyframePt[1]),
-                   0.5 * it->keypointSize, color, 1, CV_AA);
+                   0.5 * it->keypointSize, color, 1, cv::LINE_AA);
       }
     }
     // draw keypoint
     const double r = 0.5 * it->keypointSize;
     cv::circle(current, cv::Point2f(keypoint[0], keypoint[1]), r, color, 1,
-    CV_AA);
+    cv::LINE_AA);
     cv::KeyPoint cvKeypoint;
     frame->getCvKeypoint(image_number, it->keypointIdx, cvKeypoint);
     const double angle = cvKeypoint.angle / 180.0 * M_PI;
@@ -196,7 +196,7 @@ cv::Mat VioVisualizer::drawMatches(VisualizationData::Ptr& data,
         cv::Point2f(keypoint[0], keypoint[1] + rowJump)
             + cv::Point2f(cos(angle), sin(angle)) * r,
         color, 1,
-        CV_AA);
+        cv::LINE_AA);
   }
   return outimg;
 }
@@ -208,7 +208,7 @@ cv::Mat VioVisualizer::drawKeypoints(VisualizationData::Ptr& data,
   const cv::Mat currentImage = currentFrames->image(cameraIndex);
 
   cv::Mat outimg;
-  cv::cvtColor(currentImage, outimg, CV_GRAY2BGR);
+  cv::cvtColor(currentImage, outimg, cv::COLOR_GRAY2BGR);
   cv::Scalar greenColor(0, 255, 0);  // green
 
   cv::KeyPoint keypoint;

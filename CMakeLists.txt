@@ -97,7 +97,7 @@ find_package( Eigen REQUIRED )
 include_directories(${EIGEN_INCLUDE_DIR})
 
 # require OpenCV
-find_package( OpenCV 3 REQUIRED )
+find_package( OpenCV REQUIRED )
 include_directories(BEFORE ${OpenCV_INCLUDE_DIRS})
 
 # libvisensor
@@ -125,7 +125,7 @@ if(${USE_SYSTEM_BRISK})
   message(STATUS "Using system brisk. Found at ${BRISK_INCLUDE_DIRS}.")
 else()
   ExternalProject_Add(brisk_external
-    URL "https://www.doc.ic.ac.uk/~sleutene/software/brisk-2.0.5.zip"
+    URL "https://www.doc.ic.ac.uk/~sleutene/software/brisk-experimental2.zip"
     UPDATE_COMMAND ""
     INSTALL_DIR ${CMAKE_BINARY_DIR}
     CMAKE_ARGS

@@ -63,9 +63,9 @@ ceres_options:
 
 # detection
 detection_options:
-    threshold: 40.0      # detection threshold. By default the uniformity radius in pixels
+    threshold: 36.0      # detection threshold. By default the uniformity radius in pixels
     octaves: 0           # number of octaves for detection. 0 means single-scale at highest resolution
-    maxNoKeypoints: 400  # restrict to a maximum of this many keypoints per image (strongest ones)
+    maxNoKeypoints: 700  # restrict to a maximum of this many keypoints per image (strongest ones)
 
 # delay of images [s]:
 imageDelay: 0.0  # in case you are using a custom setup, you will have to calibrate this. 0 for the VISensor.
